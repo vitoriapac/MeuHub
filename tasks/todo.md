@@ -34,7 +34,7 @@ Plano: [plan.md](plan.md). Comando de teste: `node tests/run.js`.
   - Verificar: 9 `✓`; o diff dos trechos movidos contra o original é vazio (exceto comandos realocados, listados no commit).
   - Depende de: T4 · Arquivos: `index.html`, `js/app.js`, `js/core.js`, `js/sync.js`, `js/main.js` · Tamanho: M
 
-- [ ] **T6: Finanças para `js/financas.js`**
+- [x] **T6: Finanças para `js/financas.js`**
   - Aceite: todas as telas e abas das Finanças funcionam; os Pacotes D e E ficam no mesmo arquivo se o cenário 9 permitir, ou num segundo trecho registrado no plano.
   - Verificar: 9 `✓`; capturas da tela Finanças (Geral, Mês, Lançamentos) iguais às de antes.
   - Depende de: T5 · Arquivos: `index.html`, `js/app.js`, `js/financas.js` · Tamanho: M
