@@ -22,30 +22,37 @@ const MDB={doc(p){return{get:async()=>snap(p),
 window.firebase={initializeApp(){},auth:Object.assign(()=>MA,{GoogleAuthProvider:function(){}}),firestore:()=>MDB};})();
 </script>`;
 
-function testPage() {
-  let s = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  const swaps = [
-    ['<body>\n', '<body>\n' + MOCK + '\n'],
-    [/const FB_CONFIG=(null|\{[^\n]*?\});/, 'const FB_CONFIG={projectId:"teste"};'],
-    // localStorage.__offline simula os scripts do Firebase sem baixar (sem internet)
-    [/const fbScript=n=>[^\n]*\n/, 'const fbScript=n=>localStorage.getItem("__offline")?Promise.reject(new Error("offline")):Promise.resolve();\n'],
-  ];
-  for (const [from, to] of swaps) {
-    const next = s.replace(from, to);
-    if (next === s) throw new Error('index.html mudou: não achei ' + from);
-    s = next;
-  }
-  return s;
+// Lê o site (index.html + css/ + js/) e aplica o Firebase simulado: o mock entra no <body> do
+// index.html e a config/carregador de teste entram no arquivo que tiver FB_CONFIG, seja qual for.
+function sitePages() {
+  const files = ['index.html', ...['css', 'js'].flatMap(d => fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d)).map(f => d + '/' + f) : [])];
+  const site = Object.fromEntries(files.map(f => ['/' + f, fs.readFileSync(path.join(ROOT, f), 'utf8')]));
+  const swap = (file, from, to) => {
+    const next = site[file].replace(from, to);
+    if (next === site[file]) throw new Error(file + ' mudou: não achei ' + from);
+    site[file] = next;
+  };
+  swap('/index.html', '<body>\n', '<body>\n' + MOCK + '\n');
+  const cfg = Object.keys(site).filter(f => site[f].includes('const FB_CONFIG='));
+  if (cfg.length !== 1) throw new Error('esperava FB_CONFIG em 1 arquivo, achei em: ' + (cfg.join(', ') || 'nenhum'));
+  swap(cfg[0], /const FB_CONFIG=(null|\{[^\n]*?\});/, 'const FB_CONFIG={projectId:"teste"};');
+  // localStorage.__offline simula os scripts do Firebase sem baixar (sem internet)
+  swap(cfg[0], /const fbScript=n=>[^\n]*\n/, 'const fbScript=n=>localStorage.getItem("__offline")?Promise.reject(new Error("offline")):Promise.resolve();\n');
+  site['/'] = site['/index.html'];
+  return site;
 }
 
-function serve(html) {
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
+function serve(site) {
   const srv = http.createServer((req, res) => {
     const p = req.url.split('?')[0];
-    if (p === '/') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(html) }
     // mesma origem, sem o app rodando: limpa o armazenamento sem um timer do app regravar no meio
     if (p === '/limpar') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<script>localStorage.clear();document.title="limpo"</script>') }
+    if (p in site) { res.writeHead(200, { 'Content-Type': TYPES[path.extname(p)] || TYPES['.html'] }); return res.end(site[p]) }
+    if (p !== '/favicon.ico') srv.missing.push(p); // arquivo do site que não existe (ex.: link errado depois de dividir)
     res.writeHead(404); res.end();
   });
+  srv.missing = [];
   return new Promise(r => srv.listen(0, '127.0.0.1', () => r(srv)));
 }
 
@@ -92,7 +99,7 @@ async function launch() {
 }
 
 async function main() {
-  const srv = await serve(testPage()), url = `http://127.0.0.1:${srv.address().port}/`;
+  const srv = await serve(sitePages()), url = `http://127.0.0.1:${srv.address().port}/`;
   const b = await launch(), { ev, waitFor } = b;
 
   // cada cenário começa num aparelho "limpo": sem dados locais, nuvem vazia, sem sessão
@@ -187,14 +194,26 @@ async function main() {
       await ev('localStorage.setItem("hub-gd","{\\"tok\\":\\"x\\"}")'); await open();
       assert.strictEqual(await ev('localStorage.getItem("hub-gd")'), null);
     }],
+    ['9. todas as telas abrem sem erro (menu, abas das Finanças, Início com todos os cards, busca)', async () => {
+      await fresh(); await login('A');
+      // cada tela é desenhada de verdade; uma função "perdida" vira erro de JS e falha aqui
+      const vazias = await ev(`(()=>{const out=[],chk=n=>{render();if($('#main').innerHTML.trim().length<50)out.push(n)};
+        S.cards=cfg().map(c=>({...c,on:true}));
+        for(const k of Object.keys(NAV)){Q='';S.view=k;chk(k)}
+        S.view='financas';for(const [t] of FTABS)for(const v of ['mes','ano']){S.ftab=t;S.fvw=v;chk('financas/'+t+'/'+v)}
+        S.view='dash';Q='a';chk('busca');Q='';S.view='dash';render();return out})()`);
+      assert.deepStrictEqual(vazias, [], 'telas vazias');
+      await sleep(500); // erros assíncronos de desenho (timers, cards do Início)
+    }],
   ];
 
   let failed = 0;
   for (const [name, fn] of scenarios) {
-    b.errors.length = 0;
+    b.errors.length = 0; srv.missing.length = 0;
     try {
       await fn();
       if (b.errors.length) throw new Error('erro de JS na página: ' + b.errors.join(' | '));
+      if (srv.missing.length) throw new Error('arquivos não encontrados: ' + [...new Set(srv.missing)].join(', '));
       console.log('✓ ' + name);
     } catch (e) { failed++; console.log('✗ ' + name + '\n    ' + e.message.split('\n').join('\n    ')) }
   }
