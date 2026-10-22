@@ -15,7 +15,7 @@ Plano: [plan.md](plan.md). Comando de teste: `node tests/run.js`.
   - Depende de: T1 · Arquivos: `index.html` · Tamanho: S
 
 ### Checkpoint 1
-- [x] 9 cenários passam · [x] site local sem erros · [ ] revisão com você
+- [x] 9 cenários passam · [x] site local sem erros · [x] revisão com você
 
 ## Fase 2: dividir
 
@@ -45,11 +45,11 @@ Plano: [plan.md](plan.md). Comando de teste: `node tests/run.js`.
   - Depende de: T6 · Arquivos: `index.html`, `js/app.js`, `js/recursos.js`, `js/inicio.js` · Tamanho: M
 
 ### Checkpoint 2
-- [x] 11 cenários passam · [x] capturas iguais às de antes · [ ] revisão com você
+- [x] 11 cenários passam · [x] capturas iguais às de antes · [x] revisão com você
 
 ## Fase 3: fechar
 
-- [ ] **T8: SPEC, README e publicação**
+- [x] **T8: SPEC, README e publicação**
   - Aceite: as seções Estrutura e Estilo do SPEC descrevem os arquivos novos; a decisão sobre o modo artefato (pergunta 1) está registrada.
   - Verificar: site local com config real sem erros → publicar (com sua aprovação) → no site publicado, todos os `.css`/`.js` respondem 200 e o login aparece.
   - Depende de: T7 · Arquivos: `SPEC.md`, `README.md` · Tamanho: S
