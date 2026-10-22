@@ -1,0 +1,503 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-22T14:02:04.167Z",
+  "title": "Design System: Meu Hub",
+  "extensions": {
+    "colorMeta": {
+      "lilac-signature": {
+        "role": "primary",
+        "displayName": "Lilás de Assinatura",
+        "canonical": "#8350C4",
+        "oklch": "oklch(54.5% 0.175 301)",
+        "tonalRamp": [
+          "oklch(15% 0.175 301)",
+          "oklch(26.4% 0.175 301)",
+          "oklch(37.9% 0.175 301)",
+          "oklch(49.3% 0.175 301)",
+          "oklch(60.7% 0.175 301)",
+          "oklch(72.1% 0.175 301)",
+          "oklch(83.6% 0.175 301)",
+          "oklch(95% 0.175 301)"
+        ]
+      },
+      "lilac-mist": {
+        "role": "primary",
+        "displayName": "Névoa Lilás",
+        "canonical": "#cdb4ec",
+        "oklch": "oklch(81% 0.082 305)",
+        "tonalRamp": [
+          "oklch(15% 0.082 305)",
+          "oklch(26.4% 0.082 305)",
+          "oklch(37.9% 0.082 305)",
+          "oklch(49.3% 0.082 305)",
+          "oklch(60.7% 0.082 305)",
+          "oklch(72.1% 0.082 305)",
+          "oklch(83.6% 0.082 305)",
+          "oklch(95% 0.082 305)"
+        ]
+      },
+      "morning-sky": {
+        "role": "neutral",
+        "displayName": "Céu da Manhã",
+        "canonical": "#eef4f8",
+        "oklch": "oklch(96.4% 0.008 236.6)",
+        "tonalRamp": [
+          "oklch(15% 0.008 236.6)",
+          "oklch(26.4% 0.008 236.6)",
+          "oklch(37.9% 0.008 236.6)",
+          "oklch(49.3% 0.008 236.6)",
+          "oklch(60.7% 0.008 236.6)",
+          "oklch(72.1% 0.008 236.6)",
+          "oklch(83.6% 0.008 236.6)",
+          "oklch(95% 0.008 236.6)"
+        ]
+      },
+      "sky-panel": {
+        "role": "neutral",
+        "displayName": "Painel de Céu",
+        "canonical": "#dbe9f1",
+        "oklch": "oklch(92.6% 0.019 232.5)",
+        "tonalRamp": [
+          "oklch(15% 0.019 232.5)",
+          "oklch(26.4% 0.019 232.5)",
+          "oklch(37.9% 0.019 232.5)",
+          "oklch(49.3% 0.019 232.5)",
+          "oklch(60.7% 0.019 232.5)",
+          "oklch(72.1% 0.019 232.5)",
+          "oklch(83.6% 0.019 232.5)",
+          "oklch(95% 0.019 232.5)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Papel",
+        "canonical": "#fbfdfe",
+        "oklch": "oklch(99.3% 0.003 228.8)",
+        "tonalRamp": [
+          "oklch(15% 0.003 228.8)",
+          "oklch(26.4% 0.003 228.8)",
+          "oklch(37.9% 0.003 228.8)",
+          "oklch(49.3% 0.003 228.8)",
+          "oklch(60.7% 0.003 228.8)",
+          "oklch(72.1% 0.003 228.8)",
+          "oklch(83.6% 0.003 228.8)",
+          "oklch(95% 0.003 228.8)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "#161616",
+        "oklch": "oklch(20% 0 89.9)",
+        "tonalRamp": [
+          "oklch(15% 0 89.9)",
+          "oklch(26.4% 0 89.9)",
+          "oklch(37.9% 0 89.9)",
+          "oklch(49.3% 0 89.9)",
+          "oklch(60.7% 0 89.9)",
+          "oklch(72.1% 0 89.9)",
+          "oklch(83.6% 0 89.9)",
+          "oklch(95% 0 89.9)"
+        ]
+      },
+      "warm-mute": {
+        "role": "neutral",
+        "displayName": "Cinza Quente",
+        "canonical": "#655f50",
+        "oklch": "oklch(48.7% 0.024 88.8)",
+        "tonalRamp": [
+          "oklch(15% 0.024 88.8)",
+          "oklch(26.4% 0.024 88.8)",
+          "oklch(37.9% 0.024 88.8)",
+          "oklch(49.3% 0.024 88.8)",
+          "oklch(60.7% 0.024 88.8)",
+          "oklch(72.1% 0.024 88.8)",
+          "oklch(83.6% 0.024 88.8)",
+          "oklch(95% 0.024 88.8)"
+        ]
+      },
+      "sand-line": {
+        "role": "neutral",
+        "displayName": "Linha de Areia",
+        "canonical": "#d9d2bf",
+        "oklch": "oklch(86.4% 0.027 90.1)",
+        "tonalRamp": [
+          "oklch(15% 0.027 90.1)",
+          "oklch(26.4% 0.027 90.1)",
+          "oklch(37.9% 0.027 90.1)",
+          "oklch(49.3% 0.027 90.1)",
+          "oklch(60.7% 0.027 90.1)",
+          "oklch(72.1% 0.027 90.1)",
+          "oklch(83.6% 0.027 90.1)",
+          "oklch(95% 0.027 90.1)"
+        ]
+      },
+      "slate-blue-tint": {
+        "role": "secondary",
+        "displayName": "Tinta Azul-Ardósia",
+        "canonical": "#a9c3dc",
+        "oklch": "oklch(80.6% 0.045 247.3)",
+        "tonalRamp": [
+          "oklch(15% 0.045 247.3)",
+          "oklch(26.4% 0.045 247.3)",
+          "oklch(37.9% 0.045 247.3)",
+          "oklch(49.3% 0.045 247.3)",
+          "oklch(60.7% 0.045 247.3)",
+          "oklch(72.1% 0.045 247.3)",
+          "oklch(83.6% 0.045 247.3)",
+          "oklch(95% 0.045 247.3)"
+        ]
+      },
+      "pale-sky-tint": {
+        "role": "secondary",
+        "displayName": "Tinta Céu Pálido",
+        "canonical": "#c9e0eb",
+        "oklch": "oklch(89.3% 0.029 228.1)",
+        "tonalRamp": [
+          "oklch(15% 0.029 228.1)",
+          "oklch(26.4% 0.029 228.1)",
+          "oklch(37.9% 0.029 228.1)",
+          "oklch(49.3% 0.029 228.1)",
+          "oklch(60.7% 0.029 228.1)",
+          "oklch(72.1% 0.029 228.1)",
+          "oklch(83.6% 0.029 228.1)",
+          "oklch(95% 0.029 228.1)"
+        ]
+      },
+      "lavender-tint": {
+        "role": "secondary",
+        "displayName": "Tinta Lavanda",
+        "canonical": "#b7aad8",
+        "oklch": "oklch(76.5% 0.066 297.8)",
+        "tonalRamp": [
+          "oklch(15% 0.066 297.8)",
+          "oklch(26.4% 0.066 297.8)",
+          "oklch(37.9% 0.066 297.8)",
+          "oklch(49.3% 0.066 297.8)",
+          "oklch(60.7% 0.066 297.8)",
+          "oklch(72.1% 0.066 297.8)",
+          "oklch(83.6% 0.066 297.8)",
+          "oklch(95% 0.066 297.8)"
+        ]
+      },
+      "coral-negative": {
+        "role": "tertiary",
+        "displayName": "Coral de Alerta",
+        "canonical": "#d0364f",
+        "oklch": "oklch(57.4% 0.189 16.7)",
+        "tonalRamp": [
+          "oklch(15% 0.189 16.7)",
+          "oklch(26.4% 0.189 16.7)",
+          "oklch(37.9% 0.189 16.7)",
+          "oklch(49.3% 0.189 16.7)",
+          "oklch(60.7% 0.189 16.7)",
+          "oklch(72.1% 0.189 16.7)",
+          "oklch(83.6% 0.189 16.7)",
+          "oklch(95% 0.189 16.7)"
+        ]
+      },
+      "night-plum": {
+        "role": "neutral",
+        "displayName": "Noite de Ameixa",
+        "canonical": "#1f1b24",
+        "oklch": "oklch(23.1% 0.018 305.2)",
+        "tonalRamp": [
+          "oklch(15% 0.018 305.2)",
+          "oklch(26.4% 0.018 305.2)",
+          "oklch(37.9% 0.018 305.2)",
+          "oklch(49.3% 0.018 305.2)",
+          "oklch(60.7% 0.018 305.2)",
+          "oklch(72.1% 0.018 305.2)",
+          "oklch(83.6% 0.018 305.2)",
+          "oklch(95% 0.018 305.2)"
+        ]
+      },
+      "night-panel": {
+        "role": "neutral",
+        "displayName": "Painel Noturno",
+        "canonical": "#2c2433",
+        "oklch": "oklch(27.6% 0.029 308.7)",
+        "tonalRamp": [
+          "oklch(15% 0.029 308.7)",
+          "oklch(26.4% 0.029 308.7)",
+          "oklch(37.9% 0.029 308.7)",
+          "oklch(49.3% 0.029 308.7)",
+          "oklch(60.7% 0.029 308.7)",
+          "oklch(72.1% 0.029 308.7)",
+          "oklch(83.6% 0.029 308.7)",
+          "oklch(95% 0.029 308.7)"
+        ]
+      },
+      "night-card": {
+        "role": "neutral",
+        "displayName": "Papel Noturno",
+        "canonical": "#272030",
+        "oklch": "oklch(25.9% 0.031 304.3)",
+        "tonalRamp": [
+          "oklch(15% 0.031 304.3)",
+          "oklch(26.4% 0.031 304.3)",
+          "oklch(37.9% 0.031 304.3)",
+          "oklch(49.3% 0.031 304.3)",
+          "oklch(60.7% 0.031 304.3)",
+          "oklch(72.1% 0.031 304.3)",
+          "oklch(83.6% 0.031 304.3)",
+          "oklch(95% 0.031 304.3)"
+        ]
+      },
+      "moon-ink": {
+        "role": "neutral",
+        "displayName": "Tinta de Lua",
+        "canonical": "#f4efe2",
+        "oklch": "oklch(95.2% 0.018 89.4)",
+        "tonalRamp": [
+          "oklch(15% 0.018 89.4)",
+          "oklch(26.4% 0.018 89.4)",
+          "oklch(37.9% 0.018 89.4)",
+          "oklch(49.3% 0.018 89.4)",
+          "oklch(60.7% 0.018 89.4)",
+          "oklch(72.1% 0.018 89.4)",
+          "oklch(83.6% 0.018 89.4)",
+          "oklch(95% 0.018 89.4)"
+        ]
+      },
+      "night-mute": {
+        "role": "neutral",
+        "displayName": "Cinza Noturno",
+        "canonical": "#a39d8c",
+        "oklch": "oklch(69.6% 0.025 90.8)",
+        "tonalRamp": [
+          "oklch(15% 0.025 90.8)",
+          "oklch(26.4% 0.025 90.8)",
+          "oklch(37.9% 0.025 90.8)",
+          "oklch(49.3% 0.025 90.8)",
+          "oklch(60.7% 0.025 90.8)",
+          "oklch(72.1% 0.025 90.8)",
+          "oklch(83.6% 0.025 90.8)",
+          "oklch(95% 0.025 90.8)"
+        ]
+      },
+      "night-line": {
+        "role": "neutral",
+        "displayName": "Linha Noturna",
+        "canonical": "#3a372e",
+        "oklch": "oklch(33.7% 0.016 91.7)",
+        "tonalRamp": [
+          "oklch(15% 0.016 91.7)",
+          "oklch(26.4% 0.016 91.7)",
+          "oklch(37.9% 0.016 91.7)",
+          "oklch(49.3% 0.016 91.7)",
+          "oklch(60.7% 0.016 91.7)",
+          "oklch(72.1% 0.016 91.7)",
+          "oklch(83.6% 0.016 91.7)",
+          "oklch(95% 0.016 91.7)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Título de cada tela e saudação do Início."
+      },
+      "headline": {
+        "displayName": "Destaque",
+        "purpose": "Números grandes: totais das Finanças, estatísticas da revisão."
+      },
+      "title": {
+        "displayName": "Título",
+        "purpose": "Títulos de bloco que não são painel."
+      },
+      "body": {
+        "displayName": "Corpo",
+        "purpose": "Texto corrido, itens de lista, campos."
+      },
+      "label": {
+        "displayName": "Rótulo",
+        "purpose": "Título de painel, MAIÚSCULAS espaçadas em Cinza Quente."
+      },
+      "caption": {
+        "displayName": "Legenda",
+        "purpose": "Datas, metadados, chips (12px)."
+      }
+    },
+    "shadows": [
+      {
+        "name": "flutuante-alto",
+        "value": "0 20px 60px rgba(0,0,0,.35)",
+        "purpose": "Diálogos sobrepostos: tour e paleta de comandos."
+      },
+      {
+        "name": "flutuante-medio",
+        "value": "0 10px 28px rgba(0,0,0,.18)",
+        "purpose": "Menus suspensos e popovers."
+      },
+      {
+        "name": "flutuante-baixo",
+        "value": "0 6px 18px rgba(0,0,0,.12)",
+        "purpose": "Elementos pequenos que se destacam ao interagir."
+      },
+      {
+        "name": "anel-destaque",
+        "value": "inset 0 0 0 1.5px color-mix(in srgb,var(--s1) 38%,transparent)",
+        "purpose": "Painel que pede atenção (contorno interno, não sombra)."
+      },
+      {
+        "name": "foco",
+        "value": "outline: 2px solid var(--ink); outline-offset: 2px",
+        "purpose": "Foco de teclado de todo controle."
+      }
+    ],
+    "motion": [
+      {
+        "name": "estado",
+        "value": ".15s ease",
+        "purpose": "Cor, fundo e borda de controles ao passar o mouse ou focar."
+      },
+      {
+        "name": "pressionar",
+        "value": "transform .12s ease; scale(.97)",
+        "purpose": "Botões encolhem levemente ao pressionar."
+      },
+      {
+        "name": "tema",
+        "value": ".25s ease",
+        "purpose": "Troca de claro/escuro e de paleta."
+      },
+      {
+        "name": "menos-movimento",
+        "value": "transition:none!important",
+        "purpose": "Com prefers-reduced-motion ou a opção em Aparência, tudo é instantâneo."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "estreito",
+        "value": "520px"
+      },
+      {
+        "name": "celular",
+        "value": "860px"
+      },
+      {
+        "name": "medio",
+        "value": "1100px"
+      },
+      {
+        "name": "largo",
+        "value": "1179px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botão principal",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "A ação principal de uma área: Lançar, Começar, Criar. Uma por área.",
+      "html": "<button class=\"ds-btn-primary\">Lançar</button>",
+      "css": ".ds-btn-primary{font-family:Outfit,system-ui,sans-serif;font-size:15px;background:var(--acc,#8350C4);color:var(--onacc,#ffffff);border:1px solid var(--acc,#8350C4);border-radius:999px;padding:7px 14px;cursor:pointer;transition:background-color .15s ease,color .15s ease,border-color .15s ease,transform .12s ease;}.ds-btn-primary:hover{background:color-mix(in srgb,var(--acc,#8350C4) 88%,#000)}.ds-btn-primary:active{transform:scale(.97)}.ds-btn-primary:focus-visible{outline:2px solid var(--ink,#161616);outline-offset:2px;}"
+    },
+    {
+      "name": "Botão secundário",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Ações de apoio e filtros não selecionados: contorno de tinta sobre papel.",
+      "html": "<button class=\"ds-btn-secondary\">Mais opções</button>",
+      "css": ".ds-btn-secondary{font-family:Outfit,system-ui,sans-serif;font-size:15px;background:var(--card,#fbfdfe);color:var(--ink,#161616);border:1px solid var(--ink,#161616);border-radius:999px;padding:7px 14px;cursor:pointer;transition:background-color .15s ease,color .15s ease,border-color .15s ease,transform .12s ease;}.ds-btn-secondary:hover{background:var(--panel,#dbe9f1)}.ds-btn-secondary:active{transform:scale(.97)}.ds-btn-secondary:focus-visible{outline:2px solid var(--ink,#161616);outline-offset:2px;}.ds-btn-secondary:disabled{opacity:.4;cursor:default}"
+    },
+    {
+      "name": "Botão de ícone",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Círculo com contorno para ações de ícone (desfazer, ocultar valores).",
+      "html": "<button class=\"ds-btn-icon\" aria-label=\"Desfazer\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h10.5a5.5 5.5 0 0 1 0 11H11\"/></svg></button>",
+      "css": ".ds-btn-icon{width:44px;height:44px;display:inline-grid;place-items:center;background:var(--card,#fbfdfe);color:var(--ink,#161616);border:1px solid var(--ink,#161616);border-radius:50%;cursor:pointer;transition:background-color .15s ease,color .15s ease,border-color .15s ease,transform .12s ease;}.ds-btn-icon:hover{background:var(--panel,#dbe9f1)}.ds-btn-icon:active{transform:scale(.97)}.ds-btn-icon:focus-visible{outline:2px solid var(--ink,#161616);outline-offset:2px;}"
+    },
+    {
+      "name": "Campo",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de texto: papel, linha de areia, cantos de 12px.",
+      "html": "<input class=\"ds-input\" placeholder=\"Descrição\" aria-label=\"Descrição\">",
+      "css": ".ds-input{font-family:Outfit,system-ui,sans-serif;font-size:15px;background:var(--card,#fbfdfe);color:var(--ink,#161616);border:1px solid var(--line,#d9d2bf);border-radius:12px;padding:9px 12px;min-width:220px}.ds-input::placeholder{color:var(--mute,#655f50)}.ds-input:focus{outline:2px solid var(--ink,#161616);outline-offset:2px;}"
+    },
+    {
+      "name": "Busca global",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "A pílula de busca no topo de todas as telas.",
+      "html": "<input class=\"ds-search\" type=\"search\" placeholder=\"Buscar em tudo… (Ctrl+K: comandos)\" aria-label=\"Buscar\">",
+      "css": ".ds-search{font-family:Outfit,system-ui,sans-serif;font-size:15px;background:var(--card,#fbfdfe);color:var(--ink,#161616);border:1px solid var(--line,#d9d2bf);border-radius:999px;padding:11px 18px;width:320px}.ds-search::placeholder{color:var(--mute,#655f50)}.ds-search:focus{outline:2px solid var(--ink,#161616);outline-offset:2px;}"
+    },
+    {
+      "name": "Chips de categoria",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Classificam itens com as tintas pastel; texto sempre escuro.",
+      "html": "<span class=\"ds-chip ds-p\">Tarefa</span><span class=\"ds-chip ds-b\">Evento</span><span class=\"ds-chip ds-y\">Moradia</span><span class=\"ds-chip ds-g\">Hábitos</span>",
+      "css": ".ds-chip{display:inline-block;font-family:Outfit,system-ui,sans-serif;font-size:12px;color:#161616;border-radius:999px;padding:1px 9px;margin-right:6px}.ds-p{background:var(--pink,#cdb4ec)}.ds-b{background:var(--blue,#a9c3dc)}.ds-y{background:var(--yellow,#c9e0eb)}.ds-g{background:var(--green,#b7aad8)}"
+    },
+    {
+      "name": "Painel com itens",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "A unidade de organização: painel de céu, rótulo em maiúsculas, itens em papel. Sem sombra.",
+      "html": "<section class=\"ds-panel\"><h2 class=\"ds-label\">Precisa de atenção</h2><div class=\"ds-item\"><span class=\"ds-chip ds-b\">Tarefa</span><div class=\"ds-t\"><strong>Pagar boleto</strong><small>Vence hoje</small></div><button class=\"ds-btn-secondary\">Abrir</button></div><div class=\"ds-item\"><span class=\"ds-chip ds-g\">Hábitos</span><div class=\"ds-t\"><strong>1 hábito de hoje pendente</strong></div><button class=\"ds-btn-secondary\">Abrir</button></div></section>",
+      "css": ".ds-panel{background:var(--panel,#dbe9f1);border-radius:22px;padding:16px;max-width:520px;font-family:Outfit,system-ui,sans-serif;color:var(--ink,#161616)}.ds-label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--mute,#655f50);margin:0 0 10px}.ds-item{display:flex;gap:10px;align-items:center;background:var(--card,#fbfdfe);border-radius:14px;padding:10px 12px;margin-bottom:8px}.ds-t{flex:1;font-size:15px}.ds-t small{display:block;font-size:13px;color:var(--mute,#655f50)}.ds-chip{display:inline-block;font-size:12px;color:#161616;border-radius:999px;padding:1px 9px}.ds-b{background:var(--blue,#a9c3dc)}.ds-g{background:var(--green,#b7aad8)}.ds-btn-secondary{font:inherit;font-size:15px;background:var(--card,#fbfdfe);color:var(--ink,#161616);border:1px solid var(--ink,#161616);border-radius:999px;padding:7px 14px;cursor:pointer}.ds-btn-secondary:focus-visible{outline:2px solid var(--ink,#161616);outline-offset:2px;}"
+    },
+    {
+      "name": "Menu lateral",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Grupos em rótulos pequenos; item ativo cheio de acento (estilo suave).",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Menu\"><div class=\"ds-ng\">Planejar</div><a class=\"ds-ni ds-on\" href=\"#\" aria-current=\"page\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m3 11 9-8 9 8\"/><path d=\"M5 10v10h14V10\"/></svg>Início</a><a class=\"ds-ni\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>Hoje</a><a class=\"ds-ni\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"3\"/><path d=\"M3 10h18M8 3v4M16 3v4\"/></svg>Agenda</a></nav>",
+      "css": ".ds-nav{width:210px;background:color-mix(in srgb,var(--nacc,#8350C4) 16%,var(--card,#fbfdfe));border-radius:26px;padding:18px 14px;font-family:Outfit,system-ui,sans-serif}.ds-ng{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute,#655f50);padding:8px 12px 3px}.ds-ni{display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:12px;color:var(--ink,#161616);text-decoration:none;font-size:15px;transition:background-color .15s ease,color .15s ease}.ds-ni:hover{background:color-mix(in srgb,var(--nacc,#8350C4) 12%,transparent)}.ds-ni:focus-visible{outline:2px solid var(--ink,#161616);outline-offset:2px;}.ds-on{background:var(--nacc,#8350C4);color:var(--nonacc,#ffffff)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "A Escrivaninha Serena",
+    "overview": "O Meu Hub é uma mesa organizada à luz da manhã. As coisas ficam em papéis claros, em tons pastel, cada uma na sua pilha, e tudo está à mão sem que nada grite. A pessoa abre o hub todo dia e o deixa aberto ao lado do trabalho, então o visual tem que descansar o olho: superfícies em camadas suaves, cantos bem arredondados e uma única cor de assinatura, o lilás, que marca só o que é para fazer agora.\n\nA densidade é de ferramenta de uso diário: há bastante informação (tarefas, agenda, dinheiro), mas ela é organizada em painéis claros, com respiro entre eles. A hierarquia vem da tonalidade e do tamanho, nunca de sombras ou bordas pesadas. O tema escuro é uma noite de ameixa (`#1f1b24`), não um preto puro, e o lilás clareia para continuar legível.\n\nA identidade é **escolhida por quem usa**. Há cinco paletas (Céu e lilás, a padrão, e Ametista, Safira, Floresta e Cítrico), dois estilos de menu (suave e forte), duas densidades e um acento opcional. Por isso, todo componente desenha com as variáveis CSS, nunca com cores fixas. O Meu Hub nunca deve parecer **painel corporativo** (cinza, frio, tabelas brigando), **app infantil** (cores saturadas, ilustrações bobas, excesso de emoji) nem **neon/gamer** (preto com brilho, gradientes fortes, efeitos).",
+    "keyCharacteristics": [
+      "Camadas tonais: fundo → painel → papel, sem sombras nas superfícies.",
+      "Uma cor de assinatura (lilás) só para a ação principal, o item ativo e a seleção.",
+      "Cantos generosos: pílulas nos botões, 22 px nos painéis.",
+      "Outfit em três pesos, com números tabulares em todo lugar.",
+      "Rótulos pequenos em maiúsculas como títulos de painel.",
+      "Paletas trocáveis: todo componente funciona nas 5 paletas × claro/escuro."
+    ],
+    "rules": [
+      {
+        "name": "The One Lilac Rule",
+        "body": "O acento cheio aparece só em três coisas: a ação principal da tela, o item ativo (menu, aba, filtro) e o progresso. Se dois botões cheios competem na mesma área, um deles vira secundário.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "Só Outfit. A ênfase vem do peso 600 ou do tamanho, nunca de itálico decorativo, de uma segunda fonte ou de cor no texto corrido.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Desk Rule",
+        "body": "O que está na mesa é plano; só o que está por cima dela tem sombra. Card, painel ou item de lista com `box-shadow` em repouso está errado.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** desenhar todas as cores com as variáveis (`--bg`, `--panel`, `--card`, `--ink`, `--mute`, `--line`, `--acc`/`--s1` e as tintas) e conferir na paleta padrão e em pelo menos uma outra, no claro e no escuro.",
+      "**Do** manter a escada tonal fundo → painel → papel para dar profundidade.",
+      "**Do** usar pílulas (999px) em botões e chips e 22px nos painéis.",
+      "**Do** reservar o lilás cheio para uma ação principal por área, o item ativo e o progresso (The One Lilac Rule).",
+      "**Do** usar o contorno de 2px em Tinta, afastado 2px, como foco de todo controle novo.",
+      "**Do** respeitar \"menos movimento\" e o alto contraste (`data-hc`) que já existem em Aparência.",
+      "**Do** manter números tabulares e os formatos brasileiros (R$ 1.234,56 e dd/mm/aaaa)."
+    ],
+    "donts": [
+      "**Don't** pôr sombra em painéis, cards ou itens em repouso (The Flat Desk Rule).",
+      "**Don't** escrever hex fixo para superfície ou texto: isso quebra as outras paletas e o tema escuro.",
+      "**Don't** parecer painel corporativo: nada de cinza frio, tabelas densas sem respiro ou números brigando por atenção.",
+      "**Don't** parecer app infantil: nada de cores saturadas fora do acento, ilustrações bobas ou emoji no lugar de ícones.",
+      "**Don't** parecer neon/gamer: nada de preto puro com brilho, gradientes fortes ou efeitos de luz.",
+      "**Don't** trazer uma segunda família de fonte ou itálico decorativo.",
+      "**Don't** colocar bordas grossas ou faixas coloridas laterais em cards e alertas."
+    ]
+  }
+}
