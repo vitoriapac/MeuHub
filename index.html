@@ -910,7 +910,7 @@ const syncPanel=()=>{
  if(IN_CLAUDE)return head+(DBr?btns+`<p class="empty" style="padding:0">Os dados ficam numa área privada da sua conta, que só você lê. Alterações feitas em aparelhos diferentes são mescladas item a item. "Enviar" e "Trazer" substituem o outro lado e pedem um segundo clique para confirmar.</p>`:'<p class="empty" style="padding:0">Para sincronizar, abra o painel pelo link da sua conta Claude em cada aparelho, com a mesma conta. Sem isso, os dados ficam só neste navegador.</p>')+'</div>';
  if(!gdCid())return head+`<p class="empty" style="padding:0 0 8px">Entre com o Google para guardar seus dados numa pasta privada do seu Drive e usar o hub em vários aparelhos. Falta informar o ID de cliente do Google (veja o passo a passo no README do projeto).</p><form id="fgd" class="bar" style="margin:0"><input class="in grow" name="cid" placeholder="ID do cliente (termina em .apps.googleusercontent.com)" required aria-label="ID do cliente do Google"><button class="pill dark">Salvar</button></form></div>`;
  if(DBr)return head+btns+`<p class="empty" style="padding:0">Conectado${GD.email?' como <strong>'+esc(GD.email)+'</strong>':''}. Os dados ficam num arquivo oculto do app no seu Google Drive, que só este app lê. Alterações feitas em aparelhos diferentes são mescladas item a item. "Enviar" e "Trazer" substituem o outro lado e pedem um segundo clique para confirmar.</p></div>`;
- return head+`<div class="bar"><button class="pill dark" data-a="gdlogin">${GD.need?'Reconectar com o Google':'Entrar com o Google'}</button><button class="pill" data-a="gdcid">Trocar ID do cliente</button></div><p class="empty" style="padding:0">Sem entrar, os dados ficam só neste navegador. O Backup acima continua funcionando.</p></div>`};
+ return head+`<div class="bar"><button class="pill dark" data-a="gdlogin">${GD.need?'Reconectar com o Google':'Entrar com o Google'}</button>${GD_CID_DEFAULT?'':'<button class="pill" data-a="gdcid">Trocar ID do cliente</button>'}</div><p class="empty" style="padding:0">Sem entrar, os dados ficam só neste navegador. O Backup acima continua funcionando.</p></div>`};
 const jeq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 function merge3(b,l,r){
  if(jeq(l,r))return l;if(jeq(b,l))return r;if(jeq(b,r))return l;
@@ -975,7 +975,7 @@ async function syncInit(){
 document.addEventListener('visibilitychange',()=>{if(document.hidden)push()});
 syncInit();
 /* login Google + sincronização via Google Drive (só no site): arquivo oculto do app na conta da pessoa */
-const GD_CID_DEFAULT='';
+const GD_CID_DEFAULT='664499372461-cl5g0ca39sr05to9smuecj1aq63saec1.apps.googleusercontent.com';
 const GD_SCOPE='https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.email';
 const GDAPI='https://www.googleapis.com/drive/v3/files',GDUP='https://www.googleapis.com/upload/drive/v3/files';
 let GD={cid:'',tok:'',exp:0,email:'',on:false,fid:'',tc:null,cb:null,ecb:null,need:false,tick:null};
@@ -1026,14 +1026,16 @@ async function gdLogin(){
  try{await gdAuth('');
   try{const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+GD.tok}});if(r.ok){const u=await r.json();GD.email=u.email||''}}catch(e){}
   GD.on=true;saveGD();gdStart();render();toast('Conectado ao Google'+(GD.email?' ('+GD.email+')':'')+'.')}
- catch(e){GD.need=true;toast('Não foi possível entrar com o Google. Verifique o ID do cliente e as origens autorizadas.');render()}}
+ catch(e){GD.need=true;toast('Não foi possível entrar com o Google. Se a janela de login não abriu, permita pop-ups para este site e tente de novo.');render()}}
 function gdLogout(){gdPollStop();DBr=null;GD.on=false;GD.need=false;try{if(GD.tok&&window.google&&google.accounts)google.accounts.oauth2.revoke(GD.tok,()=>{})}catch(e){}GD.tok='';GD.exp=0;GD.email='';saveGD();setSt('local');render();toast('Desconectado. Os dados continuam neste aparelho e no seu Drive.')}
 function gdInit(){
  if(IN_CLAUDE||!GD.on||!gdCid())return;
  gdLoad().then(()=>{if(GD.tok&&Date.now()<GD.exp)gdStart();else gdAuth('').then(()=>gdStart()).catch(()=>{GD.need=true;setSt('local','entre novamente com o Google')})}).catch(()=>setSt('local','sem acesso ao Google'))}
 /* tela de login: o site só abre depois de entrar com o Google */
-function gateR(){const g=$('#gate'),on=!IN_CLAUDE&&!GD.on;g.hidden=!on;$('.app').inert=on;if(!on){g.innerHTML='';return}
- g.innerHTML=`<div class="gbox" role="dialog" aria-modal="true" aria-label="Entrar"><div class="logo">meu hub<i></i></div><p class="empty" style="padding:0 0 14px">Entre com sua conta Google para abrir o hub.</p>${gdCid()?'<div class="bar"><button class="pill dark" data-a="gdlogin">Entrar com o Google</button></div>':'<form id="fgd" class="bar" style="margin:0"><input class="in grow" name="cid" placeholder="ID do cliente (termina em .apps.googleusercontent.com)" required aria-label="ID do cliente do Google"><button class="pill dark">Salvar</button></form><p class="empty" style="padding:10px 0 0">Falta o ID de cliente do Google. Veja o passo a passo no README.</p>'}</div>`}
+/* sem ID de cliente o login não funciona, então o site abre direto em vez de trancar a dona do lado de fora */
+function gateR(){const g=$('#gate'),on=!IN_CLAUDE&&!GD.on&&!!gdCid();g.hidden=!on;$('.app').inert=on;if(!on){g.innerHTML='';return}
+ gdLoad().catch(()=>{});// já carrega o script do Google, senão o navegador pode bloquear a janela do primeiro clique
+ g.innerHTML=`<div class="gbox" role="dialog" aria-modal="true" aria-label="Entrar"><div class="logo">meu hub<i></i></div><p style="margin:0 0 4px;font-size:18px">Bem-vindo!</p><p class="empty" style="padding:0 0 16px">Entre com sua conta Google para começar. Seus dados ficam guardados no seu Google Drive.</p><div class="bar"><button class="pill dark" data-a="gdlogin">Entrar com o Google</button></div></div>`}
 gdInit();
 /* ===== Finanças v2: contas, cartões, recorrentes, gráficos, medidores, importação ===== */
 let FED=null,IMP=null;
