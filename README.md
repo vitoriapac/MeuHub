@@ -37,3 +37,7 @@ O site só abre depois de entrar com o Google. Os dados são sincronizados entre
 ## Rodar localmente
 
 `python -m http.server 8080` na pasta do projeto e abra http://localhost:8080 (o `localhost` já vem autorizado no Firebase).
+
+## Testes
+
+`node tests/run.js` (Node 24+, sem instalar nada). Abre o site num Chrome ou Edge sem interface, com um Firebase simulado, e testa login, sincronização, mescla entre aparelhos, troca de conta e saída. Leva ~15 s. Se o navegador não for encontrado, defina `CHROME_PATH`.

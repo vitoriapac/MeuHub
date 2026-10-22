@@ -41,7 +41,7 @@ Painel pessoal (tarefas, agenda, hábitos, notas, finanças, Spotify, clima…) 
 ```
 Rodar local:   python -m http.server 8080        (na pasta do projeto; abre http://localhost:8080)
 Publicar:      git push origin main               (Pages publica em ~1 min)
-Testar:        node tests/run.js                  (proposto: ver Estratégia de testes)
+Testar:        node tests/run.js                  (~15 s; CHROME_PATH se o navegador não for achado)
 ```
 
 ## Estrutura
@@ -50,7 +50,7 @@ Testar:        node tests/run.js                  (proposto: ver Estratégia de 
 index.html         → o app inteiro
 README.md          → configuração do Firebase e uso
 SPEC.md            → esta especificação
-tests/             → (proposto) testes ponta a ponta com Chrome headless + Firebase simulado
+tests/run.js       → testes ponta a ponta com Chrome headless + Firebase simulado
 .claude/launch.json→ servidor local do app Claude (não versionado)
 ```
 
@@ -72,9 +72,9 @@ function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK];
 
 ## Estratégia de testes
 
-Hoje não há testes no repositório; os testes desta sessão rodaram de scripts temporários. Proposta:
+Implementado em `tests/run.js` (T1):
 
-- `tests/run.js` (Node 24, sem dependências): sobe `python -m http.server`, gera uma cópia do `index.html` com Firebase simulado (nuvem e sessão em `localStorage`) e dirige um Chrome headless via DevTools Protocol.
+- `tests/run.js` (Node 24, sem dependências): sobe um servidor estático do próprio Node, gera uma cópia do `index.html` com Firebase simulado (nuvem e sessão em `localStorage`) e dirige um Chrome headless via DevTools Protocol.
 - Cenários mínimos, cada um com `assert`:
   1. Sem login: tela de login visível e hub bloqueado (`inert`).
   2. Login → mudança → documentos `hub-meta` e `hub-0` gravados.
@@ -87,7 +87,7 @@ Hoje não há testes no repositório; os testes desta sessão rodaram de scripts
 ## Limites
 
 **Sempre:**
-- Testar localmente (e rodar `tests/run.js`, quando existir) antes de publicar.
+- Rodar `node tests/run.js` e testar localmente antes de publicar.
 - Manter o app funcionando sem `FB_CONFIG` e como artefato Claude.
 - Escapar com `esc()` todo dado externo exibido.
 - Confirmar no site publicado depois de cada `push`.
@@ -117,6 +117,6 @@ Hoje não há testes no repositório; os testes desta sessão rodaram de scripts
 
 1. **Quem pode entrar?** Hoje qualquer conta Google consegue criar um hub (vazio). Para "eu e pessoas próximas", restringir por lista de e-mails nas regras do Firestore?
 2. **Sem internet:** se o Firebase não estiver no cache, o hub fica travado em "Tentar de novo". Abrir em modo só local quando já houve login neste aparelho?
-3. **Testes no repositório:** aprovar a criação de `tests/run.js` como descrito?
+3. ~~**Testes no repositório**~~ — feito: `tests/run.js`.
 4. **Pendências menores da revisão:** corte de emoji na divisão dos pedaços; botão "Tentar de novo" com `onclick` em vez de `data-a`; chave antiga `hub-gd` no `localStorage`.
 5. **Login no celular:** a janela do Google pode ser bloqueada em alguns navegadores. Ter alternativa por redirecionamento?
