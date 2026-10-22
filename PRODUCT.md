@@ -4,7 +4,7 @@
 
 ## Platform
 
-web
+web (PWA instalável no celular e no computador)
 
 ## Users
 
@@ -35,14 +35,14 @@ Apps separados (Notion, Todoist, uma planilha de gastos) não conseguem oferecer
 - É aberto logo de manhã para planejar o dia e revisitado ao longo do dia para capturas rápidas (tarefas, gastos).
 - Muitas vezes fica aberto numa aba do computador como companhia de fundo (Spotify, clima).
 - É usado no computador e no celular; 375 px de largura é um tamanho suportado.
-- Às vezes é aberto sem internet. Nesse caso, o hub abre com os dados locais e sincroniza no próximo carregamento com conexão.
+- Às vezes é aberto sem internet. Nesse caso, o Service Worker entrega a casca em cache, o hub abre com os dados locais e reconecta automaticamente quando a conexão volta.
 
 ## Capabilities and Constraints
 
-- **Áreas:** Início (resumo, linha do tempo, cards), Hoje, Rotina, Lembretes, Agenda, Tarefas, Metas, Hábitos, Notas, Diário, Links, Etiquetas, Finanças, Aparência, Backup, Lixeira, Leituras e Personalizar menu.
+- **Áreas:** Início (resumo, linha do tempo, modo Companhia e cards), Hoje, Rotina, Lembretes, Agenda, Tarefas, Metas, Hábitos, Notas, Diário, Links, Etiquetas, Finanças, Aparência, Backup, Lixeira, Leituras e Personalizar menu.
   - As Finanças têm visão geral, análises, lançamentos, orçamentos e metas, contas e recorrentes, regras e importação.
   - Também existem busca global, paleta de comandos (Ctrl+K), desfazer/refazer e captura rápida.
-- **Cards do Início:** Seu dia, Frase do dia, Spotify, Clima, Produtividade, Próximos eventos, Para fazer, Links rápidos, Notas recentes, Revisão semanal, Histórico, Hábitos, Finanças do mês, Humor e Metas.
+- **Cards do Início:** 5 cards ativos por padrão (`linha`, `todo`, `agenda`, `habs`, `fin`), botão **Companhia** para alternar Spotify + Clima com um clique, e mais 8 cards opcionais (Frase do dia, Produtividade, Links rápidos, Notas recentes, Revisão semanal, Histórico, Humor e Metas).
 - **Contas e sincronização:**
   - O hub só abre depois do login com o Google (Firebase Auth).
   - Os dados sincronizam pelo Firestore em `data/users/<uid>/`, com mescla item a item entre aparelhos.
@@ -62,7 +62,7 @@ Apps separados (Notion, Todoist, uma planilha de gastos) não conseguem oferecer
   - Dá sugestões suaves, como "Bom dia! Comece pela rotina da manhã".
   - Sem exagero e sem culpa.
 - **Idioma:** português do Brasil em tudo, com datas, números e moeda no padrão brasileiro.
-- **Visual atual:** logo com um ponto colorido, painéis arredondados, tema claro e escuro e paletas que a pessoa escolhe. É o visual em uso, mas não é um compromisso fixo, e ainda não foi documentado num DESIGN.md.
+- **Visual atual:** logo com um ponto colorido, painéis arredondados, tema claro e escuro e 5 paletas que a pessoa escolhe (`Céu`, `Ametista`, `Safira`, `Floresta`, `Cítrico`), documentado no [DESIGN.md](DESIGN.md).
 
 ## Evidence on Hand
 

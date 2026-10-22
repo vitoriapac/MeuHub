@@ -19,10 +19,11 @@ Painel pessoal (tarefas, agenda, hábitos, notas, finanças, Spotify, clima…) 
 | Área | O que faz |
 |---|---|
 | Login | Tela inicial bloqueia o hub até entrar com Google (Firebase Auth). Sessão fica salva no aparelho até "Sair da conta". Sem `FB_CONFIG`, o site abre direto, só local. |
-| Sincronização | Estado do hub em `data/users/<uid>/hub-0..n` + `hub-meta` no Firestore, em pedaços de 300 mil caracteres. Envio 2 s após a última mudança; escuta só `hub-meta`. Mescla de três vias (`merge3`) quando dois aparelhos mudam. |
+| Sincronização | Estado do hub em `data/users/<uid>/hub-0..n` + `hub-meta` no Firestore, em pedaços de 300 mil caracteres. Envio 2 s após a última mudança; escuta só `hub-meta`. Mescla de três vias (`merge3`) quando dois aparelhos mudam e reconexão automática quando a internet volta (`online`). |
 | Troca de conta | Dados locais da conta anterior guardados em `hub-acct-<uid>` e restaurados quando ela volta. |
+| PWA / Offline | Manifesto (`manifest.webmanifest`), ícones em `img/`, Service Worker (`sw.js`) que guarda a casca e a fonte para abrir sem internet, painel de instalação em Aparência e atalhos de URL (`?v=...`, `?qa=...`). |
 | Menu | Início, Hoje, Rotina, Lembretes, Agenda, Tarefas, Metas, Hábitos, Notas, Diário, Links, Etiquetas, Finanças, Aparência, Backup, Lixeira, Leituras, Personalizar menu. |
-| Cards do Início | Seu dia, Frase do dia, Spotify, Clima, Produtividade, Próximos eventos, Para fazer, Links rápidos, Notas recentes, Revisão semanal, Histórico, Hábitos, Finanças do mês, Humor, Metas. Spotify e Clima vêm desligados (Personalizar painel). |
+| Cards do Início | 5 cards ativos por padrão (`linha`, `todo`, `agenda`, `habs`, `fin`) + 10 opcionais (Frase do dia, Spotify, Clima, Produtividade, Links rápidos, Notas recentes, Revisão semanal, Histórico, Humor, Metas). Botão **Companhia** liga/desliga Spotify e Clima juntos com um clique. |
 | Spotify | Link de playlist/álbum/faixa → player oficial embutido (`open.spotify.com/embed`), carregado só ao clicar. |
 | Clima | Busca de cidade ou localização → Open-Meteo (sem chave). Só coordenadas saem do aparelho. |
 | Backup | Baixa/importa JSON (importar mescla sem apagar); cópias automáticas antes de receber dados de outro aparelho. |
@@ -58,8 +59,11 @@ js/financas.js     → Finanças inteiras (inclui fluxo de caixa, reserva, divis
 js/recursos.js     → busca, desfazer, menu, acessibilidade, PWA, lixeira, lembretes, rotina, leituras, paleta, datas
 js/inicio.js       → Início, Spotify, clima, frase do dia, tour
 js/main.js         → telas (V), render(), listeners centrais e inicialização — sempre o último
-README.md          → configuração do Firebase e uso
+README.md          → visão geral, configuração do Firebase e uso
+ARCHITECTURE.md    → arquitetura detalhada (módulos, estado S, merge3, PWA, testes)
 SPEC.md            → esta especificação
+PRODUCT.md         → visão de produto, usos principais e princípios
+DESIGN.md          → sistema de design, tipografia, cores e padrões visuais
 tests/run.js       → testes ponta a ponta com Chrome headless + Firebase simulado
 tasks/             → plano e tarefas do trabalho em andamento
 .claude/launch.json→ servidor local do app Claude (não versionado)
@@ -100,6 +104,7 @@ Implementado em `tests/run.js` (T1):
   9. Todas as telas do menu, cada aba das Finanças (mês e ano), o Início com todos os cards e a busca abrem sem erro de JS e sem tela vazia.
   10. Todo arquivo local tem `?v=`, todos com a mesma versão, e nenhum arquivo de `css/`/`js/` fica fora do `index.html`.
   11. Rede lenta: cada `.js` chega 700 ms depois do anterior; abrir com e sem login e sem internet não dá erro.
+  12. PWA: `manifest.webmanifest` válido, ícones existentes, `sw.js` registrado e ativo com `VER` igual ao `?v=`, `<meta name="theme-color">` dinâmico e atalhos de URL (`?v=hoje`, `?qa=fin`).
 - Login real com Google e regras do Firestore: checagem manual + consultas REST sem login (devem retornar `PERMISSION_DENIED`).
 - Regra: correção de bug vem com cenário que falha sem a correção.
 
@@ -108,7 +113,7 @@ Implementado em `tests/run.js` (T1):
 **Sempre:**
 - Rodar `node tests/run.js` e testar localmente antes de publicar.
 - Manter o app funcionando sem `FB_CONFIG`.
-- Trocar o `?v=` de todos os links ao mudar `css/` ou `js/` (ver Estilo).
+- Trocar o `?v=` de todos os links e o `VER` em `sw.js` ao mudar `css/` ou `js/` (ver Estilo).
 - Escapar com `esc()` todo dado externo exibido.
 - Confirmar no site publicado depois de cada `push`.
 
@@ -128,18 +133,18 @@ Implementado em `tests/run.js` (T1):
 
 ## Critérios de sucesso (verificáveis)
 
-- [ ] Site publicado carrega o Firebase sem erros no console e mostra "Entrar com o Google".
-- [ ] Leitura e escrita no Firestore sem login retornam `PERMISSION_DENIED`.
-- [ ] Os 11 cenários de teste passam com `node tests/run.js`.
-- [ ] Uma tarefa criada no computador aparece no celular da mesma conta em até ~1 minuto.
-- [ ] Tela de login e hub funcionam em 375 px de largura sem rolagem horizontal.
+- [x] Site publicado carrega o Firebase sem erros no console e mostra "Entrar com o Google".
+- [x] Leitura e escrita no Firestore sem login retornam `PERMISSION_DENIED`.
+- [x] Os 12 cenários de teste passam com `node tests/run.js`.
+- [x] Uma tarefa criada no computador aparece no celular da mesma conta em até ~1 minuto.
+- [x] Tela de login e hub funcionam em 375 px de largura sem rolagem horizontal.
 
 ## Decisões
 
 As questões em aberto da primeira versão deste SPEC foram resolvidas assim (22/10/2026):
 
 1. **Quem pode entrar: qualquer conta Google.** Não há lista de e-mails. Cada pessoa cria o próprio hub, vazio, e as regras do Firestore garantem que ela só lê e grava `data/users/<seu uid>/`. Custo aceito: quem tiver o link usa a cota grátis do projeto Firebase, o que não pesa para um grupo pequeno. Rever se o link se espalhar ou se a cota apertar.
-2. **Sem internet: abre só local** quando já houve login no aparelho (T3). A sincronização volta no próximo carregamento com conexão, não sozinha com o site aberto.
+2. **Sem internet: abre só local** quando já houve login no aparelho (T3) e reconecta automaticamente ao receber o evento `online` do navegador.
 3. **Testes no repositório:** `tests/run.js` (T1).
 4. **Pendências da revisão:** resolvidas (T4).
 5. **Login no celular: só pop-up, sem redirecionamento.** O `signInWithRedirect` não funciona de forma confiável quando o site (`github.io`) e o domínio de login do Firebase (`firebaseapp.com`) são diferentes: Safari e Chrome recente bloqueiam o armazenamento entre sites e o login volta sem usuário. A correção oficial exige Firebase Hosting ou domínio próprio, o que contraria a hospedagem no GitHub Pages. Se o pop-up for bloqueado, o site pede para permitir pop-ups. Rever se o site mudar de hospedagem.
