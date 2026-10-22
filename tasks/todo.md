@@ -24,7 +24,7 @@ Plano: [plan.md](plan.md). Comando de teste: `node tests/run.js`.
   - Verificar: 9 `✓`; capturas antes e depois (claro e escuro, 1280 px e 375 px).
   - Depende de: T2 · Arquivos: `index.html`, `css/style.css` · Tamanho: S
 
-- [ ] **T4: script inteiro para `js/app.js`, com `?v=`**
+- [x] **T4: script inteiro para `js/app.js`, com `?v=`**
   - Aceite: `index.html` sem JS embutido; o link tem `?v=`; um teste confere que todos os links usam a mesma versão.
   - Verificar: 9 `✓` + teste da versão; o conteúdo do `js/app.js` é idêntico ao trecho original (diff vazio).
   - Depende de: T3 · Arquivos: `index.html`, `js/app.js`, `tests/run.js` · Tamanho: S

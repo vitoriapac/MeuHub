@@ -205,6 +205,18 @@ async function main() {
       assert.deepStrictEqual(vazias, [], 'telas vazias');
       await sleep(500); // erros assíncronos de desenho (timers, cards do Início)
     }],
+    ['10. todos os arquivos locais têm a mesma ?v= (cache do GitHub Pages não mistura versões)', async () => {
+      const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+      const links = [...html.matchAll(/(?:src|href)="((?:css|js)\/[^"]+)"/g)].map(m => m[1]);
+      assert.ok(links.length, 'nenhum arquivo local linkado');
+      const sem = links.filter(l => !/\?v=\w+$/.test(l));
+      assert.deepStrictEqual(sem, [], 'links sem ?v=');
+      const versoes = [...new Set(links.map(l => l.split('?v=')[1]))];
+      assert.strictEqual(versoes.length, 1, 'versões diferentes: ' + versoes.join(', '));
+      const soltos = ['css', 'js'].flatMap(d => fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d)).map(f => d + '/' + f) : [])
+        .filter(f => !links.some(l => l.startsWith(f + '?')));
+      assert.deepStrictEqual(soltos, [], 'arquivos em css/ ou js/ que o index.html não carrega');
+    }],
   ];
 
   let failed = 0;
