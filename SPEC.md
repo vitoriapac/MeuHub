@@ -118,5 +118,5 @@ Implementado em `tests/run.js` (T1):
 1. **Quem pode entrar?** Hoje qualquer conta Google consegue criar um hub (vazio). Para "eu e pessoas próximas", restringir por lista de e-mails nas regras do Firestore?
 2. ~~**Sem internet:**~~ feito (T3): se o Firebase não estiver no cache, o hub fica travado em "Tentar de novo". Abrir em modo só local quando já houve login neste aparelho?
 3. ~~**Testes no repositório**~~ — feito: `tests/run.js`.
-4. **Pendências menores da revisão:** corte de emoji na divisão dos pedaços; botão "Tentar de novo" com `onclick` em vez de `data-a`; chave antiga `hub-gd` no `localStorage`.
+4. ~~**Pendências menores da revisão:**~~ feito (T4): corte de emoji na divisão dos pedaços; botão "Tentar de novo" com `onclick` em vez de `data-a`; chave antiga `hub-gd` no `localStorage`.
 5. **Login no celular:** a janela do Google pode ser bloqueada em alguns navegadores. Ter alternativa por redirecionamento?

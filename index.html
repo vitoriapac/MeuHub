@@ -938,6 +938,8 @@ async function pullRemote(m,replace){
  if(replace||fresh||!dirty)applyState(r.remote);
  else{applyState(merge3(SY.last?JSON.parse(SY.last):{},pick(),r.remote));toast('Alterações de outro aparelho foram mescladas. A versão anterior está em Backup.')}
  SY.rev=m.rev;SY.last=r.rj;SY.n=m.n;SY.p='';saveSY();undoReset();after();return true}
+// pedaços de até n caracteres sem separar um emoji (par surrogate): metade solta vira "�" no Firestore
+const chunks=(s,n)=>{const p=[];for(let i=0;i<s.length;){let e=Math.min(i+n,s.length);if(e<s.length&&e-1>i&&/[\uD800-\uDBFF]/.test(s[e-1]))e--;p.push(s.slice(i,e));i=e}return p.length?p:['']};
 async function push(force,skipRec){
  if(!DBr||DEAD)return;
  if(pushing){again=true;return}
@@ -945,8 +947,8 @@ async function push(force,skipRec){
  try{
   if(!skipRec){const s=await metaRef.get();if(s.exists&&s.data().rev>SY.rev){const ok=await pullRemote(s.data());if(!ok){setTimeout(syncSoon,3000);return}}}
   const j=pickJSON();if(j===SY.last&&!force){setSt('ok');return}
-  const rev=Math.max(Date.now(),SY.rev+1),n=Math.max(1,Math.ceil(j.length/CH));
-  for(let i=0;i<n;i++)await DBr.doc(P+'hub-'+i).set({rev,i,s:j.slice(i*CH,(i+1)*CH)});
+  const rev=Math.max(Date.now(),SY.rev+1),parts=chunks(j,CH),n=parts.length;
+  for(let i=0;i<n;i++)await DBr.doc(P+'hub-'+i).set({rev,i,s:parts[i]});
   await metaRef.set({rev,n,dev:SY.dev,at:new Date().toISOString(),len:j.length,v:1});
   const old=SY.n||0;SY.rev=rev;SY.last=j;SY.n=n;SY.p='';saveSY();setSt('ok');
   for(let i=n;i<old;i++)DBr.doc(P+'hub-'+i).delete().catch(()=>{});
@@ -980,6 +982,7 @@ const FB_CONFIG={apiKey:'AIzaSyDouA0p2KjgWXvS8vnQ5vjn-aZHkRpOIwU',authDomain:'me
 const FBV='10.12.2';
 let FB={ready:false,err:false,on:false,email:'',auth:null},fbUnsub=null;
 const fbScript=n=>new Promise((res,rej)=>{const t=document.createElement('script');t.src='https://www.gstatic.com/firebasejs/'+FBV+'/firebase-'+n+'-compat.js';t.onload=res;t.onerror=rej;document.head.append(t)});
+try{localStorage.removeItem('hub-gd')}catch(e){}// token do antigo login pelo Google Drive
 function fbInit(){
  if(IN_CLAUDE||!FB_CONFIG)return;
  fbScript('app').then(()=>Promise.all([fbScript('auth'),fbScript('firestore')])).then(()=>{
@@ -1003,7 +1006,7 @@ async function fbLogout(){if(!FB.auth)return;try{await push()}catch(e){}FB.auth.
 /* tela de login: o site só abre depois de entrar (sem FB_CONFIG não há login possível, então abre direto) */
 // sem internet, quem já entrou neste aparelho usa os dados locais; a sincronização volta no próximo carregamento com conexão
 function gateR(){const g=$('#gate'),on=!IN_CLAUDE&&!!FB_CONFIG&&!FB.on&&!(FB.err&&SY.uid);g.hidden=!on;$('.app').inert=on;if(!on){g.innerHTML='';return}
- const body=FB.err?'<p class="empty" style="padding:0 0 16px">Não foi possível conectar. Verifique sua internet.</p><div class="bar"><button class="pill dark" onclick="location.reload()">Tentar de novo</button></div>'
+ const body=FB.err?'<p class="empty" style="padding:0 0 16px">Não foi possível conectar. Verifique sua internet.</p><div class="bar"><button class="pill dark" data-a="reload">Tentar de novo</button></div>'
   :!FB.ready?'<p class="empty" style="padding:0">Carregando…</p>'
   :'<p style="margin:0 0 4px;font-size:18px">Bem-vindo!</p><p class="empty" style="padding:0 0 16px">Entre com sua conta Google para começar. Seus dados ficam salvos e aparecem em todos os seus aparelhos.</p><div class="bar"><button class="pill dark" data-a="fblogin">Entrar com o Google</button></div>';
  g.innerHTML=`<div class="gbox" role="dialog" aria-modal="true" aria-label="Entrar"><div class="logo">meu hub<i></i></div>${body}</div>`}
@@ -2071,6 +2074,7 @@ document.addEventListener('click',e=>{
  const b=e.target.closest&&e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,id=b.dataset.id,L=()=>S.sp=S.sp||[];
  const done=()=>{e.stopPropagation();e.preventDefault()};
  if(a==='fblogin'){done();fbLogin()}
+ else if(a==='reload'){done();location.reload()}
  else if(a==='fbout'){done();fbLogout()}
  else if(a==='sppick'){done();S.spsel=id;render()}
  else if(a==='spload'){done();SPON=true;render()}

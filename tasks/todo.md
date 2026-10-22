@@ -12,7 +12,7 @@
   - Verificar: cenário 6 no `run.js` (os dois casos).
   - Arquivos: `index.html`, `tests/run.js`
 
-- [ ] **T4: pendências menores da revisão**
+- [x] **T4: pendências menores da revisão**
   - Aceite: a divisão dos dados nunca corta um emoji ao meio; "Tentar de novo" usa `data-a`; a chave `hub-gd` é removida.
   - Verificar: teste do emoji na fronteira no `run.js`; todos os cenários passam.
   - Arquivos: `index.html`, `tests/run.js`

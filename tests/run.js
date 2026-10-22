@@ -109,9 +109,12 @@ async function main() {
   };
   const addTask = t => ev(`S.tasks.push({id:${JSON.stringify(t)},t:${JSON.stringify(t)},d:false});save()`);
   const localTasks = () => ev('S.tasks.map(t=>t.t).filter(t=>t.startsWith("t-"))');
-  const cloudTasks = async uid => ev(`(()=>{const c=__cloud(),m=c["data/users/${uid}/hub-meta"];if(!m)return null;
-    let s="";for(let i=0;i<m.n;i++)s+=c["data/users/${uid}/hub-"+i].s;return JSON.parse(s).tasks.map(t=>t.t).filter(t=>t.startsWith("t-"))})()`);
-  const waitCloud = (uid, t) => waitFor(`(()=>{const m=__cloud()["data/users/${uid}/hub-meta"];return m&&JSON.stringify(__cloud()).includes(${JSON.stringify(t)})})()`, `"${t}" na nuvem de ${uid}`);
+  // junta os pedaços como o app faz; null se a nuvem ainda não tem uma versão completa
+  const cloudTasksExpr = uid => `(()=>{const c=__cloud(),m=c["data/users/${uid}/hub-meta"];if(!m)return null;
+    let s="";for(let i=0;i<m.n;i++){const d=c["data/users/${uid}/hub-"+i];if(!d||d.rev!==m.rev)return null;s+=d.s}
+    return JSON.parse(s).tasks.map(t=>t.t).filter(t=>t.startsWith("t-"))})()`;
+  const cloudTasks = uid => ev(cloudTasksExpr(uid));
+  const waitCloud = (uid, t) => waitFor(`(${cloudTasksExpr(uid)}||[]).includes(${JSON.stringify(t)})`, `"${t}" na nuvem de ${uid}`);
 
   const scenarios = [
     ['1. sem login, o hub fica bloqueado', async () => {
@@ -167,6 +170,22 @@ async function main() {
       await fresh(true);
       assert.strictEqual(await ev('$("#gate").hidden'), false, 'sem login anterior, a tela de login fica');
       assert.match(await ev('$("#gate").innerText'), /Tentar de novo/);
+      assert.ok(await ev('!!document.querySelector("#gate [data-a=reload]")'), '"Tentar de novo" deve usar data-a="reload"');
+    }],
+    ['7. divisão em pedaços não corta emoji ao meio', async () => {
+      await fresh();
+      const r = await ev(`(()=>{const s="abcd😀ef😀g"+"😀".repeat(9);const out=[];
+        for(let n=2;n<8;n++){const p=chunks(s,n);out.push({n,ok:p.join("")===s&&p.every(x=>x.length&&!/[\\uD800-\\uDBFF]$/.test(x)&&!/^[\\uDC00-\\uDFFF]/.test(x))})}
+        return out.filter(x=>!x.ok)})()`);
+      assert.deepStrictEqual(r, [], 'tamanhos de pedaço que cortaram um emoji');
+      await login('A'); await ev('CH=5');
+      await addTask('t-emoji 😀🎉'); await waitCloud('A', 't-emoji 😀🎉');
+      assert.ok((await cloudTasks('A')).includes('t-emoji 😀🎉'), 'tarefa com emoji deve voltar inteira da nuvem');
+    }],
+    ['8. remove o token do login antigo (hub-gd)', async () => {
+      await b.send('Page.navigate', { url: url + 'limpar' }); await waitFor('document.title==="limpo"', 'limpar');
+      await ev('localStorage.setItem("hub-gd","{\\"tok\\":\\"x\\"}")'); await open();
+      assert.strictEqual(await ev('localStorage.getItem("hub-gd")'), null);
     }],
   ];
 
