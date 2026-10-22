@@ -1,6 +1,6 @@
 # Spec: Meu Hub
 
-Status: **aprovado** (21/10/2026) · Base: commit `b07dbca` (21/10/2026)
+Status: **aprovado** (21/10/2026) · Atualizado: 22/10/2026, modularização (`tasks/plan.md`)
 
 ## Objetivo
 
@@ -26,11 +26,11 @@ Painel pessoal (tarefas, agenda, hábitos, notas, finanças, Spotify, clima…) 
 | Spotify | Link de playlist/álbum/faixa → player oficial embutido (`open.spotify.com/embed`), carregado só ao clicar. |
 | Clima | Busca de cidade ou localização → Open-Meteo (sem chave). Só coordenadas saem do aparelho. |
 | Backup | Baixa/importa JSON (importar mescla sem apagar); cópias automáticas antes de receber dados de outro aparelho. |
-| Artefato Claude | O mesmo arquivo roda como artefato (`IN_CLAUDE`): sem login nem Firebase, usa o banco do artefato. |
+| Artefato Claude | **Não mantido** desde 22/10/2026 (ver Decisões 6). O código `IN_CLAUDE` continua no lugar, mas não é testado nem publicado. |
 
 ## Stack
 
-- **Um único arquivo** `index.html` (HTML + CSS + JS puro, ~2.400 linhas, ~370 KB). Sem build, sem npm, sem framework.
+- HTML + CSS + JS puro em **scripts clássicos** (`<script src>` em ordem, mesmo escopo global), ~2.300 linhas no total. Sem build, sem npm, sem framework.
 - Firebase JS SDK **compat 10.12.2** (app, auth, firestore) via `www.gstatic.com`, carregado só no site.
 - Fonte Outfit (Google Fonts). APIs externas: Open-Meteo, Spotify embed.
 - Hospedagem: GitHub Pages, branch `main`, raiz → https://vitoriapac.github.io/MeuHub/
@@ -41,16 +41,24 @@ Painel pessoal (tarefas, agenda, hábitos, notas, finanças, Spotify, clima…) 
 ```
 Rodar local:   python -m http.server 8080        (na pasta do projeto; abre http://localhost:8080)
 Publicar:      git push origin main               (Pages publica em ~1 min)
-Testar:        node tests/run.js                  (~15 s; CHROME_PATH se o navegador não for achado)
+Testar:        node tests/run.js                  (~50 s; CHROME_PATH se o navegador não for achado)
 ```
 
 ## Estrutura
 
 ```
-index.html         → o app inteiro
+index.html         → só o HTML da casca e os links, na ordem de carregamento
+css/style.css      → toda a aparência (tema claro/escuro por variáveis)
+js/core.js         → estado S, utilidades, telas base (tarefas, agenda, notas, hábitos, temas), atalhos
+js/sync.js         → sincronização, Firebase, tela de login, troca de conta
+js/financas.js     → Finanças inteiras (inclui fluxo de caixa, reserva, divisão de despesas)
+js/recursos.js     → busca, desfazer, menu, acessibilidade, lixeira, lembretes, rotina, leituras, paleta, datas
+js/inicio.js       → Início, Spotify, clima, frase do dia, tour
+js/main.js         → telas (V), render(), listeners centrais e inicialização — sempre o último
 README.md          → configuração do Firebase e uso
 SPEC.md            → esta especificação
 tests/run.js       → testes ponta a ponta com Chrome headless + Firebase simulado
+tasks/             → plano e tarefas do trabalho em andamento
 .claude/launch.json→ servidor local do app Claude (não versionado)
 ```
 
@@ -69,12 +77,14 @@ function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK];
 - Todo texto vindo do usuário ou de API externa passa por `esc()` antes de ir para `innerHTML`.
 - Botões novos usam `data-a="acao"`, não `onclick`.
 - Cores só por variáveis CSS (`--bg`, `--card`, `--ink`…), com tema claro e escuro.
+- Código novo vai no arquivo da sua área em `js/`. Os arquivos compartilham o escopo global e carregam em ordem: um arquivo pode **chamar** função de outro carregado depois só dentro de funções que rodam mais tarde (clique, render). **Comando que roda no carregamento e usa algo de outro arquivo vai no fim do `main.js`** (ex.: `fbInit()`).
+- Ao mudar qualquer `css/` ou `js/`, trocar o `?v=` de **todos** os links no `index.html` para a data do dia (`AAAAMMDD`, com sufixo se publicar 2x no dia). Sem isso, o cache do GitHub Pages (~10 min) pode misturar arquivos novos e velhos.
 
 ## Estratégia de testes
 
 Implementado em `tests/run.js` (T1):
 
-- `tests/run.js` (Node 24, sem dependências): sobe um servidor estático do próprio Node, gera uma cópia do `index.html` com Firebase simulado (nuvem e sessão em `localStorage`) e dirige um Chrome headless via DevTools Protocol.
+- `tests/run.js` (Node 24, sem dependências): sobe um servidor estático do próprio Node que entrega `index.html`, `css/` e `js/` com Firebase simulado (nuvem e sessão em `localStorage`) no arquivo que tiver `FB_CONFIG`, e dirige um Chrome headless via DevTools Protocol. Arquivo linkado que não existe faz o cenário falhar.
 - Cenários mínimos, cada um com `assert`:
   1. Sem login: tela de login visível e hub bloqueado (`inert`).
   2. Login → mudança → documentos `hub-meta` e `hub-0` gravados.
@@ -84,6 +94,9 @@ Implementado em `tests/run.js` (T1):
   6. Sem internet: abre só local se já houve login (e a mudança offline chega à nuvem depois); senão, "Tentar de novo".
   7. Divisão em pedaços não corta emoji ao meio.
   8. Remove o token do antigo login pelo Google Drive (`hub-gd`).
+  9. Todas as telas do menu, cada aba das Finanças (mês e ano), o Início com todos os cards e a busca abrem sem erro de JS e sem tela vazia.
+  10. Todo arquivo local tem `?v=`, todos com a mesma versão, e nenhum arquivo de `css/`/`js/` fica fora do `index.html`.
+  11. Rede lenta: cada `.js` chega 700 ms depois do anterior; abrir com e sem login e sem internet não dá erro.
 - Login real com Google e regras do Firestore: checagem manual + consultas REST sem login (devem retornar `PERMISSION_DENIED`).
 - Regra: correção de bug vem com cenário que falha sem a correção.
 
@@ -91,7 +104,8 @@ Implementado em `tests/run.js` (T1):
 
 **Sempre:**
 - Rodar `node tests/run.js` e testar localmente antes de publicar.
-- Manter o app funcionando sem `FB_CONFIG` e como artefato Claude.
+- Manter o app funcionando sem `FB_CONFIG`.
+- Trocar o `?v=` de todos os links ao mudar `css/` ou `js/` (ver Estilo).
 - Escapar com `esc()` todo dado externo exibido.
 - Confirmar no site publicado depois de cada `push`.
 
@@ -99,7 +113,8 @@ Implementado em `tests/run.js` (T1):
 - Publicar (`git push`) qualquer mudança.
 - Mudar o formato dos dados salvos (`S`, chaves do `localStorage`, caminhos do Firestore) — afeta dados existentes.
 - Mudar as regras do Firestore ou a configuração do Firebase.
-- Adicionar serviço externo, biblioteca ou dividir o `index.html` em vários arquivos.
+- Adicionar serviço externo ou biblioteca.
+- Criar, juntar ou reordenar arquivos em `js/` (a ordem de carregamento faz parte do comportamento).
 - Apagar dados de qualquer pessoa (local ou nuvem).
 
 **Nunca:**
@@ -112,7 +127,7 @@ Implementado em `tests/run.js` (T1):
 
 - [ ] Site publicado carrega o Firebase sem erros no console e mostra "Entrar com o Google".
 - [ ] Leitura e escrita no Firestore sem login retornam `PERMISSION_DENIED`.
-- [ ] Os 8 cenários de teste passam com `node tests/run.js`.
+- [ ] Os 11 cenários de teste passam com `node tests/run.js`.
 - [ ] Uma tarefa criada no computador aparece no celular da mesma conta em até ~1 minuto.
 - [ ] Tela de login e hub funcionam em 375 px de largura sem rolagem horizontal.
 
@@ -125,6 +140,8 @@ As questões em aberto da primeira versão deste SPEC foram resolvidas assim (22
 3. **Testes no repositório:** `tests/run.js` (T1).
 4. **Pendências da revisão:** resolvidas (T4).
 5. **Login no celular: só pop-up, sem redirecionamento.** O `signInWithRedirect` não funciona de forma confiável quando o site (`github.io`) e o domínio de login do Firebase (`firebaseapp.com`) são diferentes: Safari e Chrome recente bloqueiam o armazenamento entre sites e o login volta sem usuário. A correção oficial exige Firebase Hosting ou domínio próprio, o que contraria a hospedagem no GitHub Pages. Se o pop-up for bloqueado, o site pede para permitir pop-ups. Rever se o site mudar de hospedagem.
+6. **Modo artefato do Claude não é mais mantido** (22/10/2026): a dona não usa mais o artefato. O código `IN_CLAUDE` fica até um plano futuro decidir removê-lo.
+7. **Modularização com scripts clássicos, não módulos ES** (22/10/2026): o código foi movido para arquivos por área sem reescrita (as mesmas linhas, conferido), mantendo a ordem original. `import`/`export` exigiria declarar as dependências entre ~2.000 linhas densas; pode ser um passo futuro, área por área.
 
 ## Questões em aberto
 
