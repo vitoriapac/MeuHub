@@ -81,6 +81,9 @@ Implementado em `tests/run.js` (T1):
   3. Mudança vinda de "outro aparelho" é mesclada.
   4. Troca de conta A → B → A: B vê hub vazio, nuvens separadas, A recupera seus dados.
   5. Sair envia as últimas mudanças antes de desconectar.
+  6. Sem internet: abre só local se já houve login (e a mudança offline chega à nuvem depois); senão, "Tentar de novo".
+  7. Divisão em pedaços não corta emoji ao meio.
+  8. Remove o token do antigo login pelo Google Drive (`hub-gd`).
 - Login real com Google e regras do Firestore: checagem manual + consultas REST sem login (devem retornar `PERMISSION_DENIED`).
 - Regra: correção de bug vem com cenário que falha sem a correção.
 
@@ -109,14 +112,20 @@ Implementado em `tests/run.js` (T1):
 
 - [ ] Site publicado carrega o Firebase sem erros no console e mostra "Entrar com o Google".
 - [ ] Leitura e escrita no Firestore sem login retornam `PERMISSION_DENIED`.
-- [ ] Os 5 cenários de teste passam com `node tests/run.js`.
+- [ ] Os 8 cenários de teste passam com `node tests/run.js`.
 - [ ] Uma tarefa criada no computador aparece no celular da mesma conta em até ~1 minuto.
 - [ ] Tela de login e hub funcionam em 375 px de largura sem rolagem horizontal.
 
+## Decisões
+
+As questões em aberto da primeira versão deste SPEC foram resolvidas assim (22/10/2026):
+
+1. **Quem pode entrar: qualquer conta Google.** Não há lista de e-mails. Cada pessoa cria o próprio hub, vazio, e as regras do Firestore garantem que ela só lê e grava `data/users/<seu uid>/`. Custo aceito: quem tiver o link usa a cota grátis do projeto Firebase, o que não pesa para um grupo pequeno. Rever se o link se espalhar ou se a cota apertar.
+2. **Sem internet: abre só local** quando já houve login no aparelho (T3). A sincronização volta no próximo carregamento com conexão, não sozinha com o site aberto.
+3. **Testes no repositório:** `tests/run.js` (T1).
+4. **Pendências da revisão:** resolvidas (T4).
+5. **Login no celular: só pop-up, sem redirecionamento.** O `signInWithRedirect` não funciona de forma confiável quando o site (`github.io`) e o domínio de login do Firebase (`firebaseapp.com`) são diferentes: Safari e Chrome recente bloqueiam o armazenamento entre sites e o login volta sem usuário. A correção oficial exige Firebase Hosting ou domínio próprio, o que contraria a hospedagem no GitHub Pages. Se o pop-up for bloqueado, o site pede para permitir pop-ups. Rever se o site mudar de hospedagem.
+
 ## Questões em aberto
 
-1. **Quem pode entrar?** Hoje qualquer conta Google consegue criar um hub (vazio). Para "eu e pessoas próximas", restringir por lista de e-mails nas regras do Firestore?
-2. ~~**Sem internet:**~~ feito (T3): se o Firebase não estiver no cache, o hub fica travado em "Tentar de novo". Abrir em modo só local quando já houve login neste aparelho?
-3. ~~**Testes no repositório**~~ — feito: `tests/run.js`.
-4. ~~**Pendências menores da revisão:**~~ feito (T4): corte de emoji na divisão dos pedaços; botão "Tentar de novo" com `onclick` em vez de `data-a`; chave antiga `hub-gd` no `localStorage`.
-5. **Login no celular:** a janela do Google pode ser bloqueada em alguns navegadores. Ter alternativa por redirecionamento?
+Nenhuma no momento.

@@ -17,7 +17,7 @@
   - Verificar: teste do emoji na fronteira no `run.js`; todos os cenários passam.
   - Arquivos: `index.html`, `tests/run.js`
 
-- [ ] **T5: registrar no SPEC as decisões das questões 1 e 5** (sem código)
+- [x] **T5: registrar no SPEC as decisões das questões 1 e 5** (sem código)
   - Aceite: as questões 1 (login aberto a qualquer conta Google) e 5 (sem redirecionamento no celular) viram decisões registradas, com o motivo.
   - Arquivos: `SPEC.md`
 
