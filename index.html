@@ -894,7 +894,7 @@ function metas(){
 }
 function metasCard(){const l=S.metas.map(g=>({g,p:metaProg(g)})).filter(x=>x.p<1).slice(0,3);return `<div class="panel" data-card="metas"><h2>Metas</h2>${l.map(x=>`<div class="cat" style="grid-template-columns:1fr auto;margin-bottom:4px"><span>${esc(x.g.t)}</span><small>${Math.round(x.p*100)}%</small></div><div class="fb" style="margin-bottom:10px"><i style="width:${x.p*100}%"></i></div>`).join('')||emp('mt','Defina metas e ligue-as a tarefas e hábitos.','Criar meta','data-v="metas"')}${l.length?'<button class="pill" data-v="metas">Abrir Metas</button>':''}</div>`}
 document.addEventListener('change',e=>{const i=e.target;if(!i.dataset||!i.dataset.krset)return;const[g,k]=i.dataset.krset.split(':'),m=S.metas.find(x=>x.id===g),r=m&&m.kr.find(x=>x.id===k);if(r){r.cur=Math.max(0,+i.value||0);render()}});
-const SK=['events','notes','tasks','links','habits','fin','dia','metas','revm','rev','fm','fpj','goal','focus','cards','frase','frasen','menu','pal','acc','nav','dens','trash','rem','rot','cap','lnk','reads','sp','spsel','wx','seeded'];let CH=IN_CLAUDE?50000:1e9;
+const SK=['events','notes','tasks','links','habits','fin','dia','metas','revm','rev','fm','fpj','goal','focus','cards','frase','frasen','menu','pal','acc','nav','dens','trash','rem','rot','cap','lnk','reads','sp','spsel','wx','seeded'];let CH=IN_CLAUDE?50000:300000;
 const pick=()=>{const o={};SK.forEach(k=>{o[k]=S[k]});return o},pickJSON=()=>JSON.stringify(pick());
 let FRESH=false;try{FRESH=!localStorage.getItem('hub-v1')}catch(e){}
 let SY={};try{SY=JSON.parse(localStorage.getItem('hub-sync')||'{}')}catch(e){}
@@ -906,11 +906,11 @@ function synText(){return {local:'Somente neste aparelho'+(SYS.d?' ('+SYS.d+')':
 function setSt(s,d){SYS.s=s;SYS.d=d||'';if(s==='ok')SYS.at=nowH();const a=$('#syn'),p=$('#synp');if(a)a.innerHTML='<b>'+({local:'☁',sync:'↻',ok:'☁',err:'⚠'}[s])+'</b>'+esc(synText().split('.')[0]);if(p)p.textContent=synText()}
 const syncPanel=()=>{
  const head=`<div class="panel" style="margin-top:14px"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 8px">${synText()}</p>`;
- const btns=`<div class="bar"><button class="pill dark" data-a="syncnow">Sincronizar agora</button><button class="pill" data-a="syncup">Enviar este aparelho para a nuvem</button><button class="pill" data-a="syncdown">Trazer os dados da nuvem</button>${IN_CLAUDE?'':'<button class="pill" data-a="gdout">Sair da conta Google</button>'}</div>`;
+ const btns=`<div class="bar"><button class="pill dark" data-a="syncnow">Sincronizar agora</button><button class="pill" data-a="syncup">Enviar este aparelho para a nuvem</button><button class="pill" data-a="syncdown">Trazer os dados da nuvem</button>${IN_CLAUDE?'':'<button class="pill" data-a="fbout">Sair da conta</button>'}</div>`;
  if(IN_CLAUDE)return head+(DBr?btns+`<p class="empty" style="padding:0">Os dados ficam numa área privada da sua conta, que só você lê. Alterações feitas em aparelhos diferentes são mescladas item a item. "Enviar" e "Trazer" substituem o outro lado e pedem um segundo clique para confirmar.</p>`:'<p class="empty" style="padding:0">Para sincronizar, abra o painel pelo link da sua conta Claude em cada aparelho, com a mesma conta. Sem isso, os dados ficam só neste navegador.</p>')+'</div>';
- if(!gdCid())return head+`<p class="empty" style="padding:0 0 8px">Entre com o Google para guardar seus dados numa pasta privada do seu Drive e usar o hub em vários aparelhos. Falta informar o ID de cliente do Google (veja o passo a passo no README do projeto).</p><form id="fgd" class="bar" style="margin:0"><input class="in grow" name="cid" placeholder="ID do cliente (termina em .apps.googleusercontent.com)" required aria-label="ID do cliente do Google"><button class="pill dark">Salvar</button></form></div>`;
- if(DBr)return head+btns+`<p class="empty" style="padding:0">Conectado${GD.email?' como <strong>'+esc(GD.email)+'</strong>':''}. Os dados ficam num arquivo oculto do app no seu Google Drive, que só este app lê. Alterações feitas em aparelhos diferentes são mescladas item a item. "Enviar" e "Trazer" substituem o outro lado e pedem um segundo clique para confirmar.</p></div>`;
- return head+`<div class="bar"><button class="pill dark" data-a="gdlogin">${GD.need?'Reconectar com o Google':'Entrar com o Google'}</button>${GD_CID_DEFAULT?'':'<button class="pill" data-a="gdcid">Trocar ID do cliente</button>'}</div><p class="empty" style="padding:0">Sem entrar, os dados ficam só neste navegador. O Backup acima continua funcionando.</p></div>`};
+ if(!FB_CONFIG)return head+'<p class="empty" style="padding:0">A sincronização ainda não foi configurada (veja o README do projeto). Os dados ficam só neste navegador.</p></div>';
+ if(DBr)return head+btns+`<p class="empty" style="padding:0">Conectado${FB.email?' como <strong>'+esc(FB.email)+'</strong>':''}. Seus dados ficam guardados na sua conta e só você tem acesso. Alterações feitas em aparelhos diferentes são mescladas item a item. "Enviar" e "Trazer" substituem o outro lado e pedem um segundo clique para confirmar.</p></div>`;
+ return head+'<div class="bar"><button class="pill dark" data-a="fblogin">Entrar com o Google</button></div><p class="empty" style="padding:0">Sem entrar, os dados ficam só neste navegador. O Backup acima continua funcionando.</p></div>'};
 const jeq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 function merge3(b,l,r){
  if(jeq(l,r))return l;if(jeq(b,l))return r;if(jeq(b,r))return l;
@@ -974,69 +974,32 @@ async function syncInit(){
  }catch(e){setSt('local')}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)push()});
 syncInit();
-/* login Google + sincronização via Google Drive (só no site): arquivo oculto do app na conta da pessoa */
-const GD_CID_DEFAULT='664499372461-cl5g0ca39sr05to9smuecj1aq63saec1.apps.googleusercontent.com';
-const GD_SCOPE='https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/userinfo.email';
-const GDAPI='https://www.googleapis.com/drive/v3/files',GDUP='https://www.googleapis.com/upload/drive/v3/files';
-let GD={cid:'',tok:'',exp:0,email:'',on:false,fid:'',tc:null,cb:null,ecb:null,need:false,tick:null};
-try{const o=JSON.parse(localStorage.getItem('hub-gd')||'{}');['cid','tok','exp','email','on'].forEach(k=>{if(k in o)GD[k]=o[k]})}catch(e){}
-const saveGD=()=>{try{localStorage.setItem('hub-gd',JSON.stringify({cid:GD.cid,tok:GD.tok,exp:GD.exp,email:GD.email,on:GD.on}))}catch(e){}};
-const gdCid=()=>GD_CID_DEFAULT||GD.cid||'';
-let gdScript=null;
-const gdLoad=()=>gdScript||(gdScript=new Promise((res,rej)=>{if(window.google&&google.accounts&&google.accounts.oauth2)return res();const t=document.createElement('script');t.src='https://accounts.google.com/gsi/client';t.async=true;t.onload=()=>res();t.onerror=()=>{gdScript=null;rej({code:'unavailable',message:'script'})};document.head.append(t)}));
-function gdAuth(prompt){return gdLoad().then(()=>new Promise((res,rej)=>{
- if(!GD.tc)GD.tc=google.accounts.oauth2.initTokenClient({client_id:gdCid(),scope:GD_SCOPE,callback:r=>GD.cb&&GD.cb(r),error_callback:e=>GD.ecb&&GD.ecb(e)});
- GD.cb=r=>{if(r.error)return rej({code:'unauthenticated',message:r.error});GD.tok=r.access_token;GD.exp=Date.now()+(+r.expires_in||3600)*1e3-6e4;saveGD();res(GD.tok)};
- GD.ecb=e=>rej({code:'unauthenticated',message:(e&&e.type)||'erro'});
- try{GD.tc.requestAccessToken({prompt,...(GD.email?{hint:GD.email}:{})})}catch(e){rej({code:'unauthenticated',message:String(e)})}}))}
-async function gdTok(){return GD.tok&&Date.now()<GD.exp?GD.tok:gdAuth('')}
-async function gdApi(url,opt,again){
- const t=await gdTok(),r=await fetch(url,{...opt,headers:{...((opt&&opt.headers)||{}),Authorization:'Bearer '+t}});
- if(r.status===401&&!again){GD.tok='';GD.exp=0;return gdApi(url,opt,1)}
- if(!r.ok){const e=new Error('http '+r.status);e.status=r.status;e.code=r.status===401?'unauthenticated':r.status===403||r.status===429?'quota_exceeded':r.status===404?'not_found':'unavailable';if(r.status===404)GD.fid='';throw e}
- return r}
-async function gdFile(){
- const q=encodeURIComponent("name='hub.json' and 'appDataFolder' in parents and trashed=false"),r=await gdApi(GDAPI+'?spaces=appDataFolder&q='+q+'&fields='+encodeURIComponent('files(id,appProperties,modifiedTime)')),j=await r.json(),f=(j.files||[])[0]||null;GD.fid=f?f.id:'';return f}
-async function gdWrite(content){
- if(!GD.fid&&!(await gdFile())){const b='hub'+uid()+uid(),meta=JSON.stringify({name:'hub.json',parents:['appDataFolder']}),body='--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+meta+'\r\n--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+content+'\r\n--'+b+'--';
-  const r=await gdApi(GDUP+'?uploadType=multipart&fields=id',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body});GD.fid=(await r.json()).id;return}
- await gdApi(GDUP+'/'+GD.fid+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'application/json; charset=UTF-8'},body:content})}
-async function gdProps(p){if(!GD.fid)await gdFile();if(!GD.fid)throw{code:'unavailable'};await gdApi(GDAPI+'/'+GD.fid,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({appProperties:p})})}
-async function gdRead(){if(!GD.fid&&!(await gdFile()))return null;return(await gdApi(GDAPI+'/'+GD.fid+'?alt=media')).json()}
-const gdMeta=f=>{const a=(f&&f.appProperties)||{};return{rev:+a.rev||0,n:1,dev:a.dev||'',at:a.at||'',len:+a.len||0,v:1}};
-const gdHas=f=>!!(f&&f.appProperties&&f.appProperties.rev);
-let gdTimer=0,gdVis=null;
-function gdPollStop(){clearInterval(gdTimer);if(gdVis)document.removeEventListener('visibilitychange',gdVis);gdVis=null;GD.tick=null}
-function gdPollStart(cb,err){gdPollStop();let last=null;
- const tick=async()=>{try{const f=await gdFile(),ex=gdHas(f),key=ex?+f.appProperties.rev:-1;if(key!==last){last=key;cb({exists:ex,data:()=>ex?gdMeta(f):null,metadata:{fromCache:false}})}}catch(e){err&&err(e)}};
- GD.tick=tick;tick();gdTimer=setInterval(()=>{if(!document.hidden)tick()},45000);gdVis=()=>{if(!document.hidden)tick()};document.addEventListener('visibilitychange',gdVis)}
-const GDa={doc(path){const nm=path.split('/').pop();
- if(nm==='hub-meta')return{
-  async get(){const f=await gdFile(),ex=gdHas(f);return{exists:ex,data:()=>ex?gdMeta(f):null}},
-  async set(m){await gdProps({rev:String(m.rev),n:'1',dev:String(m.dev||''),at:String(m.at||''),len:String(m.len||0)})},
-  onSnapshot(cb,err){gdPollStart(cb,err);return gdPollStop}};
- return{async get(){const j=await gdRead();return j&&j.s!=null?{exists:true,data:()=>j}:{exists:false,data:()=>null}},async set(v){await gdWrite(JSON.stringify({rev:v.rev,i:0,s:v.s}))},async delete(){}}}};
-function gdPause(msg){gdPollStop();DBr=null;GD.need=true;setSt('local',msg||'entre novamente com o Google');if(S.view==='backup')render()}
-function gdStart(){
- DBr=GDa;P='gd/';metaRef=GDa.doc('gd/hub-meta');DEAD=false;GD.need=false;setSt('sync');
- metaRef.onSnapshot(sn=>{chain=chain.then(()=>handleMeta(sn)).catch(e=>{if(e&&e.code==='unauthenticated')gdPause();else setSt('err',e&&e.code)})},e=>{if(e&&e.code==='unauthenticated')gdPause('sessão do Google expirada');else setSt('err',e&&e.code)});
- if(S.view==='backup')render()}
-async function gdLogin(){
- if(!gdCid()){toast('Informe primeiro o ID de cliente do Google.');return}
- try{await gdAuth('');
-  try{const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+GD.tok}});if(r.ok){const u=await r.json();GD.email=u.email||''}}catch(e){}
-  GD.on=true;saveGD();gdStart();render();toast('Conectado ao Google'+(GD.email?' ('+GD.email+')':'')+'.')}
- catch(e){GD.need=true;toast('Não foi possível entrar com o Google. Se a janela de login não abriu, permita pop-ups para este site e tente de novo.');render()}}
-function gdLogout(){gdPollStop();DBr=null;GD.on=false;GD.need=false;try{if(GD.tok&&window.google&&google.accounts)google.accounts.oauth2.revoke(GD.tok,()=>{})}catch(e){}GD.tok='';GD.exp=0;GD.email='';saveGD();setSt('local');render();toast('Desconectado. Os dados continuam neste aparelho e no seu Drive.')}
-function gdInit(){
- if(IN_CLAUDE||!GD.on||!gdCid())return;
- gdLoad().then(()=>{if(GD.tok&&Date.now()<GD.exp)gdStart();else gdAuth('').then(()=>gdStart()).catch(()=>{GD.need=true;setSt('local','entre novamente com o Google')})}).catch(()=>setSt('local','sem acesso ao Google'))}
-/* tela de login: o site só abre depois de entrar com o Google */
-/* sem ID de cliente o login não funciona, então o site abre direto em vez de trancar a dona do lado de fora */
-function gateR(){const g=$('#gate'),on=!IN_CLAUDE&&!GD.on&&!!gdCid();g.hidden=!on;$('.app').inert=on;if(!on){g.innerHTML='';return}
- gdLoad().catch(()=>{});// já carrega o script do Google, senão o navegador pode bloquear a janela do primeiro clique
- g.innerHTML=`<div class="gbox" role="dialog" aria-modal="true" aria-label="Entrar"><div class="logo">meu hub<i></i></div><p style="margin:0 0 4px;font-size:18px">Bem-vindo!</p><p class="empty" style="padding:0 0 16px">Entre com sua conta Google para começar. Seus dados ficam guardados no seu Google Drive.</p><div class="bar"><button class="pill dark" data-a="gdlogin">Entrar com o Google</button></div></div>`}
-gdInit();
+/* login + sincronização via Firebase (só no site): cada pessoa lê e grava só data/users/<uid>/ */
+const FB_CONFIG={apiKey:'AIzaSyDouA0p2KjgWXvS8vnQ5vjn-aZHkRpOIwU',authDomain:'meuhub-48efb.firebaseapp.com',projectId:'meuhub-48efb',storageBucket:'meuhub-48efb.firebasestorage.app',messagingSenderId:'814751686360',appId:'1:814751686360:web:9b630a29ff6ea0807981ad'};// valores públicos; a proteção está nas regras do Firestore
+const FBV='10.12.2';
+let FB={ready:false,err:false,on:false,email:'',auth:null},fbUnsub=null;
+const fbScript=n=>new Promise((res,rej)=>{const t=document.createElement('script');t.src='https://www.gstatic.com/firebasejs/'+FBV+'/firebase-'+n+'-compat.js';t.onload=res;t.onerror=rej;document.head.append(t)});
+function fbInit(){
+ if(IN_CLAUDE||!FB_CONFIG)return;
+ fbScript('app').then(()=>Promise.all([fbScript('auth'),fbScript('firestore')])).then(()=>{
+  firebase.initializeApp(FB_CONFIG);FB.auth=firebase.auth();
+  FB.auth.onAuthStateChanged(u=>{
+   if(fbUnsub){fbUnsub();fbUnsub=null}
+   FB.ready=true;FB.on=!!u;FB.email=u&&u.email||'';
+   if(u){DBr=firebase.firestore();P='data/users/'+u.uid+'/';metaRef=DBr.doc(P+'hub-meta');DEAD=false;setSt('sync');
+    fbUnsub=metaRef.onSnapshot(sn=>{chain=chain.then(()=>handleMeta(sn)).catch(e=>setSt('err',e&&e.code))},e=>setSt('err',e&&e.code))}
+   else{DBr=null;setSt('local')}
+   render()})
+ }).catch(()=>{FB.ready=true;FB.err=true;render()})}
+function fbLogin(){if(!FB.auth)return;FB.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>{if(e&&e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast('Não foi possível entrar. Se a janela de login não abriu, permita pop-ups para este site e tente de novo.')})}
+function fbLogout(){if(FB.auth)FB.auth.signOut().then(()=>toast('Você saiu da conta. Os dados continuam salvos na nuvem.'))}
+/* tela de login: o site só abre depois de entrar (sem FB_CONFIG não há login possível, então abre direto) */
+function gateR(){const g=$('#gate'),on=!IN_CLAUDE&&!!FB_CONFIG&&!FB.on;g.hidden=!on;$('.app').inert=on;if(!on){g.innerHTML='';return}
+ const body=FB.err?'<p class="empty" style="padding:0 0 16px">Não foi possível conectar. Verifique sua internet.</p><div class="bar"><button class="pill dark" onclick="location.reload()">Tentar de novo</button></div>'
+  :!FB.ready?'<p class="empty" style="padding:0">Carregando…</p>'
+  :'<p style="margin:0 0 4px;font-size:18px">Bem-vindo!</p><p class="empty" style="padding:0 0 16px">Entre com sua conta Google para começar. Seus dados ficam salvos e aparecem em todos os seus aparelhos.</p><div class="bar"><button class="pill dark" data-a="fblogin">Entrar com o Google</button></div>';
+ g.innerHTML=`<div class="gbox" role="dialog" aria-modal="true" aria-label="Entrar"><div class="logo">meu hub<i></i></div>${body}</div>`}
+fbInit();
 /* ===== Finanças v2: contas, cartões, recorrentes, gráficos, medidores, importação ===== */
 let FED=null,IMP=null;
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -2099,9 +2062,8 @@ function wxCard(){
 document.addEventListener('click',e=>{
  const b=e.target.closest&&e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,id=b.dataset.id,L=()=>S.sp=S.sp||[];
  const done=()=>{e.stopPropagation();e.preventDefault()};
- if(a==='gdlogin'){done();gdLogin()}
- else if(a==='gdout'){done();gdLogout()}
- else if(a==='gdcid'){done();GD.cid='';saveGD();render()}
+ if(a==='fblogin'){done();fbLogin()}
+ else if(a==='fbout'){done();fbLogout()}
  else if(a==='sppick'){done();S.spsel=id;render()}
  else if(a==='spload'){done();SPON=true;render()}
  else if(a==='spstop'){done();SPON=false;render()}
@@ -2116,7 +2078,6 @@ document.addEventListener('click',e=>{
  else if(a==='wxgeo'){done();if(!navigator.geolocation){toast('Este navegador não oferece localização.');return}navigator.geolocation.getCurrentPosition(p=>{S.wx={n:'Minha localização',lat:+p.coords.latitude.toFixed(2),lon:+p.coords.longitude.toFixed(2)};WXED=false;WXRES=[];WX=null;WXKEY='';render()},()=>toast('Não foi possível obter a localização.'),{timeout:10000})}
 },true);
 document.addEventListener('submit',e=>{const f=e.target;
- if(f.id==='fgd'){e.preventDefault();e.stopPropagation();GD.cid=String(new FormData(f).get('cid')||'').trim();saveGD();render();return}
  if(f.id==='fsp2'){e.preventDefault();e.stopPropagation();const v=Object.fromEntries(new FormData(f)),p=spParse(v.u);if(!p){toast('Esse link não parece ser do Spotify.');return}const it={id:uid(),n:String(v.n).trim(),u:'https://open.spotify.com/'+p.t+'/'+p.id,c:COL[(S.sp||[]).length%4]};S.sp=[...(S.sp||[]),it];S.spsel=it.id;SPED=false;render();return}
  if(f.id==='fwx'){e.preventDefault();e.stopPropagation();const q=String(new FormData(f).get('q')||'').trim();if(!q)return;if(IN_CLAUDE){S.wx={n:q};WXED=false;render()}else wxSearch(q)}},true);
 /* frase do dia (opcional): frases prontas ou a sua */
