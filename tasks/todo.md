@@ -19,7 +19,7 @@ Plano: [plan.md](plan.md). Comando de teste: `node tests/run.js`.
 
 ## Fase 2: dividir
 
-- [ ] **T3: CSS para `css/style.css`**
+- [x] **T3: CSS para `css/style.css`**
   - Aceite: `index.html` sem `<style>`; aparência igual em claro e escuro.
   - Verificar: 9 `✓`; capturas antes e depois (claro e escuro, 1280 px e 375 px).
   - Depende de: T2 · Arquivos: `index.html`, `css/style.css` · Tamanho: S
