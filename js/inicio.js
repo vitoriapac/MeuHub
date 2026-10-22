@@ -149,7 +149,7 @@ function exClear(){
  save();render();toast('Exemplos removidos.')}
 function exKeep(){EXK.forEach(k=>(S[k]||[]).forEach(x=>{delete x.ex}));((S.fin||{}).tx||[]).forEach(x=>{delete x.ex});save();render();toast('Os exemplos agora são seus.')}
 const TS=[
- {t:'Bem-vindo ao seu hub',b:'Agenda, tarefas, notas, links, hábitos e finanças em um só lugar. Tudo fica salvo neste aparelho; sincronizar com outros é opcional.'},
+ {t:'Bem-vindo ao seu hub',b:'Agenda, tarefas, notas, links, hábitos e finanças num lugar só. Tudo fica salvo na sua conta e aparece em todos os aparelhos em que você entrar.'},
  {t:'Captura rápida',b:'Use o botão + ou Ctrl+K e escreva do jeito que pensar: “reunião sexta 14h” ou “pagar boleto amanhã”. O hub entende a data e a hora.'},
  {t:'Navegue pelo menu',b:'Hoje mostra o dia, Agenda e Tarefas organizam o que vem pela frente, Finanças acompanha gastos e metas. Em Aparência você escolhe cores, menu e densidade.'},
  {t:'Seus dados, sob controle',b:'O botão de olho esconde os valores em R$. Em Backup ficam as versões automáticas e a exportação em arquivo. Errou? Ctrl+Z desfaz.'},

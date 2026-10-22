@@ -52,7 +52,7 @@ Apps separados (Notion, Todoist, uma planilha de gastos) não conseguem oferecer
   - HTML/CSS/JS puro em scripts comuns, sem build, publicado no GitHub Pages.
   - O login é só por pop-up, porque o redirecionamento não funciona no github.io.
   - Detalhes e regras estão no [SPEC.md](SPEC.md).
-- **Texto desatualizado conhecido:** o tour de primeiro uso ainda diz que os dados ficam no aparelho e que sincronizar é opcional. Desde 21/10/2026, o login é obrigatório e a sincronização é automática.
+- **Textos sobre onde os dados ficam:** o tour e os Primeiros passos dizem "salvo na sua conta", porque aparecem depois do login. Avisos que só aparecem sem sincronização (lembrete de backup, modo sem internet, versões automáticas) dizem "neste aparelho/navegador", e isso é correto nesses casos.
 
 ## Brand Commitments
 
