@@ -9,13 +9,13 @@ Plano: [plan.md](plan.md). Comando de teste: `node tests/run.js`.
   - Verificar: 9 `✓`. Renomear uma função usada por uma tela (numa cópia) faz o cenário 9 falhar.
   - Depende de: nada · Arquivos: `tests/run.js` · Tamanho: S
 
-- [ ] **T2: apagar as 12 funções duplicadas (código morto)**
+- [x] **T2: apagar as 12 funções duplicadas (código morto)**
   - Aceite: cada função tem uma declaração só, a última, que já é a que vale hoje. Nenhuma outra linha muda.
   - Verificar: 9 `✓`; uma verificação automática mostra 0 funções declaradas 2x; site local com config real sem erros.
   - Depende de: T1 · Arquivos: `index.html` · Tamanho: S
 
 ### Checkpoint 1
-- [ ] 9 cenários passam · [ ] site local sem erros · [ ] revisão com você
+- [x] 9 cenários passam · [x] site local sem erros · [ ] revisão com você
 
 ## Fase 2: dividir
 
