@@ -909,6 +909,7 @@ const syncPanel=()=>{
  const btns=`<div class="bar"><button class="pill dark" data-a="syncnow">Sincronizar agora</button><button class="pill" data-a="syncup">Enviar este aparelho para a nuvem</button><button class="pill" data-a="syncdown">Trazer os dados da nuvem</button>${IN_CLAUDE?'':'<button class="pill" data-a="fbout">Sair da conta</button>'}</div>`;
  if(IN_CLAUDE)return head+(DBr?btns+`<p class="empty" style="padding:0">Os dados ficam numa área privada da sua conta, que só você lê. Alterações feitas em aparelhos diferentes são mescladas item a item. "Enviar" e "Trazer" substituem o outro lado e pedem um segundo clique para confirmar.</p>`:'<p class="empty" style="padding:0">Para sincronizar, abra o painel pelo link da sua conta Claude em cada aparelho, com a mesma conta. Sem isso, os dados ficam só neste navegador.</p>')+'</div>';
  if(!FB_CONFIG)return head+'<p class="empty" style="padding:0">A sincronização ainda não foi configurada (veja o README do projeto). Os dados ficam só neste navegador.</p></div>';
+ if(FB.err)return head+'<p class="empty" style="padding:0">Sem conexão com o servidor. Suas mudanças ficam neste aparelho e são sincronizadas quando você abrir o site de novo com internet.</p></div>';
  if(DBr)return head+btns+`<p class="empty" style="padding:0">Conectado${FB.email?' como <strong>'+esc(FB.email)+'</strong>':''}. Seus dados ficam guardados na sua conta e só você tem acesso. Alterações feitas em aparelhos diferentes são mescladas item a item. "Enviar" e "Trazer" substituem o outro lado e pedem um segundo clique para confirmar.</p></div>`;
  return head+'<div class="bar"><button class="pill dark" data-a="fblogin">Entrar com o Google</button></div><p class="empty" style="padding:0">Sem entrar, os dados ficam só neste navegador. O Backup acima continua funcionando.</p></div>'};
 const jeq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
@@ -992,7 +993,7 @@ function fbInit(){
     fbUnsub=metaRef.onSnapshot(sn=>{chain=chain.then(()=>handleMeta(sn)).catch(e=>setSt('err',e&&e.code))},e=>setSt('err',e&&e.code))}
    else{DBr=null;setSt('local')}
    render()})
- }).catch(()=>{FB.ready=true;FB.err=true;render()})}
+ }).catch(()=>{FB.ready=true;FB.err=true;if(SY.uid)setSt('local','sem conexão');render()})}
 function fbLogin(){if(!FB.auth)return;FB.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>{if(e&&e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast('Não foi possível entrar. Se a janela de login não abriu, permita pop-ups para este site e tente de novo.')})}
 /* outra conta no mesmo aparelho: guarda à parte os dados locais da anterior e traz os da nova, para nenhuma ver nem sobrescrever os da outra */
 function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK];
@@ -1000,7 +1001,8 @@ function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK];
  const b=JSON.parse(ls.getItem('hub-acct-'+to)||'null');ks.forEach((k,i)=>b&&b[i]!=null?ls.setItem(k,b[i]):ls.removeItem(k));ls.removeItem('hub-acct-'+to);location.reload()}
 async function fbLogout(){if(!FB.auth)return;try{await push()}catch(e){}FB.auth.signOut().then(()=>toast('Você saiu da conta. Os dados continuam salvos na nuvem.'))}
 /* tela de login: o site só abre depois de entrar (sem FB_CONFIG não há login possível, então abre direto) */
-function gateR(){const g=$('#gate'),on=!IN_CLAUDE&&!!FB_CONFIG&&!FB.on;g.hidden=!on;$('.app').inert=on;if(!on){g.innerHTML='';return}
+// sem internet, quem já entrou neste aparelho usa os dados locais; a sincronização volta no próximo carregamento com conexão
+function gateR(){const g=$('#gate'),on=!IN_CLAUDE&&!!FB_CONFIG&&!FB.on&&!(FB.err&&SY.uid);g.hidden=!on;$('.app').inert=on;if(!on){g.innerHTML='';return}
  const body=FB.err?'<p class="empty" style="padding:0 0 16px">Não foi possível conectar. Verifique sua internet.</p><div class="bar"><button class="pill dark" onclick="location.reload()">Tentar de novo</button></div>'
   :!FB.ready?'<p class="empty" style="padding:0">Carregando…</p>'
   :'<p style="margin:0 0 4px;font-size:18px">Bem-vindo!</p><p class="empty" style="padding:0 0 16px">Entre com sua conta Google para começar. Seus dados ficam salvos e aparecem em todos os seus aparelhos.</p><div class="bar"><button class="pill dark" data-a="fblogin">Entrar com o Google</button></div>';

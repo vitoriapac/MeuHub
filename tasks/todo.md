@@ -7,7 +7,7 @@
 
 - ~~T2: só e-mails autorizados~~ (retirada a pedido; ver T5)
 
-- [ ] **T3: abrir sem internet quando já houve login no aparelho**
+- [x] **T3: abrir sem internet quando já houve login no aparelho**
   - Aceite: com `FB.err` e `SY.uid`, o hub abre só local, com aviso no status. Sem `SY.uid`, continua "Tentar de novo".
   - Verificar: cenário 6 no `run.js` (os dois casos).
   - Arquivos: `index.html`, `tests/run.js`

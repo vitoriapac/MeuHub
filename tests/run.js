@@ -27,7 +27,8 @@ function testPage() {
   const swaps = [
     ['<body>\n', '<body>\n' + MOCK + '\n'],
     [/const FB_CONFIG=(null|\{[^\n]*?\});/, 'const FB_CONFIG={projectId:"teste"};'],
-    [/const fbScript=n=>[^\n]*\n/, 'const fbScript=n=>Promise.resolve();\n'],
+    // localStorage.__offline simula os scripts do Firebase sem baixar (sem internet)
+    [/const fbScript=n=>[^\n]*\n/, 'const fbScript=n=>localStorage.getItem("__offline")?Promise.reject(new Error("offline")):Promise.resolve();\n'],
   ];
   for (const [from, to] of swaps) {
     const next = s.replace(from, to);
@@ -39,7 +40,10 @@ function testPage() {
 
 function serve(html) {
   const srv = http.createServer((req, res) => {
-    if (req.url.split('?')[0] === '/') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(html) }
+    const p = req.url.split('?')[0];
+    if (p === '/') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(html) }
+    // mesma origem, sem o app rodando: limpa o armazenamento sem um timer do app regravar no meio
+    if (p === '/limpar') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<script>localStorage.clear();document.title="limpo"</script>') }
     res.writeHead(404); res.end();
   });
   return new Promise(r => srv.listen(0, '127.0.0.1', () => r(srv)));
@@ -92,10 +96,11 @@ async function main() {
   const b = await launch(), { ev, waitFor } = b;
 
   // cada cenário começa num aparelho "limpo": sem dados locais, nuvem vazia, sem sessão
-  const fresh = async () => {
-    await b.send('Page.navigate', { url }); await waitFor('typeof FB==="object"', 'página carregar');
-    await ev('localStorage.clear()'); await b.send('Page.reload'); await sleep(200);
-    await waitFor('typeof FB==="object"&&FB.ready', 'Firebase simulado pronto');
+  const open = async () => { await b.send('Page.navigate', { url }); await sleep(200); await waitFor('typeof FB==="object"&&FB.ready', 'Firebase simulado pronto') };
+  const fresh = async (offline = false) => {
+    await b.send('Page.navigate', { url: url + 'limpar' }); await waitFor('document.title==="limpo"', 'limpar armazenamento');
+    if (offline) await ev('localStorage.setItem("__offline","1")');
+    await open();
   };
   const login = async u => {
     await ev(`window.__next=${JSON.stringify(u)};document.querySelector('[data-a=fblogin]').click()`);
@@ -148,6 +153,20 @@ async function main() {
       await addTask('t-ultima'); await ev('fbLogout()'); // antes dos 2 s do envio automático
       await waitFor('!FB.on', 'sair');
       assert.ok((await cloudTasks('A') || []).includes('t-ultima'), 'a última tarefa não foi para a nuvem');
+    }],
+    ['6. sem internet: abre só local se já houve login, senão pede para tentar de novo', async () => {
+      await fresh(); await login('A'); await addTask('t-offline'); await waitCloud('A', 't-offline');
+      await ev('localStorage.setItem("__offline","1")'); await open();
+      assert.strictEqual(await ev('$("#gate").hidden'), true, 'com login anterior, o hub deveria abrir');
+      assert.strictEqual(await ev('$(".app").inert'), false);
+      assert.deepStrictEqual(await localTasks(), ['t-offline'], 'dados locais');
+      assert.match(await ev('synText()'), /sem conexão/, 'status deveria avisar que está sem conexão');
+      await addTask('t-feita-offline'); await sleep(300);
+      await ev('localStorage.removeItem("__offline")'); await open();
+      await waitCloud('A', 't-feita-offline');
+      await fresh(true);
+      assert.strictEqual(await ev('$("#gate").hidden'), false, 'sem login anterior, a tela de login fica');
+      assert.match(await ev('$("#gate").innerText'), /Tentar de novo/);
     }],
   ];
 
