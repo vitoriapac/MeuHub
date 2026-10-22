@@ -48,11 +48,17 @@ function serve(site) {
     const p = req.url.split('?')[0];
     // mesma origem, sem o app rodando: limpa o armazenamento sem um timer do app regravar no meio
     if (p === '/limpar') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<script>localStorage.clear();document.title="limpo"</script>') }
-    if (p in site) { res.writeHead(200, { 'Content-Type': TYPES[path.extname(p)] || TYPES['.html'] }); return res.end(site[p]) }
+    if (p in site) {
+      const send = () => { res.writeHead(200, { 'Content-Type': TYPES[path.extname(p)] || TYPES['.html'] }); res.end(site[p]) };
+      // srv.slow: cada .js chega mais tarde que o anterior, como numa rede lenta, para timers e promessas
+      // de um arquivo dispararem antes de o próximo carregar
+      const pos = srv.slow && p.endsWith('.js') ? site['/index.html'].indexOf('"' + p.slice(1)) : -1;
+      return pos >= 0 ? setTimeout(send, srv.slow * (site['/index.html'].slice(0, pos).split('<script src=').length)) : send();
+    }
     if (p !== '/favicon.ico') srv.missing.push(p); // arquivo do site que não existe (ex.: link errado depois de dividir)
     res.writeHead(404); res.end();
   });
-  srv.missing = [];
+  srv.missing = []; srv.slow = 0;
   return new Promise(r => srv.listen(0, '127.0.0.1', () => r(srv)));
 }
 
@@ -204,6 +210,17 @@ async function main() {
         S.view='dash';Q='a';chk('busca');Q='';S.view='dash';render();return out})()`);
       assert.deepStrictEqual(vazias, [], 'telas vazias');
       await sleep(500); // erros assíncronos de desenho (timers, cards do Início)
+    }],
+    ['11. rede lenta: arquivos chegando com atraso não quebram a abertura (com e sem login, com e sem internet)', async () => {
+      srv.slow = 700;
+      try {
+        await fresh(); await sleep(3000);                       // sem login
+        await login('A'); await addTask('t-lento'); await waitCloud('A', 't-lento');
+        await open(); await waitFor('FB.on&&SYS.s==="ok"', 'reabrir logado'); await sleep(3000);
+        assert.deepStrictEqual(await localTasks(), ['t-lento']);
+        await ev('localStorage.setItem("__offline","1")'); await open(); await sleep(3000); // sem internet
+        assert.strictEqual(await ev('$("#gate").hidden'), true, 'sem internet, com login anterior, o hub abre');
+      } finally { srv.slow = 0 }
     }],
     ['10. todos os arquivos locais têm a mesma ?v= (cache do GitHub Pages não mistura versões)', async () => {
       const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');

@@ -29,7 +29,7 @@ Plano: [plan.md](plan.md). Comando de teste: `node tests/run.js`.
   - Verificar: 9 `✓` + teste da versão; o conteúdo do `js/app.js` é idêntico ao trecho original (diff vazio).
   - Depende de: T3 · Arquivos: `index.html`, `js/app.js`, `tests/run.js` · Tamanho: S
 
-- [ ] **T5: separar `js/core.js`, `js/sync.js` e `js/main.js`**
+- [x] **T5: separar `js/core.js`, `js/sync.js` e `js/main.js`**
   - Aceite: os três carregam em ordem; nenhum erro na abertura; login, sincronização e troca de conta iguais.
   - Verificar: 9 `✓`; o diff dos trechos movidos contra o original é vazio (exceto comandos realocados, listados no commit).
   - Depende de: T4 · Arquivos: `index.html`, `js/app.js`, `js/core.js`, `js/sync.js`, `js/main.js` · Tamanho: M
