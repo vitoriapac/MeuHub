@@ -39,13 +39,13 @@ Plano: [plan.md](plan.md). Comando de teste: `node tests/run.js`.
   - Verificar: 9 `✓`; capturas da tela Finanças (Geral, Mês, Lançamentos) iguais às de antes.
   - Depende de: T5 · Arquivos: `index.html`, `js/app.js`, `js/financas.js` · Tamanho: M
 
-- [ ] **T7: o restante para `js/recursos.js` e `js/inicio.js`; `js/app.js` deixa de existir**
+- [x] **T7: o restante para `js/recursos.js` e `js/inicio.js`; `js/app.js` deixa de existir**
   - Aceite: `index.html` só com HTML e links; cada arquivo tem um comentário de uma linha dizendo o que contém.
   - Verificar: 9 `✓`; capturas do Início (com Spotify e Clima ligados) iguais às de antes.
   - Depende de: T6 · Arquivos: `index.html`, `js/app.js`, `js/recursos.js`, `js/inicio.js` · Tamanho: M
 
 ### Checkpoint 2
-- [ ] 9 cenários passam · [ ] capturas iguais às de antes · [ ] revisão com você
+- [x] 11 cenários passam · [x] capturas iguais às de antes · [ ] revisão com você
 
 ## Fase 3: fechar
 
