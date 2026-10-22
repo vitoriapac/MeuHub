@@ -115,6 +115,7 @@ document.addEventListener('click',e=>{
  else if(a==='rw')S.rw=id==='0'?0:S.rw+ +id;
  else if(a==='hw')S.hw=+id;
  else if(a==='cust')S.cust=!S.cust;
+ else if(a==='comp'){const L2=cfg(),on=!['spotify','clima'].every(k=>{const x=L2.find(y=>y.id===k);return x&&x.on}),sp=L2.find(x=>x.id==='spotify'),wx=L2.find(x=>x.id==='clima');sp.on=wx.on=on;if(on){const rest=L2.filter(x=>x.id!=='spotify'&&x.id!=='clima'),li=rest.findIndex(x=>x.id==='linha');rest.splice(li>=0?li+1:0,0,sp,wx);S.cards=rest}else S.cards=L2}
  else if(a==='cmv'){const L2=cfg(),i=L2.findIndex(y=>y.id===id),j=i+ +b.dataset.n;if(j>=0&&j<L2.length)[L2[i],L2[j]]=[L2[j],L2[i]];S.cards=L2}
  else if(a==='pal'){S.pal=id;applyTheme()}
  else if(a==='navstyle'){S.nav=id;applyTheme()}
@@ -195,7 +196,7 @@ document.addEventListener('submit',e=>{
  if(f.id==='fmgrp'){const n=v.n.trim();if(n)menuEdit(m=>{m.groups.push({id:'g'+uid(),n,items:[]})})}
  if(f.id==='frd'){S.reads=S.reads||[];const st=['q','a','f'].includes(v.st)?v.st:'q';S.reads.unshift({id:uid(),t:v.t.trim(),a:(v.a||'').trim(),k:RK[v.k]?v.k:'livro',st,u:(v.u||'').trim(),r:0,p:st==='f'?100:0,n:'',da:T,df:st==='f'?T:''});toast('Adicionado à lista')}
  if(f.id==='fhb')S.habits.push({id:uid(),n:v.n.trim(),log:{}});
- if(f.id==='fqa'&&(QT==='dp'||QT==='rc')){finSubmit({k:QT==='dp'?'out':'in',t:v.t,v:v.v,cat:QT==='dp'?(v.cat||''):'',d:T,ac:v.ac||'',pc:1});qaClose()}
+ if(f.id==='fqa'&&(QT==='dp'||QT==='rc')){const nl=(!v.d||v.d===T)?parseNL(v.t,{time:false}):{t:v.t,d:null};finSubmit({k:QT==='dp'?'out':'in',t:nl.t,v:v.v,cat:QT==='dp'?(v.cat||''):'',d:nl.d||v.d||T,ac:v.ac||'',pc:1});qaClose()}
  if(f.id==='fqa'&&QT!=='dp'&&QT!=='rc'){const t=v.t.trim();let msg={tk:'Tarefa adicionada',nt:'Nota criada',ev:'Evento adicionado'}[QT];if(QT==='tk'){const n=parseNL(t,{time:false}),dd=v.due||n.d||'';S.tasks.unshift({id:uid(),t:n.t,done:false,p:'m',due:dd});if(!v.due&&n.d)msg+=' para '+fmt(n.d)}else if(QT==='nt')S.notes.unshift({id:uid(),t,b:'',f:S.nf||'',g:'',c:COL[S.notes.length%4]});else{const n=parseNL(t),def=v.d===T&&v.h==='09:00',dd=def&&n.d?n.d:v.d,hh=def&&n.h?n.h:v.h;S.events.push({id:uid(),t:n.t,d:dd,h:hh,c:COL[S.events.length%4]});if(def&&(n.d||n.h))msg+=': '+fmt(dd)+' às '+hh}qaClose();toast(msg)}
  if(f.id==='fev'){const e=cur('ev','events'),o={t:v.t.trim(),d:v.d,h:v.h,e:v.h2&&v.h2>v.h?v.h2:'',r:v.r||'',rm:v.rm||'',tg:normTags(v.tg),c:v.c};let i2;if(e){Object.assign(e,o);i2=e.id}else{i2=uid();S.events.push({id:i2,...o})}ED=null;if(o.rm)askNotif();if(evOn(v.d).some(x=>x.cf&&x.id===i2))toast('Atenção: conflito de horário com outro evento')}
  if(f.id==='ftk'){const e=cur('tk','tasks'),nl=(!e&&!v.due)?parseNL(v.t,{time:false}):{t:v.t.trim(),d:null},o={t:nl.t,p:v.p,due:v.due||nl.d||'',dur:+v.dur||0,pj:(v.pj||'').trim(),rc:v.rc||'',tg:normTags(v.tg)};if(e)Object.assign(e,o);else S.tasks.unshift({id:uid(),done:false,...o});ED=null}

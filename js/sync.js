@@ -8,7 +8,7 @@ const saveSY=()=>{try{localStorage.setItem('hub-sync',JSON.stringify(SY))}catch(
 let DBr=null,metaRef=null,P='',DEAD=false,pushing=false,again=false,ST=0,ARM=null,chain=Promise.resolve();
 let SYS={s:'local',d:'',at:''};
 function synText(){return {local:'Somente neste aparelho'+(SYS.d?' ('+SYS.d+')':''),sync:'Sincronizando…',ok:'Sincronizado'+(SYS.at?' às '+SYS.at:''),err:'Falha ao sincronizar'+(SYS.d?' ('+SYS.d+')':'')+'. Tentando de novo.'}[SYS.s]}
-function setSt(s,d){SYS.s=s;SYS.d=d||'';if(s==='ok')SYS.at=nowH();const a=$('#syn'),p=$('#synp');if(a)a.innerHTML='<b>'+({local:'☁',sync:'↻',ok:'☁',err:'⚠'}[s])+'</b>'+esc(synText().split('.')[0]);if(p)p.textContent=synText()}
+function setSt(s,d){SYS.s=s;SYS.d=d||'';if(s==='ok')SYS.at=nowH();const a=$('#syn'),p=$('#synp');if(a){a.dataset.st=s;a.innerHTML='<b>'+({local:'☁',sync:'↻',ok:'☁',err:'⚠'}[s])+'</b>'+esc(synText().split('.')[0])}if(p)p.textContent=synText()}
 const syncPanel=()=>{
  const head=`<div class="panel" style="margin-top:14px"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 8px">${synText()}</p>`;
  const btns=`<div class="bar"><button class="pill dark" data-a="syncnow">Sincronizar agora</button><button class="pill" data-a="syncup">Enviar este aparelho para a nuvem</button><button class="pill" data-a="syncdown">Trazer os dados da nuvem</button>${IN_CLAUDE?'':'<button class="pill" data-a="fbout">Sair da conta</button>'}</div>`;
@@ -86,12 +86,12 @@ syncInit();
 const FB_CONFIG={apiKey:'AIzaSyDouA0p2KjgWXvS8vnQ5vjn-aZHkRpOIwU',authDomain:'meuhub-48efb.firebaseapp.com',projectId:'meuhub-48efb',storageBucket:'meuhub-48efb.firebasestorage.app',messagingSenderId:'814751686360',appId:'1:814751686360:web:9b630a29ff6ea0807981ad'};// valores públicos; a proteção está nas regras do Firestore
 const FBV='10.12.2';
 let FB={ready:false,err:false,on:false,email:'',auth:null},fbUnsub=null;
-const fbScript=n=>new Promise((res,rej)=>{const t=document.createElement('script');t.src='https://www.gstatic.com/firebasejs/'+FBV+'/firebase-'+n+'-compat.js';t.onload=res;t.onerror=rej;document.head.append(t)});
+const fbScript=n=>new Promise((res,rej)=>{const t=document.createElement('script');t.src='https://www.gstatic.com/firebasejs/'+FBV+'/firebase-'+n+'-compat.js';t.onload=res;t.onerror=e=>{t.remove();rej(e)};document.head.append(t)});
 try{localStorage.removeItem('hub-gd')}catch(e){}// token do antigo login pelo Google Drive
 function fbInit(){
  if(IN_CLAUDE||!FB_CONFIG)return;
  fbScript('app').then(()=>Promise.all([fbScript('auth'),fbScript('firestore')])).then(()=>{
-  firebase.initializeApp(FB_CONFIG);FB.auth=firebase.auth();
+  if(!firebase.apps||!firebase.apps.length)firebase.initializeApp(FB_CONFIG);FB.auth=firebase.auth();FB.err=false;
   FB.auth.onAuthStateChanged(u=>{
    if(fbUnsub){fbUnsub();fbUnsub=null}
    if(u&&SY.uid&&SY.uid!==u.uid){acctSwap(SY.uid,u.uid);return}
@@ -102,6 +102,7 @@ function fbInit(){
    else{DBr=null;setSt('local')}
    render()})
  }).catch(()=>{FB.ready=true;FB.err=true;if(SY.uid)setSt('local','sem conexão');render()})}
+window.addEventListener('online',()=>{if(FB.err){FB.err=false;fbInit()}else if(DBr)syncSoon()});
 function fbLogin(){if(!FB.auth)return;FB.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>{if(e&&e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast('Não foi possível entrar. Se a janela de login não abriu, permita pop-ups para este site e tente de novo.')})}
 /* outra conta no mesmo aparelho: guarda à parte os dados locais da anterior e traz os da nova, para nenhuma ver nem sobrescrever os da outra */
 function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK];

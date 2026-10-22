@@ -257,7 +257,27 @@ async function main() {
       await b.send('Page.navigate', { url: url + '?v=hoje&qa=dp' });
       await waitFor('typeof FB==="object"&&FB.ready&&S.view==="hoje"', 'atalho ?v=hoje');
       assert.strictEqual(await ev('location.search'), '', 'URL deve limpar os parâmetros de atalho');
-      assert.strictEqual(await ev('!$("#qa").classList.contains("hide")&&QT==="dp"'), true, 'atalho ?qa=dp deve abrir captura de despesa');
+      assert.strictEqual(await ev('!$("#qa").classList.contains("hide")&&QT==="dp"&&!!$("#fqa input[name=d]")'), true, 'atalho ?qa=dp deve abrir captura de despesa com data');
+      await ev('S.view="dash";S.cards=null;render()');
+      assert.deepStrictEqual(await ev('[...document.querySelectorAll("#main [data-card]")].map(x=>x.dataset.card)'), ['linha', 'todo', 'agenda', 'habs', 'fin'], 'cards padrão do Início');
+      await ev('document.querySelector("[data-a=comp]").click()');
+      assert.strictEqual(await ev('!!document.querySelector("[data-card=spotify]")&&!!document.querySelector("[data-card=clima]")'), true, 'modo Companhia liga Spotify e Clima');
+      // reconexão automática ao voltar a internet (evento online) sem recarregar a página
+      await ev('localStorage.setItem("__offline","1")'); await open();
+      assert.strictEqual(await ev('FB.err'), true);
+      await addTask('t-auto-online');
+      await ev('localStorage.removeItem("__offline");window.dispatchEvent(new Event("online"))');
+      await waitCloud('A', 't-auto-online');
+      // layout mobile 375 px: barra inferior fixa, busca espaçosa e abas em linha única
+      await b.send('Emulation.setDeviceMetricsOverride', { width: 375, height: 667, deviceScaleFactor: 2, mobile: true });
+      try {
+        await ev('S.view="financas";S.fvw="mes";render()');
+        assert.strictEqual(await ev('getComputedStyle($("#side")).position'), 'fixed', 'barra inferior deve ser fixa em 375 px');
+        assert.ok(await ev('$("#q").getBoundingClientRect().width >= 200'), 'campo de busca deve ter pelo menos 200 px em 375 px');
+        assert.strictEqual(await ev('getComputedStyle($(".ftabs")).flexWrap'), 'nowrap', 'abas das Finanças devem rolar numa linha só no celular');
+      } finally {
+        await b.send('Emulation.clearDeviceMetricsOverride');
+      }
     }],
   ];
 
