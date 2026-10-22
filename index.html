@@ -985,6 +985,8 @@ function fbInit(){
   firebase.initializeApp(FB_CONFIG);FB.auth=firebase.auth();
   FB.auth.onAuthStateChanged(u=>{
    if(fbUnsub){fbUnsub();fbUnsub=null}
+   if(u&&SY.uid&&SY.uid!==u.uid){acctSwap(SY.uid,u.uid);return}
+   if(u&&!SY.uid){SY.uid=u.uid;saveSY()}
    FB.ready=true;FB.on=!!u;FB.email=u&&u.email||'';
    if(u){DBr=firebase.firestore();P='data/users/'+u.uid+'/';metaRef=DBr.doc(P+'hub-meta');DEAD=false;setSt('sync');
     fbUnsub=metaRef.onSnapshot(sn=>{chain=chain.then(()=>handleMeta(sn)).catch(e=>setSt('err',e&&e.code))},e=>setSt('err',e&&e.code))}
@@ -992,7 +994,11 @@ function fbInit(){
    render()})
  }).catch(()=>{FB.ready=true;FB.err=true;render()})}
 function fbLogin(){if(!FB.auth)return;FB.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>{if(e&&e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast('Não foi possível entrar. Se a janela de login não abriu, permita pop-ups para este site e tente de novo.')})}
-function fbLogout(){if(FB.auth)FB.auth.signOut().then(()=>toast('Você saiu da conta. Os dados continuam salvos na nuvem.'))}
+/* outra conta no mesmo aparelho: guarda à parte os dados locais da anterior e traz os da nova, para nenhuma ver nem sobrescrever os da outra */
+function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK];
+ try{ls.setItem('hub-acct-'+from,JSON.stringify(ks.map(k=>ls.getItem(k))))}catch(e){FB.auth.signOut();toast('Não há espaço neste navegador para trocar de conta. Faça um Backup e tente de novo.');return}
+ const b=JSON.parse(ls.getItem('hub-acct-'+to)||'null');ks.forEach((k,i)=>b&&b[i]!=null?ls.setItem(k,b[i]):ls.removeItem(k));ls.removeItem('hub-acct-'+to);location.reload()}
+async function fbLogout(){if(!FB.auth)return;try{await push()}catch(e){}FB.auth.signOut().then(()=>toast('Você saiu da conta. Os dados continuam salvos na nuvem.'))}
 /* tela de login: o site só abre depois de entrar (sem FB_CONFIG não há login possível, então abre direto) */
 function gateR(){const g=$('#gate'),on=!IN_CLAUDE&&!!FB_CONFIG&&!FB.on;g.hidden=!on;$('.app').inert=on;if(!on){g.innerHTML='';return}
  const body=FB.err?'<p class="empty" style="padding:0 0 16px">Não foi possível conectar. Verifique sua internet.</p><div class="bar"><button class="pill dark" onclick="location.reload()">Tentar de novo</button></div>'
