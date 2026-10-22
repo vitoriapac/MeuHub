@@ -9,7 +9,7 @@ const sleep = t => new Promise(r => setTimeout(r, t));
 // Firebase simulado: "nuvem" e sessão ficam no localStorage para sobreviver a reloads.
 // Fica numa closure para não colidir com os nomes globais do app.
 const MOCK = `<script>
-(()=>{const ld=k=>JSON.parse(localStorage.getItem(k)||'null'),st=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+(()=>{window.__noSW=1;const ld=k=>JSON.parse(localStorage.getItem(k)||'null'),st=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 const cloud=()=>ld('__cloud')||{},L={};window.__cloud=cloud;
 const snap=p=>{const c=cloud();return{exists:p in c,data:()=>c[p],metadata:{fromCache:false}}};
 const MA={cb:null,onAuthStateChanged(cb){this.cb=cb;setTimeout(()=>cb(ld('__sess')),20)},
@@ -22,18 +22,19 @@ const MDB={doc(p){return{get:async()=>snap(p),
 window.firebase={initializeApp(){},auth:Object.assign(()=>MA,{GoogleAuthProvider:function(){}}),firestore:()=>MDB};})();
 </script>`;
 
-// Lê o site (index.html + css/ + js/) e aplica o Firebase simulado: o mock entra no <body> do
+// Lê o site (index.html + css/ + js/ + img/ + PWA) e aplica o Firebase simulado: o mock entra no <body> do
 // index.html e a config/carregador de teste entram no arquivo que tiver FB_CONFIG, seja qual for.
 function sitePages() {
-  const files = ['index.html', ...['css', 'js'].flatMap(d => fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d)).map(f => d + '/' + f) : [])];
-  const site = Object.fromEntries(files.map(f => ['/' + f, fs.readFileSync(path.join(ROOT, f), 'utf8')]));
+  const roots = ['index.html', 'manifest.webmanifest', 'sw.js'].filter(f => fs.existsSync(path.join(ROOT, f)));
+  const files = [...roots, ...['css', 'js', 'img'].flatMap(d => fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d)).map(f => d + '/' + f) : [])];
+  const site = Object.fromEntries(files.map(f => ['/' + f, f.endsWith('.png') ? fs.readFileSync(path.join(ROOT, f)) : fs.readFileSync(path.join(ROOT, f), 'utf8')]));
   const swap = (file, from, to) => {
     const next = site[file].replace(from, to);
     if (next === site[file]) throw new Error(file + ' mudou: não achei ' + from);
     site[file] = next;
   };
   swap('/index.html', '<body>\n', '<body>\n' + MOCK + '\n');
-  const cfg = Object.keys(site).filter(f => site[f].includes('const FB_CONFIG='));
+  const cfg = Object.keys(site).filter(f => typeof site[f] === 'string' && site[f].includes('const FB_CONFIG='));
   if (cfg.length !== 1) throw new Error('esperava FB_CONFIG em 1 arquivo, achei em: ' + (cfg.join(', ') || 'nenhum'));
   swap(cfg[0], /const FB_CONFIG=(null|\{[^\n]*?\});/, 'const FB_CONFIG={projectId:"teste"};');
   // localStorage.__offline simula os scripts do Firebase sem baixar (sem internet)
@@ -42,7 +43,7 @@ function sitePages() {
   return site;
 }
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml; charset=utf-8', '.png': 'image/png' };
 function serve(site) {
   const srv = http.createServer((req, res) => {
     const p = req.url.split('?')[0];
@@ -233,6 +234,30 @@ async function main() {
       const soltos = ['css', 'js'].flatMap(d => fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d)).map(f => d + '/' + f) : [])
         .filter(f => !links.some(l => l.startsWith(f + '?')));
       assert.deepStrictEqual(soltos, [], 'arquivos em css/ ou js/ que o index.html não carrega');
+    }],
+    ['12. PWA: manifesto, ícones, sw.js sincronizado com ?v=, theme-color dinâmico e atalhos de URL', async () => {
+      const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+      const ver = html.match(/\?v=(\w+)/)[1];
+      const mf = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.webmanifest'), 'utf8'));
+      assert.strictEqual(mf.display, 'standalone');
+      assert.ok(mf.icons.length >= 3, 'manifesto precisa de ícones');
+      mf.icons.forEach(i => assert.ok(fs.existsSync(path.join(ROOT, i.src)), 'ícone ausente: ' + i.src));
+      const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+      assert.ok(sw.includes(`VER='${ver}'`), 'sw.js deve ter a mesma versão VER de ?v= (' + ver + ')');
+      ['css', 'js'].flatMap(d => fs.readdirSync(path.join(ROOT, d)).map(f => d + '/' + f)).forEach(f => {
+        assert.ok(sw.includes(f), 'sw.js não faz cache de ' + f);
+      });
+      await fresh(); await login('A');
+      await ev('document.documentElement.dataset.theme="light";applyTheme()');
+      assert.strictEqual(await ev('document.querySelector(\'meta[name="theme-color"]\').content'), '#eef4f8');
+      await ev('document.documentElement.dataset.theme="dark";applyTheme()');
+      assert.strictEqual(await ev('document.querySelector(\'meta[name="theme-color"]\').content'), '#1f1b24');
+      await ev('S.pal="ametista";applyTheme()');
+      assert.strictEqual(await ev('document.querySelector(\'meta[name="theme-color"]\').content'), '#1a0d3f');
+      await b.send('Page.navigate', { url: url + '?v=hoje&qa=dp' });
+      await waitFor('typeof FB==="object"&&FB.ready&&S.view==="hoje"', 'atalho ?v=hoje');
+      assert.strictEqual(await ev('location.search'), '', 'URL deve limpar os parâmetros de atalho');
+      assert.strictEqual(await ev('!$("#qa").classList.contains("hide")&&QT==="dp"'), true, 'atalho ?qa=dp deve abrir captura de despesa');
     }],
   ];
 

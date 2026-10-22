@@ -150,6 +150,7 @@ document.addEventListener('click',e=>{
  else if(a==='trdel'){S.trash=S.trash.filter(x=>x.b!==id);toast('Excluído de vez')}
  else if(a==='trall'){S.trash=[];toast('Lixeira esvaziada')}
  else if(a==='rperm'){try{Notification.requestPermission().then(()=>render())}catch(e){toast('Este navegador não permite notificações')}return}
+ else if(a==='pwainst'){pwaInstall();return}
  else if(a==='rtest')notify('Aviso de teste','Os lembretes estão funcionando.');
  else return;
  trashFlush(TB);
@@ -201,5 +202,6 @@ document.addEventListener('submit',e=>{
  if(f.id==='flk'){let u=v.u.trim();if(!/^https?:\/\//i.test(u))u='https://'+u;const e=cur('lk','links');S.links.forEach(x=>{if(v.k&&x.k===v.k)x.k=''});if(e)Object.assign(e,{n:v.n.trim(),u,cat:v.cat,k:v.k,tg:normTags(v.tg)});else S.links.push({id:uid(),n:v.n.trim(),u,cat:v.cat,k:v.k,tg:normTags(v.tg),c:COL[S.links.length%4]});ED=null}
  render();
 });
-render();
+{const up=new URLSearchParams(location.search),uv=up.get('v'),uqa=up.get('qa');if(uv&&V[uv])S.view=uv;if(uv||uqa)try{history.replaceState(null,'',location.pathname)}catch(e){}render();if(uqa&&/^(tk|nt|ev|dp|rc)$/.test(uqa))qa(uqa)}
 fbInit();// por último: as respostas do Firebase chamam render() e o resto do app, que precisam já estar carregados
+if(!IN_CLAUDE&&'serviceWorker' in navigator&&!window.__noSW)navigator.serviceWorker.register('sw.js').catch(()=>{});

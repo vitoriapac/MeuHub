@@ -38,7 +38,7 @@ O site só abre depois de entrar com o Google. Os dados são sincronizados entre
 
 `index.html` só tem a casca e os links. A aparência fica em `css/style.css` e o código em `js/`, um arquivo por área (`core`, `sync`, `financas`, `recursos`, `inicio`, `main`), carregados nessa ordem. Detalhes e regras em [SPEC.md](SPEC.md) → Estrutura e Estilo.
 
-**Ao publicar mudanças em `css/` ou `js/`**, troque o `?v=` de todos os links no `index.html` para a data do dia (ex.: `?v=20261023`). Assim o navegador não mistura arquivos novos com antigos do cache.
+**Ao publicar mudanças em `css/` ou `js/`**, troque o `?v=` de todos os links no `index.html` e o `VER` em `sw.js` para a data do dia (ex.: `?v=20261023`). Assim o navegador e o aplicativo instalado (PWA) não misturam arquivos novos com antigos do cache.
 
 ## Rodar localmente
 

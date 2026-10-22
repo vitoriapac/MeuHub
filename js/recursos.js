@@ -125,6 +125,16 @@ const a11yPanel=()=>`<div class="panel" style="margin-top:12px"><h2>Acessibilida
  <label class="item"><input type="checkbox" class="chk" data-opt="rmo" ${S.rmo==='on'?'checked':''}><div class="t">Reduzir animações<small>Também segue a preferência do seu sistema.</small></div></label>
  <p class="empty" style="padding:6px 0 0">Teclado: Tab navega, Enter e Espaço ativam, Esc fecha a captura rápida e Ctrl+Z desfaz. Ctrl+K (ou Cmd+K) abre a paleta de comandos. O zoom do navegador funciona até 400%.</p></div>`;
 applyA11y();
+/* aplicativo (PWA): instalação na tela inicial ou área de trabalho */
+let PWA_P=null;
+const isPWA=()=>matchMedia('(display-mode: standalone)').matches||!!navigator.standalone;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();PWA_P=e;if(S.view==='aparencia'||S.view==='backup')render()});
+window.addEventListener('appinstalled',()=>{PWA_P=null;toast('Aplicativo instalado!');if(S.view==='aparencia'||S.view==='backup')render()});
+function pwaInstall(){
+ if(isPWA()){toast('O Meu Hub já está aberto como aplicativo.');return}
+ if(!PWA_P){toast('No iPhone/iPad (Safari): Compartilhar → Adicionar à Tela de Início. No computador ou Android: use o ícone de instalar na barra de endereço.');return}
+ PWA_P.prompt();PWA_P.userChoice.then(()=>{PWA_P=null;render()}).catch(()=>{})}
+const pwaPanel=()=>IN_CLAUDE?'':`<div class="panel" style="margin-top:12px"><h2>Aplicativo</h2>${isPWA()?'<p class="empty" style="padding:0">Instalado neste aparelho. O Meu Hub abre em janela própria e funciona mesmo sem internet.</p>':PWA_P?'<p class="empty" style="padding:0 0 8px">Instale o Meu Hub para abrir direto da tela inicial ou área de trabalho, em janela própria e com acesso mesmo sem internet.</p><div class="bar" style="margin:0"><button class="pill dark" data-a="pwainst">Instalar aplicativo</button></div>':'<p class="empty" style="padding:0">Para instalar como aplicativo: no <strong>iPhone/iPad (Safari)</strong>, toque em Compartilhar e em <em>Adicionar à Tela de Início</em>. No <strong>computador ou Android (Chrome/Edge)</strong>, use o ícone de instalar na barra de endereço ou o menu do navegador.</p>'}</div>`;
 
 /* ===== Pacote A: lixeira e lembretes ===== */
 const TRD=30*864e5;
@@ -355,6 +365,7 @@ function ckItems(q){
  A('Ações','Salvar versão agora','clock',()=>{toast(snapPut('Manual')?'Versão salva em Backup.':'Nada mudou desde a última versão.');if(S.view==='backup')render()},'backup');
  A('Ações','Desfazer','undo',undo,'voltar');
  A('Ações','Rever o tour de boas-vindas','search',()=>tourOpen(0),'ajuda primeiro uso começar');
+ if(!IN_CLAUDE&&!isPWA())A('Ações','Instalar aplicativo','save',pwaInstall,'pwa celular tela inicial atalho');
  if(emptyData())A('Ações','Carregar dados de exemplo','plus',exLoad,'demonstração tour');
  if(hasEx())A('Ações','Remover dados de exemplo','undo',exClear,'apagar demonstração');
  if(tok.length){

@@ -48,11 +48,14 @@ Testar:        node tests/run.js                  (~50 s; CHROME_PATH se o naveg
 
 ```
 index.html         → só o HTML da casca e os links, na ordem de carregamento
+manifest.webmanifest → manifesto do PWA (nome, ícones, modo standalone e atalhos)
+sw.js              → Service Worker (cache da casca e da fonte para abrir sem internet)
+img/               → ícones do aplicativo (SVG, 192, 512, maskable e apple-touch-icon)
 css/style.css      → toda a aparência (tema claro/escuro por variáveis)
 js/core.js         → estado S, utilidades, telas base (tarefas, agenda, notas, hábitos, temas), atalhos
 js/sync.js         → sincronização, Firebase, tela de login, troca de conta
 js/financas.js     → Finanças inteiras (inclui fluxo de caixa, reserva, divisão de despesas)
-js/recursos.js     → busca, desfazer, menu, acessibilidade, lixeira, lembretes, rotina, leituras, paleta, datas
+js/recursos.js     → busca, desfazer, menu, acessibilidade, PWA, lixeira, lembretes, rotina, leituras, paleta, datas
 js/inicio.js       → Início, Spotify, clima, frase do dia, tour
 js/main.js         → telas (V), render(), listeners centrais e inicialização — sempre o último
 README.md          → configuração do Firebase e uso
@@ -78,7 +81,7 @@ function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK];
 - Botões novos usam `data-a="acao"`, não `onclick`.
 - Cores só por variáveis CSS (`--bg`, `--card`, `--ink`…), com tema claro e escuro.
 - Código novo vai no arquivo da sua área em `js/`. Os arquivos compartilham o escopo global e carregam em ordem: um arquivo pode **chamar** função de outro carregado depois só dentro de funções que rodam mais tarde (clique, render). **Comando que roda no carregamento e usa algo de outro arquivo vai no fim do `main.js`** (ex.: `fbInit()`).
-- Ao mudar qualquer `css/` ou `js/`, trocar o `?v=` de **todos** os links no `index.html` para a data do dia (`AAAAMMDD`, com sufixo se publicar 2x no dia). Sem isso, o cache do GitHub Pages (~10 min) pode misturar arquivos novos e velhos.
+- Ao mudar qualquer `css/` ou `js/`, trocar o `?v=` de **todos** os links no `index.html` e a constante `VER` em `sw.js` para a data do dia (`AAAAMMDD`, com sufixo se publicar 2x no dia). Sem isso, o cache do GitHub Pages (~10 min) ou o Service Worker pode misturar arquivos novos e velhos.
 
 ## Estratégia de testes
 
