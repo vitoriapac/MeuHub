@@ -366,6 +366,7 @@ select.in,.in{max-width:100%}select.in{text-overflow:ellipsis}
 :focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .side :focus-visible,#toast :focus-visible,#pomo :focus-visible{outline-color:var(--onacc,#fff)}
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.pcard{display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding:10px;border-radius:14px;border:2px solid var(--line);background:var(--card);cursor:pointer;text-align:left}.pcard.on{border-color:var(--ink)}.pcard:focus-visible{outline:2px solid var(--ink);outline-offset:2px}.pst{display:flex;width:100%;height:34px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}.pst i{flex:1}
+#gate{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:16px;background:var(--bg)}#gate[hidden]{display:none}#gate:not([hidden])~#tour{display:none}#gate:not([hidden])~#toast{z-index:220}#gate .gbox{background:var(--card);border:1px solid var(--line);border-radius:26px;padding:28px 24px;max-width:420px;width:100%;text-align:center}#gate .logo{padding:0 0 10px}#gate .bar{justify-content:center}
 .skip{position:absolute;left:-9999px;top:8px;z-index:100;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:10px;text-decoration:none}.skip:focus{left:8px}
 .vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 #main:focus,#main h1:focus{outline:none}#toast:not(.on){visibility:hidden}
@@ -405,6 +406,7 @@ html[data-hc="1"][data-theme="dark"]{--mute:#d8d2c1;--line:#8f8979}
 </style>
 </head>
 <body>
+<div id="gate" hidden></div>
 <a class="skip" href="#main">Pular para o conteúdo</a>
 <div class="app">
  <aside class="side" id="side" aria-label="Navegação e preferências">
@@ -1023,12 +1025,15 @@ async function gdLogin(){
  if(!gdCid()){toast('Informe primeiro o ID de cliente do Google.');return}
  try{await gdAuth('');
   try{const r=await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+GD.tok}});if(r.ok){const u=await r.json();GD.email=u.email||''}}catch(e){}
-  GD.on=true;saveGD();gdStart();toast('Conectado ao Google'+(GD.email?' ('+GD.email+')':'')+'.')}
+  GD.on=true;saveGD();gdStart();render();toast('Conectado ao Google'+(GD.email?' ('+GD.email+')':'')+'.')}
  catch(e){GD.need=true;toast('Não foi possível entrar com o Google. Verifique o ID do cliente e as origens autorizadas.');render()}}
 function gdLogout(){gdPollStop();DBr=null;GD.on=false;GD.need=false;try{if(GD.tok&&window.google&&google.accounts)google.accounts.oauth2.revoke(GD.tok,()=>{})}catch(e){}GD.tok='';GD.exp=0;GD.email='';saveGD();setSt('local');render();toast('Desconectado. Os dados continuam neste aparelho e no seu Drive.')}
 function gdInit(){
  if(IN_CLAUDE||!GD.on||!gdCid())return;
  gdLoad().then(()=>{if(GD.tok&&Date.now()<GD.exp)gdStart();else gdAuth('').then(()=>gdStart()).catch(()=>{GD.need=true;setSt('local','entre novamente com o Google')})}).catch(()=>setSt('local','sem acesso ao Google'))}
+/* tela de login: o site só abre depois de entrar com o Google */
+function gateR(){const g=$('#gate'),on=!IN_CLAUDE&&!GD.on;g.hidden=!on;$('.app').inert=on;if(!on){g.innerHTML='';return}
+ g.innerHTML=`<div class="gbox" role="dialog" aria-modal="true" aria-label="Entrar"><div class="logo">meu hub<i></i></div><p class="empty" style="padding:0 0 14px">Entre com sua conta Google para abrir o hub.</p>${gdCid()?'<div class="bar"><button class="pill dark" data-a="gdlogin">Entrar com o Google</button></div>':'<form id="fgd" class="bar" style="margin:0"><input class="in grow" name="cid" placeholder="ID do cliente (termina em .apps.googleusercontent.com)" required aria-label="ID do cliente do Google"><button class="pill dark">Salvar</button></form><p class="empty" style="padding:10px 0 0">Falta o ID de cliente do Google. Veja o passo a passo no README.</p>'}</div>`}
 gdInit();
 /* ===== Finanças v2: contas, cartões, recorrentes, gráficos, medidores, importação ===== */
 let FED=null,IMP=null;
@@ -2191,7 +2196,7 @@ function render(){
  if(PGV!==S.view){PG={};PGV=S.view}
  const FK=focusKey();$('#main').innerHTML=Q?busca():V[S.view]();
  renderMenu();document.querySelectorAll('.nav[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===S.view&&!Q));pomoDraw();fillTags();updU();trashSweep();a11y(FK);lkDraw();flashEl();{const mn=$('#main');if(mn&&LV!==S.view){LV=S.view;mn.classList.remove('vin');void mn.offsetWidth;mn.classList.add('vin')}}
- spSync();if(S.view==='dash'&&document.querySelector('[data-card=clima]'))wxEnsure();
+ gateR();spSync();if(S.view==='dash'&&document.querySelector('[data-card=clima]'))wxEnsure();
  save();
 }
 document.addEventListener('click',e=>{
