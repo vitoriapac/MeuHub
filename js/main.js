@@ -106,6 +106,7 @@ document.addEventListener('click',e=>{
  else if(a==='tmv'){const i=S.tasks.findIndex(x=>x.id===id),j=i+ +b.dataset.n;if(j>=0&&j<S.tasks.length)[S.tasks[i],S.tasks[j]]=[S.tasks[j],S.tasks[i]]}
  else if(a==='pf')S.pf=S.pf===id?'':id;
  else if(a==='sdel'){const t=S.tasks.find(x=>x.id===id);t.sub=t.sub.filter(s=>s.id!==b.dataset.s)}
+ else if(a==='sprom'){const t=S.tasks.find(x=>x.id===id),s=t&&(t.sub||[]).find(x=>x.id===b.dataset.s);if(s){t.sub=t.sub.filter(x=>x.id!==s.id);const nid=uid(),nt={id:nid,t:s.t,done:!!s.done,dd:s.done?T:'',p:t.p||'m',due:t.due||'',pj:t.pj||'',tg:t.tg||'',mt:t.mt||''};S.tasks.splice(S.tasks.indexOf(t)+1,0,nt);lkSet('tk:'+t.id,'tk:'+nid,true);toast('Etapa transformada em tarefa e ligada à original')}}
  else if(a==='focus'){S.fk={id,mode:'foco',run:true,end:Date.now()+FOCO*6e4,left:FOCO*6e4};askNotif()}
  else if(a==='pp'){const k=S.fk;if(k.run){k.left=k.end-Date.now();k.run=false}else{k.end=Date.now()+k.left;k.run=true}}
  else if(a==='ps')S.fk=null;

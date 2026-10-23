@@ -232,9 +232,19 @@ async function main() {
         const bid=S.fin.bills[0].id;document.querySelector('[data-a="edbill"][data-id="'+bid+'"]').click();
         const fb2=$('#fbill');fb2.querySelector('[name=v]').value='115';fb2.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
         const okBill=S.fin.bills[0].v===115&&BED===null&&S.events.some(e=>e.id===S.fin.bills[0].eid&&e.t.includes('115'));
-        return {okNL,okSearch,okRec,okBill};
+        // Pacote 2: promover subtarefa a tarefa ligada, busca de lançamentos e diário no Ctrl+K e som do Pomodoro
+        S.tasks.unshift({id:'t_parent',t:' Reforma ',done:false,p:'a',pj:'Casa',tg:'obra',sub:[{id:'s_1',t:'Comprar tinta',done:false}]});
+        S.view='tarefas';render();
+        document.querySelector('[data-a="sprom"][data-id="t_parent"][data-s="s_1"]').click();
+        const prom=S.tasks.find(x=>x.t==='Comprar tinta');
+        const okProm=!!prom&&prom.pj==='Casa'&&prom.tg==='obra'&&S.tasks.find(x=>x.id==='t_parent').sub.length===0&&lkOf('tk:t_parent').includes('tk:'+prom.id);
+        S.dia[T]={m:5,a:'Dia excelente no parque'};
+        const ckTx=ckItems('mercado').some(x=>x.g==='Itens'&&x.l.includes('mercado'));
+        const ckDia=ckItems('parque').some(x=>x.g==='Itens'&&x.l.includes('Diário'));
+        chime(1);
+        return {okNL,okSearch,okRec,okBill,okProm,ckTx,ckDia};
       })()`);
-      assert.deepStrictEqual(p1, { okNL: true, okSearch: true, okRec: true, okBill: true }, 'Pacote 1 de Finanças');
+      assert.deepStrictEqual(p1, { okNL: true, okSearch: true, okRec: true, okBill: true, okProm: true, ckTx: true, ckDia: true }, 'Pacotes 1 e 2');
       await sleep(500); // erros assíncronos de desenho (timers, cards do Início)
     }],
     ['11. rede lenta: arquivos chegando com atraso não quebram a abertura (com e sem login, com e sem internet)', async () => {
