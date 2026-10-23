@@ -250,9 +250,10 @@ async function main() {
         let sharedFile=null;navigator.canShare=()=>true;navigator.share=async o=>{sharedFile=o&&o.files&&o.files[0]?o.files[0].name:null};
         S.view='backup';render();await shareBk();
         const okShare=!!sharedFile&&sharedFile.startsWith('meu-hub-backup-')&&S.lastBk===T;
-        return {okNL,okSearch,okRec,okBill,okProm,ckTx,ckDia,blurOn,blurOff,okShare};
+        const okClean=typeof IN_CLAUDE==='undefined'&&typeof DL==='undefined'&&typeof dayViewOld==='undefined';
+        return {okNL,okSearch,okRec,okBill,okProm,ckTx,ckDia,blurOn,blurOff,okShare,okClean};
       })()`);
-      assert.deepStrictEqual(p1, { okNL: true, okSearch: true, okRec: true, okBill: true, okProm: true, ckTx: true, ckDia: true, blurOn: true, blurOff: true, okShare: true }, 'Pacotes 1, 2 e 3');
+      assert.deepStrictEqual(p1, { okNL: true, okSearch: true, okRec: true, okBill: true, okProm: true, ckTx: true, ckDia: true, blurOn: true, blurOff: true, okShare: true, okClean: true }, 'Pacotes 1, 2, 3 e 4');
       await sleep(500); // erros assíncronos de desenho (timers, cards do Início)
     }],
     ['11. rede lenta: arquivos chegando com atraso não quebram a abertura (com e sem login, com e sem internet)', async () => {

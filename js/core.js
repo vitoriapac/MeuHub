@@ -75,9 +75,7 @@ function links(){
  ${lkBar()}<div class="links">${S.links.filter(l=>!S.lc||(l.cat||'Outros')===S.lc).sort((a,b)=>!!b.pin-!!a.pin).map(l=>`<a class="link c-${l.c}" data-lid="lk:${l.id}" href="${esc(safeUrl(l.u))}" target="_blank" rel="noopener"><span class="ico" style="background:hsl(${hue(l.u)} 55% 36%)">${esc(ini(l.n))}</span><strong>${esc(l.n)}</strong>${l.k?`<kbd>${l.k}</kbd>`:''}<span class="chip" style="background:rgba(0,0,0,.12)">${esc(l.cat||'Outros')}</span>${tagsU(l).map(t=>`<span class="chip tgc" data-a="tagv" data-id="${esc(t)}">#${esc(t)}</span>`).join('')}<small>${esc(l.u.replace(/^https?:\/\//,''))}</small>${lkBtn('lk',l.id,'l')}<button class="x e p" data-a="pin" data-t="links" data-id="${l.id}" aria-label="Fixar link">${l.pin?'★':'☆'}</button><button class="x e" data-a="ed" data-t="lk" data-id="${l.id}" aria-label="Editar link">✎</button><button class="x" data-a="dellk" data-id="${l.id}" aria-label="Excluir link">×</button></a>`).join('')||emp('lk','Nenhum link salvo ainda.','Adicionar link','data-a="focusform" data-id="#flk"')}</div>`;
 }
 
-const IN_CLAUDE=typeof claude!=='undefined'&&!!claude.use;
-let Q='',ED=null,DL=null;
-try{claude.use('downloads').then(d=>{DL=d}).catch(()=>{})}catch(e){}
+let Q='',ED=null;
 const PR={a:['Alta','p'],m:['Média','y'],b:['Baixa','g']};
 const cur=(t,k)=>ED&&ED.t===t?S[k].find(x=>x.id===ED.id):null;
 const cancelBtn=e=>e?'<button type="button" class="pill" data-a="cancel">Cancelar</button>':'';
@@ -115,23 +113,14 @@ async function shareBk(){
  }catch(e){if(e&&e.name==='AbortError'){if(m)m.textContent='Compartilhamento cancelado.';return}}
  siteSave(fn,json);S.lastBk=T;save();if(m)m.textContent='Este navegador não compartilha arquivos direto: o backup foi baixado.'
 }
-async function exportBk(){
+function exportBk(){
  const m=$('#bkmsg'),{view,wk,mo,dy,mode,filter,nf,ng,lc,...data}=S,json=JSON.stringify({app:'meu-hub',v:1,data},null,1);
- if(!DL&&!IN_CLAUDE){siteSave('meu-hub-backup-'+stamp()+'.json',json);S.lastBk=T;save();m.textContent='Backup baixado. Guarde o arquivo no Google Drive ou em outro lugar seguro.';return}
- if(!DL){m.textContent='O download não está disponível aqui. Copie o texto abaixo e guarde em um arquivo .json:';const ta=document.createElement('textarea');ta.className='in bk';ta.readOnly=true;ta.value=json;m.after(ta);ta.select();return}
- try{await DL.save({filename:'meu-hub-backup-'+stamp()+'.json',data:json});S.lastBk=T;save();m.textContent='Backup pronto. Confirme o salvamento na janela que abriu.'}catch(e){m.textContent=e&&e.code==='declined'?'Download cancelado.':'Não foi possível baixar o backup.'}
+ siteSave('meu-hub-backup-'+stamp()+'.json',json);S.lastBk=T;save();m.textContent='Backup baixado. Guarde o arquivo no Google Drive ou em outro lugar seguro.';
 }
 const CATS=['Trabalho','Estudo','Ferramentas','Outros'];
 const nowH=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 const withNow=(a,k)=>{if(k!==T)return a;const n=nowH(),i=a.findIndex(e=>e.h>n),m={now:true,h:n};return i<0?[...a,m]:[...a.slice(0,i),m,...a.slice(i)]};
 const agTitle=f=>{if(S.mode==='month')return 'Agenda de '+MES[f.getMonth()]+' '+f.getFullYear();if(S.mode==='day'){const d=add(today,S.dy);return 'Agenda de '+DIA[d.getDay()]+', '+d.getDate()+' '+MES[d.getMonth()]}return 'Sua agenda'};
-function dayViewOld(){
- const d=add(today,S.dy),k=ds(d),L0=S.events.filter(e=>e.d===k).sort(evSort),now=new Date(),nh=k===T?now.getHours():12,hs=L0.map(e=>+e.h.slice(0,2)),a=Math.min(6,nh,...hs),z=Math.max(22,nh,...hs);
- let r='';
- for(let h=a;h<=z;h++){const L=L0.filter(e=>+e.h.slice(0,2)===h);
-  r+=`<div class="hr" data-day="${k}" data-hr="${String(h).padStart(2,'0')}"><span>${String(h).padStart(2,'0')}:00</span><div>${L.map(e=>`<div class="ev c-${e.c}" draggable="true" data-de="${e.id}"><strong>${esc(e.t)}</strong><small>${e.h}</small><button class="x e" data-a="ed" data-t="ev" data-id="${e.id}" aria-label="Editar evento">✎</button><button class="x" data-a="delev" data-id="${e.id}" aria-label="Excluir evento">×</button></div>`).join('')}</div>${k===T&&nh===h?`<div class="nowl" data-t="${nowH()}" style="top:${now.getMinutes()/60*100}%"></div>`:''}</div>`}
- return `<div class="hrs">${r}</div>`;
-}
 const OK=new Set(['B','STRONG','I','EM','U','UL','OL','LI','BR','DIV','P','H3','INPUT']);
 function clean(h){const t=document.createElement('template');t.innerHTML=h;const w=n=>{[...n.childNodes].forEach(c=>{if(c.nodeType===3)return;if(c.nodeType!==1){c.remove();return}w(c);if(OK.has(c.tagName)){const ck=c.tagName==='INPUT';[...c.attributes].forEach(a=>{if(!(ck&&a.name==='checked'))c.removeAttribute(a.name)});if(ck)c.setAttribute('type','checkbox')}else c.replaceWith(...c.childNodes)})};w(t.content);return t.innerHTML}
 const rich=b=>clean(/</.test(b||'')?b:esc(b||'').replace(/\n/g,'<br>'));

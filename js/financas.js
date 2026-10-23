@@ -364,13 +364,12 @@ function relAnual(){
  <div class="panel"><h2>Subcategorias do ano</h2>${agg(sb)||'<p class="empty">Preencha a subcategoria nos lançamentos para ver o detalhe.</p>'}</div>
  <div class="panel"><h2>Etiquetas do ano</h2>${agg(tg)||'<p class="empty">Etiquete lançamentos para ver o total por etiqueta.</p>'}</div>
  </div>`}
-async function exportYear(){
+function exportYear(){
  const Y=today.getFullYear()+S.fyr,d=finYear(Y),m=$('#fexpm'),f=n=>String(n.toFixed(2)).replace('.',',');
  const rows=[['Relatório financeiro',Y],[],['Mês','Receitas','Despesas','Resultado'],...d.ms.map((x,i)=>[MES[i],f(x.inc),f(x.out),f(x.inc-x.out)]),['Total',f(d.inc),f(d.out),f(d.inc-d.out)],[],['Categoria','Total','Média por mês','% dos gastos'],...Object.keys(d.by).sort((a,b)=>d.by[b]-d.by[a]).map(c=>[c,f(d.by[c]),f(d.by[c]/12),d.out?Math.round(d.by[c]/d.out*100)+'%':'0%'])];
  const csv='\uFEFF'+rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(';')).join('\r\n');
- if(!DL&&!IN_CLAUDE){siteSave('relatorio-financeiro-'+Y+'.csv',csv,'text/csv');m.textContent='Relatório baixado.';return}
- if(!DL){m.textContent='O download não está disponível aqui. Copie o texto abaixo e guarde em um arquivo .csv:';const ta=document.createElement('textarea');ta.className='in bk';ta.readOnly=true;ta.value=csv;m.after(ta);ta.select();return}
- try{await DL.save({filename:'relatorio-financeiro-'+Y+'.csv',data:csv});m.textContent='Relatório pronto. Confirme o salvamento na janela que abriu.'}catch(e){m.textContent=e&&e.code==='declined'?'Download cancelado.':'Não foi possível baixar o relatório.'}}
+ siteSave('relatorio-financeiro-'+Y+'.csv',csv,'text/csv');m.textContent='Relatório baixado.';
+}
 
 /* ===== Correções: resumo comparável e validação de transferência ===== */
 function partMonth(o,day){const m=finMonth(o),by={};let out=0;m.tx.forEach(t=>{if(t.k==='out'&&+t.d.slice(8)<=day){out+=t.v;by[t.cat]=(by[t.cat]||0)+t.v}});return{out,by}}

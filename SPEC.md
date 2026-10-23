@@ -26,8 +26,7 @@ Painel pessoal (tarefas, agenda, hábitos, notas, finanças, Spotify, clima…) 
 | Cards do Início | 5 cards ativos por padrão (`linha`, `todo`, `agenda`, `habs`, `fin`) + 10 opcionais (Frase do dia, Spotify, Clima, Produtividade, Links rápidos, Notas recentes, Revisão semanal, Histórico, Humor, Metas). Botão **Companhia** liga/desliga Spotify e Clima juntos com um clique. |
 | Spotify | Link de playlist/álbum/faixa → player oficial embutido (`open.spotify.com/embed`), carregado só ao clicar. |
 | Clima | Busca de cidade ou localização → Open-Meteo (sem chave). Só coordenadas saem do aparelho. |
-| Backup | Baixa/importa JSON (importar mescla sem apagar); cópias automáticas antes de receber dados de outro aparelho. |
-| Artefato Claude | **Não mantido** desde 22/10/2026 (ver Decisões 6). O código `IN_CLAUDE` continua no lugar, mas não é testado nem publicado. |
+| Backup | Baixa/compartilha/importa JSON (importar mescla sem apagar); cópias automáticas antes de receber dados de outro aparelho. |
 
 ## Stack
 
@@ -148,7 +147,7 @@ As questões em aberto da primeira versão deste SPEC foram resolvidas assim (22
 3. **Testes no repositório:** `tests/run.js` (T1).
 4. **Pendências da revisão:** resolvidas (T4).
 5. **Login no celular: só pop-up, sem redirecionamento.** O `signInWithRedirect` não funciona de forma confiável quando o site (`github.io`) e o domínio de login do Firebase (`firebaseapp.com`) são diferentes: Safari e Chrome recente bloqueiam o armazenamento entre sites e o login volta sem usuário. A correção oficial exige Firebase Hosting ou domínio próprio, o que contraria a hospedagem no GitHub Pages. Se o pop-up for bloqueado, o site pede para permitir pop-ups. Rever se o site mudar de hospedagem.
-6. **Modo artefato do Claude não é mais mantido** (22/10/2026): a dona não usa mais o artefato. O código `IN_CLAUDE` fica até um plano futuro decidir removê-lo.
+6. **Modo artefato do Claude removido** (23/10/2026): a dona não usa mais o artefato; todo o código legado (`IN_CLAUDE`, `window.claude`, `DL`) foi removido do repositório.
 7. **Modularização com scripts clássicos, não módulos ES** (22/10/2026): o código foi movido para arquivos por área sem reescrita (as mesmas linhas, conferido), mantendo a ordem original. `import`/`export` exigiria declarar as dependências entre ~2.000 linhas densas; pode ser um passo futuro, área por área.
 
 ## Questões em aberto

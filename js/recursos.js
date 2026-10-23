@@ -134,7 +134,7 @@ function pwaInstall(){
  if(isPWA()){toast('O Meu Hub já está aberto como aplicativo.');return}
  if(!PWA_P){toast('No iPhone/iPad (Safari): Compartilhar → Adicionar à Tela de Início. No computador ou Android: use o ícone de instalar na barra de endereço.');return}
  PWA_P.prompt();PWA_P.userChoice.then(()=>{PWA_P=null;render()}).catch(()=>{})}
-const pwaPanel=()=>IN_CLAUDE?'':`<div class="panel" style="margin-top:12px"><h2>Aplicativo</h2>${isPWA()?'<p class="empty" style="padding:0">Instalado neste aparelho. O Meu Hub abre em janela própria e funciona mesmo sem internet.</p>':PWA_P?'<p class="empty" style="padding:0 0 8px">Instale o Meu Hub para abrir direto da tela inicial ou área de trabalho, em janela própria e com acesso mesmo sem internet.</p><div class="bar" style="margin:0"><button class="pill dark" data-a="pwainst">Instalar aplicativo</button></div>':'<p class="empty" style="padding:0">Para instalar como aplicativo: no <strong>iPhone/iPad (Safari)</strong>, toque em Compartilhar e em <em>Adicionar à Tela de Início</em>. No <strong>computador ou Android (Chrome/Edge)</strong>, use o ícone de instalar na barra de endereço ou o menu do navegador.</p>'}</div>`;
+const pwaPanel=()=>`<div class="panel" style="margin-top:12px"><h2>Aplicativo</h2>${isPWA()?'<p class="empty" style="padding:0">Instalado neste aparelho. O Meu Hub abre em janela própria e funciona mesmo sem internet.</p>':PWA_P?'<p class="empty" style="padding:0 0 8px">Instale o Meu Hub para abrir direto da tela inicial ou área de trabalho, em janela própria e com acesso mesmo sem internet.</p><div class="bar" style="margin:0"><button class="pill dark" data-a="pwainst">Instalar aplicativo</button></div>':'<p class="empty" style="padding:0">Para instalar como aplicativo: no <strong>iPhone/iPad (Safari)</strong>, toque em Compartilhar e em <em>Adicionar à Tela de Início</em>. No <strong>computador ou Android (Chrome/Edge)</strong>, use o ícone de instalar na barra de endereço ou o menu do navegador.</p>'}</div>`;
 
 /* ===== Pacote A: lixeira e lembretes ===== */
 const TRD=30*864e5;
@@ -365,7 +365,7 @@ function ckItems(q){
  A('Ações','Salvar versão agora','clock',()=>{toast(snapPut('Manual')?'Versão salva em Backup.':'Nada mudou desde a última versão.');if(S.view==='backup')render()},'backup');
  A('Ações','Desfazer','undo',undo,'voltar');
  A('Ações','Rever o tour de boas-vindas','search',()=>tourOpen(0),'ajuda primeiro uso começar');
- if(!IN_CLAUDE&&!isPWA())A('Ações','Instalar aplicativo','save',pwaInstall,'pwa celular tela inicial atalho');
+ if(!isPWA())A('Ações','Instalar aplicativo','save',pwaInstall,'pwa celular tela inicial atalho');
  if(emptyData())A('Ações','Carregar dados de exemplo','plus',exLoad,'demonstração tour');
  if(hasEx())A('Ações','Remover dados de exemplo','undo',exClear,'apagar demonstração');
  if(tok.length){

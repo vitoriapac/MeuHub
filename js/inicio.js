@@ -45,15 +45,14 @@ function spCard(){
  let body='';
  if(!form&&cur){
   if(!p)body=`<p class="empty">O link de “${esc(cur.n)}” não parece ser do Spotify. Remova e adicione de novo.</p>`;
-  else if(IN_CLAUDE)body=`<a class="spl" href="https://open.spotify.com/${p.t}/${p.id}" target="_blank" rel="noopener"><span class="ico" style="background:hsl(${hue(cur.u)} 55% 36%)" aria-hidden="true">${esc(ini(cur.n))}</span><span><strong>${esc(cur.n)}</strong><small>Abrir no Spotify</small></span></a><p class="empty" style="padding:8px 0 0">O player embutido só aparece na versão publicada como site.</p>`;
   else if(!SPON)body=`<button class="spl" data-a="spload"><span class="ico" style="background:hsl(${hue(cur.u)} 55% 36%)" aria-hidden="true">${esc(ini(cur.n))}</span><span><strong>${esc(cur.n)}</strong><small>Carregar o player</small></span></button>`;
   else body=`<div class="spslot" data-src="https://open.spotify.com/embed/${p.t}/${p.id}?utm_source=generator" style="height:${SPBIG&&p.t!=='track'?352:152}px"></div>`;
  }
- const acts=(!form&&cur)?`<div class="bar" style="margin:10px 0 0">${SPON&&!IN_CLAUDE?`<button class="pill" data-a="spbig">${SPBIG?'Player menor':'Player maior'}</button><button class="pill" data-a="spstop">Parar</button>`:''}<button class="pill" data-a="spdel">Remover “${esc(cur.n)}”</button></div>`:'';
+ const acts=(!form&&cur)?`<div class="bar" style="margin:10px 0 0">${SPON?`<button class="pill" data-a="spbig">${SPBIG?'Player menor':'Player maior'}</button><button class="pill" data-a="spstop">Parar</button>`:''}<button class="pill" data-a="spdel">Remover “${esc(cur.n)}”</button></div>`:'';
  return `<div class="panel" data-card="spotify"><h2>Playlist</h2>${chips}${form}${body}${acts}</div>`}
 function spSync(){
  const slot=document.querySelector('.spslot');let w=document.getElementById('spwrap');
- if(!SPON||IN_CLAUDE){if(w){w.remove();SPCUR=''}return}
+ if(!SPON){if(w){w.remove();SPCUR=''}return}
  const want=slot?slot.dataset.src:SPCUR;
  if(!want){if(w){w.remove();SPCUR=''}return}
  if(!w){w=document.createElement('div');w.id='spwrap';document.body.prepend(w)}
@@ -70,20 +69,17 @@ const wxSvg=(k,z)=>`<svg class="ic" viewBox="0 0 24 24" width="${z}" height="${z
 let WX=null,WXKEY='',WXAT=0,WXBUSY=false,WXERR='',WXED=false,WXRES=[];
 const wxKey=()=>S.wx&&S.wx.lat!=null?S.wx.lat+','+S.wx.lon:'';
 async function wxLoad(force){
- const w=S.wx;if(!w||w.lat==null||IN_CLAUDE)return;const k=wxKey();let c=null;try{c=JSON.parse(localStorage.getItem('hub-wxc')||'null')}catch(e){}
+ const w=S.wx;if(!w||w.lat==null)return;const k=wxKey();let c=null;try{c=JSON.parse(localStorage.getItem('hub-wxc')||'null')}catch(e){}
  if(!force&&c&&c.k===k&&Date.now()-c.t<18e5){WX=c.d;WXKEY=k;WXAT=c.t;WXERR='';return wxDraw()}
  WXBUSY=true;
  try{const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude='+w.lat+'&longitude='+w.lon+'&current=temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=5');if(!r.ok)throw 0;WX=await r.json();WXERR='';try{localStorage.setItem('hub-wxc',JSON.stringify({k,t:Date.now(),d:WX}))}catch(e){}}
  catch(e){WXERR='Não foi possível carregar o clima agora.';if(c&&c.k===k)WX=c.d}
  WXKEY=k;WXAT=Date.now();wxDraw()}
 function wxDraw(){WXBUSY=false;if(document.querySelector('[data-card=clima]'))render()}
-function wxEnsure(){const k=wxKey();if(!k||IN_CLAUDE||WXBUSY)return;if(WXKEY===k&&WX&&!WXERR&&Date.now()-WXAT<18e5)return;if(WXKEY===k&&WXERR&&Date.now()-WXAT<3e5)return;wxLoad()}
+function wxEnsure(){const k=wxKey();if(!k||WXBUSY)return;if(WXKEY===k&&WX&&!WXERR&&Date.now()-WXAT<18e5)return;if(WXKEY===k&&WXERR&&Date.now()-WXAT<3e5)return;wxLoad()}
 async function wxSearch(q){try{const r=await fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=5&language=pt&format=json');if(!r.ok)throw 0;const j=await r.json();WXRES=(j.results||[]).map(x=>({n:[x.name,x.admin1].filter(Boolean).join(', ')+(x.country_code&&x.country_code!=='BR'?' ('+x.country_code+')':''),lat:+(+x.latitude).toFixed(2),lon:+(+x.longitude).toFixed(2)}));if(!WXRES.length)toast('Nenhuma cidade encontrada.')}catch(e){WXRES=[];toast('Não foi possível buscar a cidade agora.')}render()}
 function wxCard(){
  const w=S.wx,ed=WXED||!w;
- if(IN_CLAUDE){
-  const f=`<form id="fwx" class="bar" style="margin:0 0 6px"><input class="in grow" name="q" placeholder="Sua cidade" value="${esc((w&&w.n)||'')}" maxlength="60" required aria-label="Cidade"><button class="pill dark">Salvar</button></form>`;
-  return `<div class="panel" data-card="clima"><h2>Clima</h2>${ed?f:''}${w&&w.n?`<a class="spl" href="https://www.google.com/search?q=${encodeURIComponent('clima '+w.n)}" target="_blank" rel="noopener"><span class="ico" style="background:hsl(205 55% 36%)" aria-hidden="true">${wxSvg('part',18)}</span><span><strong>${esc(w.n)}</strong><small>Ver a previsão em outra aba</small></span></a>${ed?'':'<div class="bar" style="margin:10px 0 0"><button class="pill" data-a="wxchg">Trocar cidade</button></div>'}`:''}<p class="empty" style="padding:6px 0 0">A previsão ao vivo só aparece na versão publicada como site.</p></div>`}
  const form=`<form id="fwx" class="bar" style="margin:0 0 6px"><input class="in grow" name="q" placeholder="Buscar cidade (ex.: Curitiba)" maxlength="60" required aria-label="Cidade"><button class="pill dark">Buscar</button><button type="button" class="pill" data-a="wxgeo">Usar minha localização</button>${w?'<button type="button" class="pill" data-a="wxcancel">Cancelar</button>':''}</form>${WXRES.length?`<div class="bar" style="margin:0 0 6px">${WXRES.map((x,i)=>`<button class="pill" data-a="wxpick" data-id="${i}">${esc(x.n)}</button>`).join('')}</div>`:''}`;
  if(ed)return `<div class="panel" data-card="clima"><h2>Clima</h2>${form}${w?'':'<p class="empty" style="padding:2px 0 0">Escolha uma cidade para ver a previsão. Só as coordenadas são enviadas ao serviço de clima (Open-Meteo).</p>'}</div>`;
  const c=WX&&WX.current,d=WX&&WX.daily;
@@ -111,7 +107,7 @@ document.addEventListener('click',e=>{
 },true);
 document.addEventListener('submit',e=>{const f=e.target;
  if(f.id==='fsp2'){e.preventDefault();e.stopPropagation();const v=Object.fromEntries(new FormData(f)),p=spParse(v.u);if(!p){toast('Esse link não parece ser do Spotify.');return}const it={id:uid(),n:String(v.n).trim(),u:'https://open.spotify.com/'+p.t+'/'+p.id,c:COL[(S.sp||[]).length%4]};S.sp=[...(S.sp||[]),it];S.spsel=it.id;SPED=false;render();return}
- if(f.id==='fwx'){e.preventDefault();e.stopPropagation();const q=String(new FormData(f).get('q')||'').trim();if(!q)return;if(IN_CLAUDE){S.wx={n:q};WXED=false;render()}else wxSearch(q)}},true);
+ if(f.id==='fwx'){e.preventDefault();e.stopPropagation();const q=String(new FormData(f).get('q')||'').trim();if(q)wxSearch(q)}},true);
 /* frase do dia (opcional): frases prontas ou a sua */
 const FRS=['Um passo de cada vez já é movimento.','Faça o simples primeiro; o difícil fica menor depois.','Hoje basta o próximo passo.','Constância vale mais que intensidade.','O que começa pequeno também cresce.','Descansar também faz parte do plano.','Termine uma coisa antes de abrir outra.','Pouco por dia, muito no fim do mês.','Clareza vem de colocar no papel.','Um bom dia começa com uma prioridade só.','Não precisa estar pronto para começar.','Cuide da rotina e o resto acompanha.','Progresso imperfeito ainda é progresso.','Escolha o que importa e diga não ao resto.','Quem planeja a semana respira melhor.','Dinheiro organizado compra tranquilidade.','Comece pelo que você vem adiando.','Pausas curtas rendem horas melhores.','Registrar hoje é facilitar o amanhã.','Seu ritmo é o ritmo certo.','Metas viram hábitos quando cabem no dia.','Foque no que está ao seu alcance.','Bom humor também se treina.','Feito é melhor que perfeito.'];
 let FRED=false;

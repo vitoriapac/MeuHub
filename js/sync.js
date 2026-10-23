@@ -1,5 +1,5 @@
 // sincronização entre aparelhos: mescla, envio/recebimento, Firebase, tela de login e troca de conta
-const SK=['events','notes','tasks','links','habits','fin','dia','metas','revm','rev','fm','fpj','goal','focus','cards','frase','frasen','menu','pal','acc','nav','dens','trash','rem','rot','cap','lnk','reads','sp','spsel','wx','seeded'];let CH=IN_CLAUDE?50000:300000;
+const SK=['events','notes','tasks','links','habits','fin','dia','metas','revm','rev','fm','fpj','goal','focus','cards','frase','frasen','menu','pal','acc','nav','dens','trash','rem','rot','cap','lnk','reads','sp','spsel','wx','seeded'];let CH=300000;
 const pick=()=>{const o={};SK.forEach(k=>{o[k]=S[k]});return o},pickJSON=()=>JSON.stringify(pick());
 let FRESH=false;try{FRESH=!localStorage.getItem('hub-v1')}catch(e){}
 let SY={};try{SY=JSON.parse(localStorage.getItem('hub-sync')||'{}')}catch(e){}
@@ -11,8 +11,7 @@ function synText(){return {local:'Somente neste aparelho'+(SYS.d?' ('+SYS.d+')':
 function setSt(s,d){SYS.s=s;SYS.d=d||'';if(s==='ok')SYS.at=nowH();const a=$('#syn'),p=$('#synp');if(a){a.dataset.st=s;a.innerHTML='<b>'+({local:'☁',sync:'↻',ok:'☁',err:'⚠'}[s])+'</b>'+esc(synText().split('.')[0])}if(p)p.textContent=synText()}
 const syncPanel=()=>{
  const head=`<div class="panel" style="margin-top:14px"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 8px">${synText()}</p>`;
- const btns=`<div class="bar"><button class="pill dark" data-a="syncnow">Sincronizar agora</button><button class="pill" data-a="syncup">Enviar este aparelho para a nuvem</button><button class="pill" data-a="syncdown">Trazer os dados da nuvem</button>${IN_CLAUDE?'':'<button class="pill" data-a="fbout">Sair da conta</button>'}</div>`;
- if(IN_CLAUDE)return head+(DBr?btns+`<p class="empty" style="padding:0">Os dados ficam numa área privada da sua conta, que só você lê. Alterações feitas em aparelhos diferentes são mescladas item a item. "Enviar" e "Trazer" substituem o outro lado e pedem um segundo clique para confirmar.</p>`:'<p class="empty" style="padding:0">Para sincronizar, abra o painel pelo link da sua conta Claude em cada aparelho, com a mesma conta. Sem isso, os dados ficam só neste navegador.</p>')+'</div>';
+ const btns=`<div class="bar"><button class="pill dark" data-a="syncnow">Sincronizar agora</button><button class="pill" data-a="syncup">Enviar este aparelho para a nuvem</button><button class="pill" data-a="syncdown">Trazer os dados da nuvem</button><button class="pill" data-a="fbout">Sair da conta</button></div>`;
  if(!FB_CONFIG)return head+'<p class="empty" style="padding:0">A sincronização ainda não foi configurada (veja o README do projeto). Os dados ficam só neste navegador.</p></div>';
  if(FB.err)return head+'<p class="empty" style="padding:0">Sem conexão com o servidor. Suas mudanças ficam neste aparelho e são sincronizadas quando você abrir o site de novo com internet.</p></div>';
  if(DBr)return head+btns+`<p class="empty" style="padding:0">Conectado${FB.email?' como <strong>'+esc(FB.email)+'</strong>':''}. Seus dados ficam guardados na sua conta e só você tem acesso. Alterações feitas em aparelhos diferentes são mescladas item a item. "Enviar" e "Trazer" substituem o outro lado e pedem um segundo clique para confirmar.</p></div>`;
@@ -72,16 +71,7 @@ async function syncAct(a){
  ARM=null;
  if(a==='syncup'){await push(true,true);toast('Nuvem atualizada com os dados deste aparelho')}
  else{const s=await metaRef.get();if(!s.exists){toast('Não há dados na nuvem ainda');return}const ok=await pullRemote(s.data(),true);toast(ok?'Dados da nuvem carregados':'Tente de novo em instantes')}}
-async function syncInit(){
- try{
-  if(typeof claude==='undefined'||!claude.use)return;
-  const [d,u]=await Promise.all([claude.use('db'),claude.use('user')]);if(!d||!u)return;
-  const id=await u.id();if(!id)return;
-  DBr=d;P='data/users/'+id+'/';metaRef=d.doc(P+'hub-meta');setSt('sync');
-  metaRef.onSnapshot(s=>{chain=chain.then(()=>handleMeta(s)).catch(e=>setSt('err',e&&e.code))},e=>{if(e&&e.code==='revoked')DEAD=true;setSt('err',e&&e.code)});
- }catch(e){setSt('local')}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)push()});
-syncInit();
 /* login + sincronização via Firebase (só no site): cada pessoa lê e grava só data/users/<uid>/ */
 const FB_CONFIG={apiKey:'AIzaSyDouA0p2KjgWXvS8vnQ5vjn-aZHkRpOIwU',authDomain:'meuhub-48efb.firebaseapp.com',projectId:'meuhub-48efb',storageBucket:'meuhub-48efb.firebasestorage.app',messagingSenderId:'814751686360',appId:'1:814751686360:web:9b630a29ff6ea0807981ad'};// valores públicos; a proteção está nas regras do Firestore
 const FBV='10.12.2';
@@ -89,7 +79,7 @@ let FB={ready:false,err:false,on:false,email:'',auth:null},fbUnsub=null;
 const fbScript=n=>new Promise((res,rej)=>{const t=document.createElement('script');t.src='https://www.gstatic.com/firebasejs/'+FBV+'/firebase-'+n+'-compat.js';t.onload=res;t.onerror=e=>{t.remove();rej(e)};document.head.append(t)});
 try{localStorage.removeItem('hub-gd')}catch(e){}// token do antigo login pelo Google Drive
 function fbInit(){
- if(IN_CLAUDE||!FB_CONFIG)return;
+ if(!FB_CONFIG)return;
  fbScript('app').then(()=>Promise.all([fbScript('auth'),fbScript('firestore')])).then(()=>{
   if(!firebase.apps||!firebase.apps.length)firebase.initializeApp(FB_CONFIG);FB.auth=firebase.auth();FB.err=false;
   FB.auth.onAuthStateChanged(u=>{
@@ -111,7 +101,7 @@ function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK];
 async function fbLogout(){if(!FB.auth)return;try{await push()}catch(e){}FB.auth.signOut().then(()=>toast('Você saiu da conta. Os dados continuam salvos na nuvem.'))}
 /* tela de login: o site só abre depois de entrar (sem FB_CONFIG não há login possível, então abre direto) */
 // sem internet, quem já entrou neste aparelho usa os dados locais; a sincronização volta no próximo carregamento com conexão
-function gateR(){const g=$('#gate'),on=!IN_CLAUDE&&!!FB_CONFIG&&!FB.on&&!(FB.err&&SY.uid);g.hidden=!on;$('.app').inert=on;if(!on){g.innerHTML='';return}
+function gateR(){const g=$('#gate'),on=!!FB_CONFIG&&!FB.on&&!(FB.err&&SY.uid);g.hidden=!on;$('.app').inert=on;if(!on){g.innerHTML='';return}
  const body=FB.err?'<p class="empty" style="padding:0 0 16px">Não foi possível conectar. Verifique sua internet.</p><div class="bar"><button class="pill dark" data-a="reload">Tentar de novo</button></div>'
   :!FB.ready?'<p class="empty" style="padding:0">Carregando…</p>'
   :'<p style="margin:0 0 4px;font-size:18px">Bem-vindo!</p><p class="empty" style="padding:0 0 16px">Entre com sua conta Google para começar. Seus dados ficam salvos e aparecem em todos os seus aparelhos.</p><div class="bar"><button class="pill dark" data-a="fblogin">Entrar com o Google</button></div>';

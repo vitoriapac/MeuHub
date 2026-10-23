@@ -208,4 +208,4 @@ document.addEventListener('submit',e=>{
 });
 {const up=new URLSearchParams(location.search),uv=up.get('v'),uqa=up.get('qa');if(uv&&V[uv])S.view=uv;if(uv||uqa)try{history.replaceState(null,'',location.pathname)}catch(e){}render();if(uqa&&/^(tk|nt|ev|dp|rc)$/.test(uqa))qa(uqa)}
 fbInit();// por último: as respostas do Firebase chamam render() e o resto do app, que precisam já estar carregados
-if(!IN_CLAUDE&&'serviceWorker' in navigator&&!window.__noSW)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&!window.__noSW)navigator.serviceWorker.register('sw.js').catch(()=>{});
