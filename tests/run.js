@@ -211,7 +211,7 @@ async function main() {
         S.view='dash';Q='a';chk('busca');Q='';S.view='dash';render();return out})()`);
       assert.deepStrictEqual(vazias, [], 'telas vazias');
       // Pacote 1: captura rápida com valor/data/etiqueta na mesma frase, filtros em Lançamentos e edição de recorrentes/contas fixas
-      const p1 = await ev(`(()=>{
+      const p1 = await ev(`(async()=>{
         qa('dp');const fq=$('#fqa');fq.querySelector('[name=t]').value='mercado 85,90 ontem #casa';
         fq.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
         const tx=S.fin.tx[0];
@@ -242,9 +242,17 @@ async function main() {
         const ckTx=ckItems('mercado').some(x=>x.g==='Itens'&&x.l.includes('mercado'));
         const ckDia=ckItems('parque').some(x=>x.g==='Itens'&&x.l.includes('Diário'));
         chime(1);
-        return {okNL,okSearch,okRec,okBill,okProm,ckTx,ckDia};
+        // Pacote 3: modo privacidade borra textos do diário/notas e botão Compartilhar cópia no Backup
+        S.view='diario';render();togglePriv();
+        const blurOn=getComputedStyle(document.querySelector('textarea[data-dk="a"]')).filter.includes('blur');
+        togglePriv();
+        const blurOff=getComputedStyle(document.querySelector('textarea[data-dk="a"]')).filter==='none';
+        let sharedFile=null;navigator.canShare=()=>true;navigator.share=async o=>{sharedFile=o&&o.files&&o.files[0]?o.files[0].name:null};
+        S.view='backup';render();await shareBk();
+        const okShare=!!sharedFile&&sharedFile.startsWith('meu-hub-backup-')&&S.lastBk===T;
+        return {okNL,okSearch,okRec,okBill,okProm,ckTx,ckDia,blurOn,blurOff,okShare};
       })()`);
-      assert.deepStrictEqual(p1, { okNL: true, okSearch: true, okRec: true, okBill: true, okProm: true, ckTx: true, ckDia: true }, 'Pacotes 1 e 2');
+      assert.deepStrictEqual(p1, { okNL: true, okSearch: true, okRec: true, okBill: true, okProm: true, ckTx: true, ckDia: true, blurOn: true, blurOff: true, okShare: true }, 'Pacotes 1, 2 e 3');
       await sleep(500); // erros assíncronos de desenho (timers, cards do Início)
     }],
     ['11. rede lenta: arquivos chegando com atraso não quebram a abertura (com e sem login, com e sem internet)', async () => {

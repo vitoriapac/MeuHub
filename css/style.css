@@ -395,3 +395,5 @@ html[data-hc="1"][data-theme="dark"]{--mute:#d8d2c1;--line:#8f8979}
 @media (max-width:860px){.dayw{grid-template-columns:minmax(0,1fr)}.plp{position:static;order:-1}.pll>.plt:nth-child(n+5){display:none}}
 @media (max-width:860px){.ring{width:150px}.ring div{font-size:32px;letter-spacing:-1px}.ring small{font-size:11px;max-width:100px}.grid>.stack:first-child{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.grid>.stack:first-child .ring{grid-column:1/-1}.grid>.stack:first-child .stat{padding:10px 12px}.grid>.stack:first-child .stat span{font-size:12px}}
 @media (min-width:861px){.side{overflow:hidden}.nv{overflow-y:auto;min-height:0;flex:0 1 auto;scrollbar-width:thin}.sp{flex:1 0 0}.side>.nav,.side>.logo{flex:none}}
+html[data-priv="1"] :is(.note .rt,textarea[data-dk],textarea[data-rv],textarea[data-rm],textarea[data-rdf="n"],[data-a="dgo"] small,[data-card="notas"] .item small){filter:blur(6px);transition:filter .18s ease}
+html[data-priv="1"] :is(.note .rt,textarea[data-dk],textarea[data-rv],textarea[data-rm],textarea[data-rdf="n"],[data-a="dgo"] small,[data-card="notas"] .item small):is(:hover,:focus){filter:none}

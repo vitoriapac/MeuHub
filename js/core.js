@@ -100,10 +100,21 @@ function month(){
  return `<div class="month">${h}${c}</div>`;
 }
 function backup(){
- return `<div class="top"><h1>Backup</h1></div><div class="panel"><p style="margin-top:0" id="bklast">${S.lastBk?'Último backup: '+fmt(S.lastBk)+' ('+(daysSince(S.lastBk)||'hoje')+(daysSince(S.lastBk)?' dias atrás':'')+'). ':'Nenhum backup baixado ainda. '}Baixe uma cópia para guardar ou restaurar em outro aparelho. A sincronização automática está logo abaixo.</p><div class="bar"><button class="pill dark" data-a="bkexp">Baixar backup</button><label class="pill" style="cursor:pointer">Restaurar de arquivo<input type="file" id="bkfile" accept=".json,application/json" class="hide"></label><label class="pill" style="cursor:pointer" title="Junta os dados do arquivo com os deste aparelho, sem apagar nada">Importar mesclando<input type="file" id="bkmerge" accept=".json,application/json" class="hide"></label></div><p id="bkmsg" class="empty" role="status"></p></div>${snapPanel()}${syncPanel()}${pwaPanel()}`;
+ return `<div class="top"><h1>Backup</h1></div><div class="panel"><p style="margin-top:0" id="bklast">${S.lastBk?'Último backup: '+fmt(S.lastBk)+' ('+(daysSince(S.lastBk)||'hoje')+(daysSince(S.lastBk)?' dias atrás':'')+'). ':'Nenhum backup baixado ainda. '}Baixe uma cópia para guardar ou restaurar em outro aparelho. A sincronização automática está logo abaixo.</p><div class="bar"><button class="pill dark" data-a="bkexp">Baixar backup</button><button class="pill" data-a="bkshr">Compartilhar cópia</button><label class="pill" style="cursor:pointer">Restaurar de arquivo<input type="file" id="bkfile" accept=".json,application/json" class="hide"></label><label class="pill" style="cursor:pointer" title="Junta os dados do arquivo com os deste aparelho, sem apagar nada">Importar mesclando<input type="file" id="bkmerge" accept=".json,application/json" class="hide"></label></div><p id="bkmsg" class="empty" role="status"></p></div>${snapPanel()}${syncPanel()}${pwaPanel()}`;
 }
 function siteSave(name,data,type){const b=new Blob([data],{type:type||'application/json'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
 const stamp=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return T+'-'+p(d.getHours())+p(d.getMinutes())};
+async function shareBk(){
+ const m=$('#bkmsg'),{view,wk,mo,dy,mode,filter,nf,ng,lc,...data}=S,fn='meu-hub-backup-'+stamp()+'.json',json=JSON.stringify({app:'meu-hub',v:1,data},null,1);
+ try{
+  if(navigator.share&&typeof File==='function'){
+   const f=new File([json],fn,{type:'application/json'});
+   if(!navigator.canShare||navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Backup do Meu Hub'});S.lastBk=T;save();if(m)m.textContent='Backup compartilhado.';return}
+  }
+  if(navigator.share){await navigator.share({title:fn,text:json});S.lastBk=T;save();if(m)m.textContent='Backup compartilhado.';return}
+ }catch(e){if(e&&e.name==='AbortError'){if(m)m.textContent='Compartilhamento cancelado.';return}}
+ siteSave(fn,json);S.lastBk=T;save();if(m)m.textContent='Este navegador não compartilha arquivos direto: o backup foi baixado.'
+}
 async function exportBk(){
  const m=$('#bkmsg'),{view,wk,mo,dy,mode,filter,nf,ng,lc,...data}=S,json=JSON.stringify({app:'meu-hub',v:1,data},null,1);
  if(!DL&&!IN_CLAUDE){siteSave('meu-hub-backup-'+stamp()+'.json',json);S.lastBk=T;save();m.textContent='Backup baixado. Guarde o arquivo no Google Drive ou em outro lugar seguro.';return}

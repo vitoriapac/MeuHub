@@ -35,6 +35,7 @@ document.addEventListener('click',e=>{
  if(a==='payinv'){e.preventDefault();payInv(id);return}
  if(a==='syncnow'||a==='syncup'||a==='syncdown'){e.preventDefault();syncAct(a);return}
  if(a==='bkexp'){e.preventDefault();exportBk();return}
+ if(a==='bkshr'){e.preventDefault();shareBk();return}
  if(b.tagName==='A'||b.type==='checkbox')return;
  e.preventDefault();
  const TB=trashSnap();

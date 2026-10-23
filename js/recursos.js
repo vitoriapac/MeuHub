@@ -331,8 +331,8 @@ Object.assign(ICO,{
  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
  search:'<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/>'});
 /* privacidade */
-function setPriv(){const b=$('#pv');if(!b)return;b.innerHTML=ic(PRIV?'eyeoff':'eye',18);b.setAttribute('aria-pressed',PRIV?'true':'false');const t=PRIV?'Mostrar valores':'Ocultar valores';b.setAttribute('aria-label',t);b.title=t;document.documentElement.dataset.priv=PRIV?'1':'0'}
-function togglePriv(){PRIV=!PRIV;try{localStorage.setItem('hub-priv',PRIV?'1':'0')}catch(e){}setPriv();render();toast(PRIV?'Valores ocultos neste aparelho.':'Valores visíveis.')}
+function setPriv(){const b=$('#pv');if(!b)return;b.innerHTML=ic(PRIV?'eyeoff':'eye',18);b.setAttribute('aria-pressed',PRIV?'true':'false');const t=PRIV?'Mostrar valores e textos':'Ocultar valores e textos';b.setAttribute('aria-label',t);b.title=t;document.documentElement.dataset.priv=PRIV?'1':'0'}
+function togglePriv(){PRIV=!PRIV;try{localStorage.setItem('hub-priv',PRIV?'1':'0')}catch(e){}setPriv();render();toast(PRIV?'Valores e textos ocultos neste aparelho.':'Valores e textos visíveis.')}
 setTimeout(setPriv,0);
 /* versões automáticas (só neste aparelho) */
 const SNK='hub-snaps',SNMAX=8,SNBYTES=1.2e6;
