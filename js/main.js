@@ -2,7 +2,7 @@
 /* paginação: listas longas mostram um bloco e o resto sob demanda */
 let PG={},PGV='';
 const pgN=(k,d)=>PG[k]||d;
-const FLK=()=>'fl'+S.fmo+'|'+(S.fcat||'')+'|'+(S.fac||'')+'|'+(S.ftab||'');
+const FLK=()=>'fl'+S.fmo+'|'+(S.fcat||'')+'|'+(S.fkd||'')+'|'+FQ+'|'+(S.fac||'')+'|'+(S.ftab||'');
 const pgMore=(k,tot,d)=>{const sh=pgN(k,d);return tot>sh?`<div class="pgm"><button class="pill" data-a="pgmore" data-id="${esc(k)}" data-d="${d}">Mostrar mais ${Math.min(d,tot-sh)}</button><span class="empty" style="padding:0">${sh} de ${tot}</span></div>`:''};
 const V={leituras,rotina,lixeira,avisos,dash,agenda,notas,tarefas,links,backup,aparencia,habitos,financas,diario,hoje,etiquetas,metas,menu:menuView};
 let LV=null;
@@ -157,6 +157,7 @@ document.addEventListener('click',e=>{
  trashFlush(TB);
  render();
  if(a==='ed'||a==='edtx'){window.scrollTo(0,0);const i=document.querySelector('form.bar input');if(i)i.focus()}
+ if(a==='edrec'||a==='edbill'){const f=document.querySelector(a==='edrec'?'#frec':'#fbill');if(f){f.scrollIntoView({block:'nearest'});const i=f.querySelector('input');if(i)i.focus()}}
 });
 document.addEventListener('change',e=>{
  if(e.target.id==='bkmerge'){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{let msg;try{const j=JSON.parse(r.result),d=j.data||j;if(!Array.isArray(d.tasks)||!Array.isArray(d.events))throw 0;snapPut('Antes de importar mesclando');const inc={};SK.forEach(k=>{if(k in d)inc[k]=d[k]});if(Array.isArray(inc.links))inc.links=inc.links.filter(l=>l&&safeUrl(l.u)!=='#');applyState(merge3(undefined,pick(),inc));S.seeded=true;save();render();msg='Backup mesclado com os dados deste aparelho. A versão anterior foi guardada em Versões automáticas.'}catch(x){msg='Arquivo inválido. Escolha um backup gerado por este painel.'}const m=$('#bkmsg');if(m)m.textContent=msg};r.readAsText(f);e.target.value='';return}
@@ -182,12 +183,12 @@ document.addEventListener('submit',e=>{
  const f=e.target,v=Object.fromEntries(new FormData(f));
  if(f.id==='ffin')finSubmit(v);
  if(f.id==='facc'){const F=finInit();F.acc.push({id:uid(),n:v.n.trim(),ty:v.ty,ini:num(v.ini)||0,lim:+v.lim||0,close:+v.close||0,due:+v.due||0});toast('Conta adicionada')}
- if(f.id==='frec'){const F=finInit(),x=num(v.v),day=Math.min(31,Math.max(1,+v.day||1));if(x>0){F.rec.push({id:uid(),k:v.k,t:v.t.trim(),v:x,cat:v.k==='in'?'Receita':(v.cat||ruleCat(v.t)),ac:v.ac,day,ini:T,end:v.end||''});const n=genRec();toast('Recorrência criada'+(n?' ('+n+' lançamentos gerados)':''))}}
+ if(f.id==='frec'){const F=finInit(),x=num(v.v),day=Math.min(31,Math.max(1,+v.day||1));if(x>0){const er=RED?F.rec.find(r=>r.id===RED):null,cat=v.k==='in'?'Receita':(v.cat||ruleCat(v.t));if(er){Object.assign(er,{k:v.k,t:v.t.trim(),v:x,cat,ac:v.ac,day,end:v.end||''});const tid='r_'+er.id+'_'+T.slice(0,7),tx0=F.tx.find(t=>t.id===tid);if(tx0)Object.assign(tx0,{k:er.k,t:er.t,v:er.v,cat:er.cat,ac:er.ac,d:ds(new Date(today.getFullYear(),today.getMonth(),Math.min(day,dimOf(today.getFullYear(),today.getMonth()))))});RED=null;toast('Recorrência atualizada')}else{F.rec.push({id:uid(),k:v.k,t:v.t.trim(),v:x,cat,ac:v.ac,day,ini:T,end:v.end||''});const n=genRec();toast('Recorrência criada'+(n?' ('+n+' lançamentos gerados)':''))}}}
  if(f.id==='frule')ruleSave(v);
  if(f.id==='fbud'){const x=parseFloat(String(v.v).replace(',','.'));if(x>0)S.fin.bud[v.cat]=x}
  finSubE(f,v);
  if(f.id==='fgoal'){const x=parseFloat(String(v.v).replace(',','.'));if(x>0)S.fin.goals.push({id:uid(),n:v.n.trim(),target:x,saved:0})}
- if(f.id==='fbill'){const x=parseFloat(String(v.v).replace(',','.')),dy=Math.min(31,Math.max(1,+v.day||1));if(x>0){let y=today.getFullYear(),m=today.getMonth();if(dy<today.getDate())m++;const dt=new Date(y,m,Math.min(dy,new Date(y,m+1,0).getDate())),eid=uid();S.events.push({id:eid,t:'Conta: '+v.n.trim()+' ('+BRL(x)+')',d:ds(dt),h:'09:00',e:'',r:'m',rm:'',c:'p'});S.fin.bills.push({id:uid(),n:v.n.trim(),v:x,day:dy,eid});toast('Conta adicionada e lembrada na agenda todo mês')}}
+ if(f.id==='fbill'){const x=num(v.v),dy=Math.min(31,Math.max(1,+v.day||1));if(x>0){const eb=BED?S.fin.bills.find(b=>b.id===BED):null;if(eb){Object.assign(eb,{n:v.n.trim(),v:x,day:dy});const ev=eb.eid&&S.events.find(e=>e.id===eb.eid);if(ev){const y=+ev.d.slice(0,4),m=+ev.d.slice(5,7)-1;ev.t='Conta: '+eb.n+' ('+BRL(x)+')';ev.d=ds(new Date(y,m,Math.min(dy,dimOf(y,m))))}BED=null;toast('Conta fixa atualizada')}else{let y=today.getFullYear(),m=today.getMonth();if(dy<today.getDate())m++;const dt=new Date(y,m,Math.min(dy,new Date(y,m+1,0).getDate())),eid=uid();S.events.push({id:eid,t:'Conta: '+v.n.trim()+' ('+BRL(x)+')',d:ds(dt),h:'09:00',e:'',r:'m',rm:'',c:'p'});S.fin.bills.push({id:uid(),n:v.n.trim(),v:x,day:dy,eid});toast('Conta adicionada e lembrada na agenda todo mês')}}}
  if(f.id==='fhj')S.tasks.unshift({id:uid(),t:v.t.trim(),done:false,p:'m',hd:T,due:''});
  if(f.id==='frtag'){const nw=normTags(v.nw).split(', ')[0]||'';renameTag(v.old,nw);S.tgsel=nw;toast(nw?'Etiqueta renomeada em tudo':'Etiqueta removida de tudo')}
  if(f.id==='fmeta')S.metas.unshift({id:uid(),t:v.t.trim(),ini:T,fim:v.fim||'',kr:[]});
@@ -196,7 +197,7 @@ document.addEventListener('submit',e=>{
  if(f.id==='fmgrp'){const n=v.n.trim();if(n)menuEdit(m=>{m.groups.push({id:'g'+uid(),n,items:[]})})}
  if(f.id==='frd'){S.reads=S.reads||[];const st=['q','a','f'].includes(v.st)?v.st:'q';S.reads.unshift({id:uid(),t:v.t.trim(),a:(v.a||'').trim(),k:RK[v.k]?v.k:'livro',st,u:(v.u||'').trim(),r:0,p:st==='f'?100:0,n:'',da:T,df:st==='f'?T:''});toast('Adicionado à lista')}
  if(f.id==='fhb')S.habits.push({id:uid(),n:v.n.trim(),log:{}});
- if(f.id==='fqa'&&(QT==='dp'||QT==='rc')){const nl=(!v.d||v.d===T)?parseNL(v.t,{time:false}):{t:v.t,d:null};finSubmit({k:QT==='dp'?'out':'in',t:nl.t,v:v.v,cat:QT==='dp'?(v.cat||''):'',d:nl.d||v.d||T,ac:v.ac||'',pc:1});qaClose()}
+ if(f.id==='fqa'&&(QT==='dp'||QT==='rc')){const p=parseFinNL(v.t,v.v,!v.d||v.d===T),n0=finInit().tx.length;finSubmit({k:QT==='dp'?'out':'in',t:p.t,v:p.v,cat:QT==='dp'?(v.cat||''):'',d:p.d||v.d||T,ac:v.ac||'',tg:p.tg||'',pc:1});if(finInit().tx.length>n0)qaClose()}
  if(f.id==='fqa'&&QT!=='dp'&&QT!=='rc'){const t=v.t.trim();let msg={tk:'Tarefa adicionada',nt:'Nota criada',ev:'Evento adicionado'}[QT];if(QT==='tk'){const n=parseNL(t,{time:false}),dd=v.due||n.d||'';S.tasks.unshift({id:uid(),t:n.t,done:false,p:'m',due:dd});if(!v.due&&n.d)msg+=' para '+fmt(n.d)}else if(QT==='nt')S.notes.unshift({id:uid(),t,b:'',f:S.nf||'',g:'',c:COL[S.notes.length%4]});else{const n=parseNL(t),def=v.d===T&&v.h==='09:00',dd=def&&n.d?n.d:v.d,hh=def&&n.h?n.h:v.h;S.events.push({id:uid(),t:n.t,d:dd,h:hh,c:COL[S.events.length%4]});if(def&&(n.d||n.h))msg+=': '+fmt(dd)+' às '+hh}qaClose();toast(msg)}
  if(f.id==='fev'){const e=cur('ev','events'),o={t:v.t.trim(),d:v.d,h:v.h,e:v.h2&&v.h2>v.h?v.h2:'',r:v.r||'',rm:v.rm||'',tg:normTags(v.tg),c:v.c};let i2;if(e){Object.assign(e,o);i2=e.id}else{i2=uid();S.events.push({id:i2,...o})}ED=null;if(o.rm)askNotif();if(evOn(v.d).some(x=>x.cf&&x.id===i2))toast('Atenção: conflito de horário com outro evento')}
  if(f.id==='ftk'){const e=cur('tk','tasks'),nl=(!e&&!v.due)?parseNL(v.t,{time:false}):{t:v.t.trim(),d:null},o={t:nl.t,p:v.p,due:v.due||nl.d||'',dur:+v.dur||0,pj:(v.pj||'').trim(),rc:v.rc||'',tg:normTags(v.tg)};if(e)Object.assign(e,o);else S.tasks.unshift({id:uid(),done:false,...o});ED=null}

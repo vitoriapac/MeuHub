@@ -1,5 +1,5 @@
 // Service Worker do Meu Hub: guarda a casca do app e a fonte para abrir sem internet; Firebase e APIs vão direto à rede
-const VER='20261022f',CACHE='meuhub-v'+VER;
+const VER='20261022g',CACHE='meuhub-v'+VER;
 const ASSETS=[
  './',
  './index.html',

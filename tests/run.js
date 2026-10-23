@@ -210,6 +210,31 @@ async function main() {
         S.view='financas';for(const [t] of FTABS)for(const v of ['mes','ano']){S.ftab=t;S.fvw=v;chk('financas/'+t+'/'+v)}
         S.view='dash';Q='a';chk('busca');Q='';S.view='dash';render();return out})()`);
       assert.deepStrictEqual(vazias, [], 'telas vazias');
+      // Pacote 1: captura rápida com valor/data/etiqueta na mesma frase, filtros em Lançamentos e edição de recorrentes/contas fixas
+      const p1 = await ev(`(()=>{
+        qa('dp');const fq=$('#fqa');fq.querySelector('[name=t]').value='mercado 85,90 ontem #casa';
+        fq.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const tx=S.fin.tx[0];
+        const okNL=tx&&tx.t==='mercado'&&tx.v===85.9&&tx.d===ds(add(today,-1))&&tx.tg==='casa'&&tx.cat==='Alimentação';
+        S.view='financas';S.fvw='mes';S.ftab='lanc';render();
+        const qEl=$('#fq');qEl.value='mercado';qEl.dispatchEvent(new Event('input',{bubbles:true}));
+        const okSearch=$('#txlist').textContent.includes('Mostrando 1 de')&&$('#txlist').textContent.includes('mercado');
+        document.querySelector('[data-a="fclr"]').click();
+        S.ftab='contas';render();
+        const fr=$('#frec');fr.querySelector('[name=t]').value='Academia';fr.querySelector('[name=v]').value='120';fr.querySelector('[name=day]').value='5';
+        fr.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const rid=S.fin.rec[0].id;document.querySelector('[data-a="edrec"][data-id="'+rid+'"]').click();
+        const fr2=$('#frec');fr2.querySelector('[name=v]').value='150';fr2.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const okRec=S.fin.rec[0].v===150&&RED===null;
+        S.ftab='orc';render();
+        const fb=$('#fbill');fb.querySelector('[name=n]').value='Internet';fb.querySelector('[name=v]').value='99';fb.querySelector('[name=day]').value='10';
+        fb.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const bid=S.fin.bills[0].id;document.querySelector('[data-a="edbill"][data-id="'+bid+'"]').click();
+        const fb2=$('#fbill');fb2.querySelector('[name=v]').value='115';fb2.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const okBill=S.fin.bills[0].v===115&&BED===null&&S.events.some(e=>e.id===S.fin.bills[0].eid&&e.t.includes('115'));
+        return {okNL,okSearch,okRec,okBill};
+      })()`);
+      assert.deepStrictEqual(p1, { okNL: true, okSearch: true, okRec: true, okBill: true }, 'Pacote 1 de Finanças');
       await sleep(500); // erros assíncronos de desenho (timers, cards do Início)
     }],
     ['11. rede lenta: arquivos chegando com atraso não quebram a abertura (com e sem login, com e sem internet)', async () => {
