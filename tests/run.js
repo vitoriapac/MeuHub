@@ -224,6 +224,47 @@ async function main() {
       const r=await ev(`(()=>{S.view='notas';render();qa();const b=document.querySelector('[data-a=qat][data-id=ib]');if(!b)return null;b.click();const f=document.querySelector('#fqa');f.querySelector('[name=t]').value='Lembrar disto';f.requestSubmit();return {inbox:S.inbox,view:S.view}})()`);
       assert.ok(r);assert.strictEqual(r.inbox[0].t,'Lembrar disto');assert.strictEqual(r.view,'notas');
     }],
+    ['tema e nome permanecem no estado após recarregar', async () => {
+      await fresh(); await login('A');
+      const before=await ev(`(()=>{S.view='aparencia';render();const theme=document.querySelector('[data-theme-choice="dark"]'),name=document.querySelector('#profile-name');if(!theme||!name)return false;theme.click();const updated=document.querySelector('#profile-name');updated.value='Vitória';updated.dispatchEvent(new Event('change',{bubbles:true}));return true})()`);
+      assert.ok(before);await open();const r=await ev(`(()=>{S.view='dash';render();return {theme:document.documentElement.dataset.theme,heading:document.querySelector('.hero2 h1').textContent,synced:pick().themeMode}})()`);
+      assert.strictEqual(r.theme,'dark');assert.match(r.heading,/Vitória/);assert.strictEqual(r.synced,'dark');
+    }],
+    ['lista de compras guarda itens independentes, quantidades e marcações', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.view='notas';render();const btn=document.querySelector('[data-a=shopping-add]');if(!btn)return null;btn.click();const list=S.notes.find(n=>n.kind==='shopping');const form=document.querySelector('[data-shopping-form]');form.querySelector('[name=t]').value='Arroz';form.querySelector('[name=q]').value='2 kg';form.requestSubmit();const checkbox=document.querySelector('[data-shopping-check]');checkbox.checked=true;checkbox.dispatchEvent(new Event('change',{bubbles:true}));return {items:list.items,save:JSON.parse(localStorage.getItem('hub-v1')).notes.find(n=>n.id===list.id).items,html:document.querySelector('#main').innerText}})()`);
+      assert.ok(r);assert.strictEqual(r.items[0].t,'Arroz');assert.strictEqual(r.items[0].q,'2 kg');assert.strictEqual(r.items[0].done,true);assert.deepStrictEqual(r.save,r.items);
+    }],
+    ['mescla de itens da mesma lista preserva edições em aparelhos distintos', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const base={notes:[{id:'l',kind:'shopping',items:[{id:'a',t:'Arroz',done:false},{id:'b',t:'Feijão',done:false}]}]},a=JSON.parse(JSON.stringify(base)),b=JSON.parse(JSON.stringify(base));a.notes[0].items[0].done=true;b.notes[0].items[1].done=true;return merge3(base,a,b).notes[0].items})()`);
+      assert.ok(r.every(x=>x.done));
+    }],
+    ['avisa quando o mesmo campo muda nos dois aparelhos', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const conflicts=[];const result=merge3({t:'original'},{t:'local'},{t:'remoto'},conflicts);return {result,conflicts}})()`);
+      assert.strictEqual(r.result.t,'local');assert.ok(r.conflicts.length);
+    }],
+    ['mudança de dia atualiza a tela após terminar edição', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{S.view='hoje';today=add(new Date(),-1);T=ds(today);render();const input=document.querySelector('#fhj input');window.__blurSeen=0;input.addEventListener('blur',()=>window.__blurSeen++);input.focus();const activeBefore=document.activeElement===input;input.value='Não perder';newDay();const kept=input.isConnected&&input.value==='Não perder';input.value='';input.blur();input.dispatchEvent(new FocusEvent('blur'));await new Promise(r=>setTimeout(r,100));return {kept,activeBefore,blurSeen:window.__blurSeen,pending:dayPending,active:document.activeElement.tagName,current:T,date:document.querySelector('#main').innerText,expected:String(new Date().getDate())+' de '+MESF[new Date().getMonth()]}})()`);
+      assert.ok(r.kept);assert.ok(r.date.includes(r.expected), JSON.stringify(r));
+    }],
+    ['versão remota em conflito pode ser recuperada no backup', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{const base=pick();base.focus='base';S.focus='local';SY.last=JSON.stringify(base);const remote=JSON.parse(JSON.stringify(base));remote.focus='remoto';const rev=SY.rev+1,j=JSON.stringify(remote);await DBr.doc(P+'hub-0').set({rev,i:0,s:j});await pullRemote({rev,n:1},false);return {local:S.focus,remote:snaps().some(x=>JSON.parse(x.j).focus==='remoto')}})()`);
+      assert.strictEqual(r.local,'local');assert.ok(r.remote);
+    }],
+    ['backup com lista inválida não é importado', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{S.view='backup';render();const f=document.querySelector('#bkmerge'),d=new DataTransfer();d.items.add(new File([JSON.stringify({tasks:[],events:[],notes:[{id:'a',kind:'shopping',items:'inválido'}]})],'backup.json',{type:'application/json'}));f.files=d.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,150));return {notes:S.notes.length,msg:document.querySelector('#bkmsg').textContent}})()`);
+      assert.strictEqual(r.notes,0);assert.match(r.msg,/inválido/i);
+    }],
+    ['alternar tema mantém texto ainda não enviado', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.view='hoje';render();const i=document.querySelector('#fhj input');i.value='Texto em edição';document.querySelector('#theme').click();return {text:document.querySelector('#fhj input').value,mode:pick().themeMode}})()`);
+      assert.strictEqual(r.text,'Texto em edição');assert.ok(['dark','light'].includes(r.mode));
+    }],
     ['1. sem login, o hub fica bloqueado', async () => {
       await fresh();
       assert.strictEqual(await ev('$("#gate").hidden'), false, 'tela de login deveria aparecer');
@@ -385,9 +426,9 @@ async function main() {
         assert.ok(sw.includes(f), 'sw.js não faz cache de ' + f);
       });
       await fresh(); await login('A');
-      await ev('document.documentElement.dataset.theme="light";applyTheme()');
+      await ev('S.themeMode="light";applyTheme()');
       assert.strictEqual(await ev('document.querySelector(\'meta[name="theme-color"]\').content'), '#eef4f8');
-      await ev('document.documentElement.dataset.theme="dark";applyTheme()');
+      await ev('S.themeMode="dark";applyTheme()');
       assert.strictEqual(await ev('document.querySelector(\'meta[name="theme-color"]\').content'), '#1f1b24');
       await ev('S.pal="ametista";applyTheme()');
       assert.strictEqual(await ev('document.querySelector(\'meta[name="theme-color"]\').content'), '#1a0d3f');

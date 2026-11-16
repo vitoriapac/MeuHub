@@ -36,7 +36,7 @@ Um painel pessoal brasileiro que reúne **planejamento do dia**, **controle fina
 - **Regras e Importação:** regras automáticas por palavra-chave e importação de extratos **CSV** (Nubank, Itaú, Inter, Bradesco, C6 etc.) com pré-visualização e detecção de duplicatas.
 
 ### 3. Conhecimento, Bem-Estar e Recursos Globais
-- **Notas, Diário, Humor e Leituras:** notas fixáveis com checklist, cores e sugestões por etiqueta ou ligação, diário com perguntas guiadas e retrospectiva do ano, registro de humor e estante de livros/cursos/filmes/séries.
+- **Notas, Diário, Humor e Leituras:** notas fixáveis com checklist, listas de compras com quantidades e sugestões por etiqueta ou ligação, diário com perguntas guiadas e retrospectiva do ano, registro de humor e estante de livros/cursos/filmes/séries.
 - **Conexões (`links2`) e Etiquetas:** qualquer item do hub pode ser conectado a outro (ex.: ligar uma tarefa a uma nota ou meta) e filtrado por `#etiquetas`.
 - **Paleta de Comandos (`Ctrl+K`) e Busca Global:** navegue, execute ações ou encontre qualquer item instantaneamente.
 - **Segurança dos Dados:** Desfazer/Refazer (`Ctrl+Z` / `Ctrl+Y`, até 30 passos), Lixeira com retenção de 30 dias, 8 versões automáticas locais e exportação/importação JSON com mescla sem perda.
@@ -60,16 +60,16 @@ O Meu Hub pode ser instalado no celular ou no computador e abre em janela própr
 
 | Tecla | Ação |
 |---|---|
-| `Ctrl + K` ou `/` | Abrir paleta de comandos / busca rápida |
+| `Ctrl + K` | Abrir a paleta de comandos |
+| `/` | Buscar em tudo |
 | `Ctrl + Z` / `Ctrl + Y` | Desfazer / Refazer última alteração |
-| `N` | Captura rápida: nova tarefa |
-| `G` | Captura rápida: novo gasto ou receita (aceita linguagem natural, ex.: `mercado 85 ontem #casa`) |
-| `E` | Captura rápida: novo compromisso |
-| `D` | Ir para **Início** |
-| `H` | Ir para **Hoje** |
-| `F` | Ir para **Finanças** |
-| `T` | Alternar tema claro / escuro |
-| `?` | Mostrar quadro de atalhos |
+| `N` | Nova nota |
+| `T` | Nova tarefa |
+| `E` | Novo compromisso |
+| `D` | Captura rápida de despesa |
+| `C` | Abrir captura rápida |
+| `1` a `9` | Abrir link configurado com o respectivo atalho |
+| `?` | Mostrar atalhos |
 
 ---
 

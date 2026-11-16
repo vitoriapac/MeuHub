@@ -40,7 +40,7 @@ function busca(){
  const out=sec('Caixa de entrada',(S.inbox||[]).filter(x=>h(x.t)),x=>esc(x.t),()=>v('hoje'))
  +sec('Tarefas',S.tasks.filter(t=>h(t.t)||h(t.tg)||h(t.pj)),t=>`${esc(t.t)}<small>${t.done?'Concluída':'Pendente'}${t.due?', prazo '+fmt(t.due):''}</small>`,()=>v('tarefas'))
  +sec('Eventos',S.events.filter(e=>h(e.t)||h(e.d)||h(e.tg)),e=>`${esc(e.t)}<small>${fmt(e.d)} às ${e.h}</small>`,()=>v('agenda'))
- +sec('Notas',S.notes.filter(n=>h(n.t)||h(plain(n.b))||h(n.f)||h(n.g)),n=>`${esc(n.t||'Sem título')}<small>${esc(plain(n.b).slice(0,90))}</small>`,()=>v('notas'))
+ +sec('Notas',S.notes.filter(n=>h(n.t)||h(plain(n.b))||h(n.f)||h(n.g)||(n.items||[]).some(x=>h(x.t))),n=>`${esc(n.t||'Sem título')}<small>${esc(plain(n.b).slice(0,90))}</small>`,()=>v('notas'))
  +sec('Links',S.links.filter(l=>h(l.n)||h(l.u)||h(l.tg)||h(l.cat)),l=>`${esc(l.n)}<small>${esc(l.u)}</small>`,()=>v('links'))
  +sec('Lançamentos',F.tx.filter(t=>h(t.t)||h(t.cat)||h(t.sub)||h(t.tg)||h(t.pj)||h(t.d)||h(String(t.v))||h(String(t.v).replace('.',','))).sort((a,b)=>b.d.localeCompare(a.d)),t=>`${esc(t.t)}<small>${fmt(t.d)} · ${t.k==='tr'?'Transferência':esc(t.cat)+(t.sub?' › '+esc(t.sub):'')} · ${t.k==='in'?'+':t.k==='tr'?'':'−'} ${BRL(t.v)}</small>`,t=>`data-a="sgo" data-view="financas" data-tab="lanc" data-fmo="${fm(t)}"`)
  +sec('Metas',S.metas.filter(g=>h(g.t)||g.kr.some(k=>h(k.t))),g=>`${esc(g.t)}<small>${Math.round(metaProg(g)*100)}% concluída</small>`,()=>v('metas'))
@@ -339,9 +339,9 @@ setTimeout(setPriv,0);
 /* versões automáticas (só neste aparelho) */
 const SNK='hub-snaps',SNMAX=8,SNBYTES=1.2e6;
 function snaps(){try{const a=JSON.parse(localStorage.getItem(SNK));return Array.isArray(a)?a:[]}catch(e){return[]}}
-function snapPut(why,minGap){
- try{const j=pickJSON(),L=snaps();if(L[0]&&L[0].j===j)return true;if(minGap&&L[0]&&Date.now()-L[0].t<minGap)return false;
-  const F=S.fin||{};L.unshift({t:Date.now(),why,j,c:{tk:(S.tasks||[]).length,ev:(S.events||[]).length,nt:(S.notes||[]).length,tx:(F.tx||[]).length}});
+function snapPut(why,minGap,state){
+ try{const data=state||pick(),j=JSON.stringify(data),L=snaps();if(L[0]&&L[0].j===j)return true;if(minGap&&L[0]&&Date.now()-L[0].t<minGap)return false;
+  const F=data.fin||{};L.unshift({t:Math.max(Date.now(),L[0]?L[0].t+1:0),why,j,c:{tk:(data.tasks||[]).length,ev:(data.events||[]).length,nt:(data.notes||[]).length,tx:(F.tx||[]).length}});
   while(L.length>SNMAX)L.pop();while(L.length>1&&JSON.stringify(L).length>SNBYTES)L.pop();
   if(JSON.stringify(L).length>SNBYTES)return false;
   for(;;){try{localStorage.setItem(SNK,JSON.stringify(L));return true}catch(e){if(L.length<=1)return false;L.pop()}}}catch(e){return false}}
@@ -363,7 +363,7 @@ function ckItems(q){
  A('Ações','Nova tarefa','plus',cap('tk'),'criar adicionar');A('Ações','Novo evento','cal',cap('ev'),'criar adicionar compromisso');A('Ações','Nova nota','note',cap('nt'),'criar adicionar');
  A('Ações','Lançar despesa','wallet',cap('dp'),'gasto finanças');A('Ações','Lançar receita','wallet',cap('rc'),'entrada salário finanças');
  A('Ações',PRIV?'Mostrar valores':'Ocultar valores',PRIV?'eye':'eyeoff',togglePriv,'privacidade esconder dinheiro');
- A('Ações','Alternar tema claro e escuro','moon',()=>{const r=document.documentElement;r.dataset.theme=isDark()?'light':'dark';applyTheme()},'escuro noite');
+ A('Ações','Alternar tema claro e escuro','moon',()=>{S.themeMode=isDark()?'light':'dark';applyTheme();save()},'escuro noite');
  A('Ações','Salvar versão agora','clock',()=>{toast(snapPut('Manual')?'Versão salva em Backup.':'Não foi possível salvar a versão. Libere espaço neste navegador.');if(S.view==='backup')render()},'backup');
  A('Ações','Desfazer','undo',undo,'voltar');
  A('Ações','Rever o tour de boas-vindas','search',()=>tourOpen(0),'ajuda primeiro uso começar');
