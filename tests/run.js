@@ -265,6 +265,183 @@ async function main() {
       const r=await ev(`(()=>{S.view='hoje';render();const i=document.querySelector('#fhj input');i.value='Texto em edição';document.querySelector('#theme').click();return {text:document.querySelector('#fhj input').value,mode:pick().themeMode}})()`);
       assert.strictEqual(r.text,'Texto em edição');assert.ok(['dark','light'].includes(r.mode));
     }],
+    ['receber dados preserva formulário ainda não enviado', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{S.view='hoje';render();const i=document.querySelector('#fhj input');i.focus();i.value='Texto ainda não enviado';after();await new Promise(r=>setTimeout(r,2700));return document.querySelector('#fhj input').value})()`);
+      assert.strictEqual(r,'Texto ainda não enviado');
+    }],
+    ['versões locais aceitam base maior que limite antigo', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{localStorage.removeItem(SNK);const data=pick();data.notes=[{id:'large',t:'Grande',b:'x'.repeat(1300000)}];return {ok:snapPut('Grande',0,data),stored:snaps().length}})()`);
+      assert.ok(r.ok);assert.strictEqual(r.stored,1);
+    }],
+    ['recorrência continua gerando depois de cinco anos sem duplicar', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const F=finInit(),start=ds(new Date(today.getFullYear()-6,today.getMonth(),1));F.rec=[{id:'old',ini:start,day:1,k:'out',t:'Conta',v:10}];F.tx=[];genRec0();const first=F.tx.length;genRec0();return {first,after:F.tx.length,current:F.tx.some(x=>x.id==='r_old_'+T.slice(0,7))}})()`);
+      assert.ok(r.current);assert.strictEqual(r.first,r.after);
+    }],
+    ['lista permite editar item e criar cópia sem marcações', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[{id:'i',t:'Arroz',q:'1 kg',done:true}]}];S.view='notas';render();document.querySelector('[data-a=shopping-edit]').click();const f=document.querySelector('[data-shopping-edit]');if(!f)return null;f.querySelector('[name=t]').value='Feijão';f.querySelector('[name=q]').value='2 kg';f.requestSubmit();document.querySelector('[data-a=shopping-copy]').click();return S.notes.map(n=>({id:n.id,t:n.items[0].t,q:n.items[0].q,done:n.items[0].done}))})()`);
+      assert.ok(r);assert.strictEqual(r.length,2);assert.strictEqual(r[0].t,'Feijão');assert.strictEqual(r[0].q,'2 kg');assert.strictEqual(r[0].done,false);assert.strictEqual(r[1].done,true);assert.notStrictEqual(r[0].id,r[1].id);
+    }],
+    ['registrar compra prepara despesa sem criar lançamento', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[]}];S.view='notas';render();const b=document.querySelector('[data-a=shopping-expense]');if(!b)return null;b.click();return {input:document.querySelector('#fqa input[name=t]').value,count:finInit().tx.length,mode:QT}})()`);
+      assert.ok(r);assert.match(r.input,/Mercado/);assert.strictEqual(r.count,0);assert.strictEqual(r.mode,'dp');
+    }],
+    ['busca abre diretamente lista encontrada pelo item', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[{id:'i',t:'Feijão',q:'',done:false}]}];Q='Feijão';render();const b=document.querySelector('[data-a=lkgo][data-id="nt:l"]');if(!b)return false;b.click();return S.view==='notas'&&!!document.querySelector('[data-lid="nt:l"]')})()`);
+      assert.ok(r);
+    }],
+    ['resumo de assinaturas inclui apenas despesas ativas', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.view='financas';S.ftab='contas';const F=finInit();F.rec=[{id:'on',k:'out',t:'Música',v:25,day:20,ini:T,cat:'Assinaturas'},{id:'off',k:'out',t:'Antiga',v:700,day:20,ini:'2020-01-01',end:'2020-12-31',cat:'Assinaturas'}];render();return document.querySelector('#main').innerText})()`);
+      assert.match(r,/Assinaturas ativas/);assert.match(r,/25,00/);assert.match(r,/Música/);
+    }],
+    ['sugestões de compras usam itens já cadastrados', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[{id:'i',t:'Feijão',q:'',done:false}]}];S.view='notas';render();return [...document.querySelectorAll('datalist option')].some(o=>o.value==='Feijão')})()`);
+      assert.ok(r);
+    }],
+    ['conflito não aplica dados se não couberem as duas versões', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{localStorage.removeItem(SNK);const base=pick();base.focus='base';S.focus='local';SY.last=JSON.stringify(base);const remote=JSON.parse(JSON.stringify(base));remote.focus='remoto';const rev=SY.rev+1,j=JSON.stringify(remote);await DBr.doc(P+'hub-0').set({rev,i:0,s:j});const orig=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k===SNK&&JSON.parse(v).length>1)throw Error('quota');return orig.call(this,k,v)};const ok=await pullRemote({rev,n:1},false);Storage.prototype.setItem=orig;return {ok,focus:S.focus,versions:snaps().map(x=>JSON.parse(x.j).focus)}})()`);
+      assert.strictEqual(r.ok,false);assert.strictEqual(r.focus,'local');assert.ok(r.versions.includes('local'));
+    }],
+    ['receber dados preserva rascunho após sair do campo', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.view='hoje';render();const i=document.querySelector('#fhj input');i.value='Rascunho';document.activeElement.blur();after();return document.querySelector('#fhj input').value})()`);
+      assert.strictEqual(r,'Rascunho');
+    }],
+    ['dados locais corrompidos não são substituídos nem enviados', async () => {
+      await fresh(); await login('A'); await addTask('t-segura'); await waitCloud('A','t-segura');
+      await ev(`localStorage.setItem('hub-v1','{inválido')`);await open();await sleep(2500);
+      const r=await ev(`({raw:localStorage.getItem('hub-v1'),message:document.body.innerText,cloud:__cloud()['data/users/A/hub-0'].s})`);
+      assert.strictEqual(r.raw,'{inválido');assert.match(r.message,/dados locais.*corrompid/i);assert.match(r.cloud,/t-segura/);
+    }],
+    ['salvamento recupera espaço de versões antigas quando necessário', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{snapPut('Teste');const orig=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='hub-v1'&&snaps().length)throw new DOMException('quota','QuotaExceededError');return orig.call(this,k,v)};S.focus='Salvo';save();Storage.prototype.setItem=orig;return {value:JSON.parse(localStorage.getItem('hub-v1')).focus,versions:snaps().length}})()`);
+      assert.strictEqual(r.value,'Salvo');assert.strictEqual(r.versions,0);
+    }],
+    ['marcar item preserva rascunho de outro item', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[{id:'i',t:'Arroz',q:'',done:false}]}];S.view='notas';render();const f=document.querySelector('[data-shopping-form]');f.querySelector('[name=t]').value='Feijão';const c=document.querySelector('[data-shopping-check]');c.checked=true;c.dispatchEvent(new Event('change',{bubbles:true}));return {draft:document.querySelector('[data-shopping-form] [name=t]').value,done:S.notes[0].items[0].done}})()`);
+      assert.strictEqual(r.draft,'Feijão');assert.strictEqual(r.done,true);
+    }],
+    ['lista compartilha texto com quantidades', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{let payload=null;navigator.share=async x=>{payload=x};S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[{id:'i',t:'Arroz',q:'2 kg',done:false}]}];S.view='notas';render();const b=document.querySelector('[data-a=shopping-share]');if(!b)return null;b.click();await new Promise(r=>setTimeout(r,20));return payload})()`);
+      assert.ok(r);assert.match(r.text,/Arroz/);assert.match(r.text,/2 kg/);
+    }],
+    ['card opcional mostra lista fixada e pendências', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',pin:true,items:[{id:'a',t:'Arroz',q:'',done:false}]}];S.cards=[{id:'compras',on:true}];S.view='dash';render();const c=document.querySelector('[data-card=compras]');return c&&c.innerText})()`);
+      assert.ok(r);assert.match(r,/Mercado/);assert.match(r,/1 item pendente/);
+    }],
+    ['compra mostra previsão e valor registrado após confirmação', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[]}];S.view='notas';render();const b=document.querySelector('[data-shopping-budget]');if(!b)return null;b.value='100';b.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('[data-a=shopping-expense]').click();const f=document.querySelector('#fqa');f.querySelector('[name=v]').value='80';f.requestSubmit();return {budget:S.notes[0].budget,linked:finInit().tx[0].shopping,text:document.querySelector('#main').innerText}})()`);
+      assert.ok(r);assert.strictEqual(r.budget,100);assert.strictEqual(r.linked,'l');assert.match(r.text,/80,00/);assert.match(r.text,/100,00/);
+    }],
+    ['backup apresenta estado da sincronização e última cópia', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.view='backup';render();return document.querySelector('#main').innerText})()`);
+      assert.match(r,/Última sincronização/);assert.match(r,/backup/i);assert.match(r,/alterações/i);
+    }],
+    ['recuperação da nuvem substitui estado local corrompido', async () => {
+      await fresh(); await login('A'); await addTask('t-recuperar'); await waitCloud('A','t-recuperar');
+      await ev(`localStorage.setItem('hub-v1','{inválido')`);await open();
+      const r=await ev(`(async()=>{const m=(await metaRef.get()).data(),ok=await pullRemote(m,true);return {ok,corrupt:LOCAL_CORRUPT,tasks:S.tasks.map(x=>x.t),raw:localStorage.getItem('hub-v1')}})()`);
+      assert.ok(r.ok);assert.strictEqual(r.corrupt,false);assert.ok(r.tasks.includes('t-recuperar'));assert.doesNotThrow(()=>JSON.parse(r.raw));
+    }],
+    ['conferência dos próximos 30 dias mostra gastos e explica sobreposição', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.view='hoje';render();return document.querySelector('#main').innerText})()`);
+      assert.match(r,/próximos 30 dias/i);assert.match(r,/conta fixa.*recorrente/i);
+    }],
+    ['estado local válido em JSON mas incompleto é protegido', async () => {
+      await fresh(); await login('A'); await addTask('t-segura'); await waitCloud('A','t-segura');
+      await ev(`localStorage.setItem('hub-v1','{}')`);await open();const r=await ev(`({raw:localStorage.getItem('hub-v1'),blocked:LOCAL_CORRUPT})`);
+      assert.strictEqual(r.raw,'{}');assert.strictEqual(r.blocked,true);
+    }],
+    ['backup não exporta dados vazios durante recuperação', async () => {
+      await fresh(); await login('A'); await ev(`localStorage.setItem('hub-v1','{inválido')`);await open();
+      const r=await ev(`(()=>{S.view='backup';render();let called=false;const old=siteSave;siteSave=()=>{called=true};exportBk();siteSave=old;return {called,msg:document.querySelector('#bkmsg').textContent}})()`);
+      assert.strictEqual(r.called,false);assert.match(r.msg,/recuper/i);
+    }],
+    ['concluir tarefa preserva outra tarefa ainda em edição', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.tasks=[{id:'t',t:'Existente',done:false,hd:T,due:''}];S.view='hoje';render();document.querySelector('#fhj input').value='Rascunho';const c=document.querySelector('[data-a=tog][data-id=t]');c.checked=true;c.dispatchEvent(new Event('change',{bubbles:true}));return {draft:document.querySelector('#fhj input').value,done:S.tasks[0].done}})()`);
+      assert.strictEqual(r.draft,'Rascunho');assert.strictEqual(r.done,true);
+    }],
+    ['nova captura rápida não herda vínculo de compra anterior', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[]}];S.view='notas';render();document.querySelector('[data-a=shopping-expense]').click();document.querySelector('[data-a=qa]').click();const f=document.querySelector('#fqa');f.querySelector('[name=t]').value='Outra despesa';f.querySelector('[name=v]').value='50';f.requestSubmit();return finInit().tx[0].shopping||null})()`);
+      assert.strictEqual(r,null);
+    }],
+    ['backup financeiro inválido não altera dados salvos', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{S.focus='Manter';save();S.view='backup';render();const f=document.querySelector('#bkfile'),d=new DataTransfer();d.items.add(new File([JSON.stringify({tasks:[],events:[],fin:'inválido'})],'backup.json'));f.files=d.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));return {focus:JSON.parse(localStorage.getItem('hub-v1')).focus,fin:JSON.parse(localStorage.getItem('hub-v1')).fin,msg:document.querySelector('#bkmsg').textContent}})()`);
+      assert.strictEqual(r.focus,'Manter');assert.ok(r.fin&&typeof r.fin==='object');assert.match(r.msg,/inválido/i);
+    }],
+    ['versões antigas são preservadas se salvar falhar mesmo após liberar espaço', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{snapPut('Teste');const before=localStorage.getItem(SNK),orig=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='hub-v1')throw new DOMException('quota','QuotaExceededError');return orig.call(this,k,v)};S.focus='Novo';save();Storage.prototype.setItem=orig;return {same:localStorage.getItem(SNK)===before,warning:!!document.querySelector('#storage-warning')}})()`);
+      assert.ok(r.same);assert.ok(r.warning);
+    }],
+    ['edição de item removido oferece recuperação sem apagar rascunho', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[{id:'i',t:'Arroz',q:'',done:false}]}];S.view='notas';render();document.querySelector('[data-a=shopping-edit]').click();const f=document.querySelector('[data-shopping-edit]');f.querySelector('[name=t]').value='Feijão';S.notes[0].items=[];f.requestSubmit();const b=document.querySelector('[data-a=shopping-recover]');if(!b)return null;b.click();return S.notes[0].items.map(x=>x.t)})()`);
+      assert.deepStrictEqual(r,['Feijão']);
+    }],
+    ['lista apresenta histórico de compras vinculadas', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[]}];S.fin.tx=[{id:'a',shopping:'l',k:'out',t:'Compra A',v:40,d:'2026-01-10'},{id:'b',shopping:'l',k:'out',t:'Compra B',v:80,d:'2026-02-12'}];return shoppingCard(S.notes[0])})()`);
+      assert.match(r,/Histórico de compras/);assert.match(r,/40,00/);assert.match(r,/80,00/);
+    }],
+    ['backup válido atual e mínimo continua aceito', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>({current:validBackup(JSON.parse(JSON.stringify(S))),minimal:validBackup({tasks:[],events:[]}),legacy:validBackup({tasks:[],events:[],fin:{tx:null,acc:null}}),nullFinance:validBackup({tasks:[],events:[],fin:null})}))()`);
+      assert.ok(r.current);assert.ok(r.minimal);assert.ok(r.legacy);assert.strictEqual(r.nullFinance,false);
+    }],
+    ['restauração que não consegue salvar mantém estado anterior', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{S.focus='Anterior';save();S.view='backup';render();const f=document.querySelector('#bkfile'),d=new DataTransfer();d.items.add(new File([JSON.stringify({tasks:[],events:[],focus:'Novo'})],'backup.json'));f.files=d.files;const orig=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='hub-v1')throw new DOMException('quota','QuotaExceededError');return orig.call(this,k,v)};f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));Storage.prototype.setItem=orig;return {focus:S.focus,saved:JSON.parse(localStorage.getItem('hub-v1')).focus,msg:document.querySelector('#bkmsg').textContent}})()`);
+      assert.strictEqual(r.focus,'Anterior');assert.strictEqual(r.saved,'Anterior');assert.match(r.msg,/não foi possível salvar/i);
+    }],
+    ['edição alterada remotamente oferece salvar como novo item', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[{id:'i',t:'Arroz',q:'',done:false}]}];S.view='notas';render();document.querySelector('[data-a=shopping-edit]').click();const f=document.querySelector('[data-shopping-edit]');f.querySelector('[name=t]').value='Feijão';S.notes[0].items[0].t='Arroz integral';f.requestSubmit();const b=document.querySelector('[data-a=shopping-recover]');if(!b)return null;b.click();return S.notes[0].items.map(x=>x.t)})()`);
+      assert.deepStrictEqual(r,['Arroz integral','Feijão']);
+    }],
+    ['validação rejeita data financeira impossível e tarefa com prazo inválido', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>({date:validBackup({tasks:[],events:[],fin:{tx:[{d:'2026-02-30',v:10}]}}),due:validBackup({tasks:[{id:'x',t:'Tarefa',due:123}],events:[]})}))()`);
+      assert.strictEqual(r.date,false);assert.strictEqual(r.due,false);
+    }],
+    ['validação rejeita evento incompleto e menu inválido', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>({event:validBackup({tasks:[],events:[{d:'2026-01-01',t:'Evento'}]}),menu:validBackup({tasks:[],events:[],menu:{groups:[],bar:'inválido'}})}))()`);
+      assert.strictEqual(r.event,false);assert.strictEqual(r.menu,false);
+    }],
+    ['backup com dados de exemplo completos é aceito', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{exLoad();return validBackup(JSON.parse(JSON.stringify(S)))})()`);
+      assert.strictEqual(r,true);
+    }],
+    ['versão restaurada não substitui estado se armazenamento falhar', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.focus='Antiga';snapPut('Teste');const t=snaps()[0].t;S.focus='Atual';save();const orig=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='hub-v1')throw new DOMException('quota','QuotaExceededError');return orig.call(this,k,v)};snapRestore(t);Storage.prototype.setItem=orig;return {focus:S.focus,saved:JSON.parse(localStorage.getItem('hub-v1')).focus}})()`);
+      assert.strictEqual(r.focus,'Atual');assert.strictEqual(r.saved,'Atual');
+    }],
+    ['edição recupera item quando a lista inteira foi removida', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[{id:'i',t:'Arroz',q:'',done:false}]}];S.view='notas';render();document.querySelector('[data-a=shopping-edit]').click();const f=document.querySelector('[data-shopping-edit]');f.querySelector('[name=t]').value='Feijão';S.notes=[];f.requestSubmit();const b=document.querySelector('[data-a=shopping-recover]');if(!b)return null;b.click();return {name:S.notes[0].t,items:S.notes[0].items.map(x=>x.t)}})()`);
+      assert.ok(r);assert.strictEqual(r.name,'Mercado');assert.deepStrictEqual(r.items,['Feijão']);
+    }],
     ['1. sem login, o hub fica bloqueado', async () => {
       await fresh();
       assert.strictEqual(await ev('$("#gate").hidden'), false, 'tela de login deveria aparecer');

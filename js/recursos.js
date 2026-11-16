@@ -18,6 +18,7 @@ function qa(t){
  el.innerHTML=`<form class="panel bar" id="fqa"><div class="bar" style="width:100%;margin:0">${QI?'':pb('ib','Guardar para depois')}${pb('tk','Tarefa')}${pb('nt','Nota')}${pb('ev','Evento')}${pb('dp','Despesa')}${pb('rc','Receita')}<button type="button" class="x" data-a="qax" aria-label="Fechar" style="margin-left:auto">×</button></div><input class="in grow" name="t" placeholder="${{ib:'O que você quer lembrar?',tk:'Nova tarefa',nt:'Título da nota',ev:'Novo evento',dp:'Descrição (ex.: mercado 85,90 ontem)',rc:'Descrição (ex.: freela 500 hoje)'}[QT]}" required>${money?`<input class="in" name="v" type="text" inputmode="decimal" autocomplete="off" placeholder="Valor (ou na descrição)" aria-label="Valor" style="width:140px"><input class="in" type="date" name="d" value="${T}" required aria-label="Data">${QT==='dp'?`<select class="in" name="cat" aria-label="Categoria">${catOpts('')}</select>`:''}${F.acc.length>1?`<select class="in" name="ac" aria-label="Conta ou cartão">${accOpts('')}</select>`:''}`:''}${QT==='ev'?`<input class="in" type="date" name="d" value="${T}" required aria-label="Data"><input class="in" type="time" name="h" value="09:00" required aria-label="Hora">`:''}${QT==='tk'?'<input class="in" type="date" name="due" aria-label="Prazo">':''}<button class="pill dark">Adicionar</button></form>`;
  const input=el.querySelector('input[name=t]'),item=(S.inbox||[]).find(x=>x.id===QI);if(item)input.value=item.t;input.focus()}
 function inboxPanel(){const L=S.inbox||[];return `<div class="panel" style="margin-top:12px"><h2>Caixa de entrada</h2><p class="empty" style="padding:0 0 8px">Guarde uma ideia agora e escolha depois o que fazer com ela.</p><form class="bar" id="finbox"><input class="in grow" name="t" aria-label="Captura para a caixa de entrada" placeholder="O que você quer lembrar?" required><button class="pill dark">Capturar</button></form>${L.map(x=>`<div class="item"><div class="t">${esc(x.t)}</div><button class="pill" data-a="inboxconvert" data-id="${esc(x.id)}">Organizar</button><button class="x" data-a="inboxdel" data-id="${esc(x.id)}" aria-label="Excluir ${esc(x.t)}">×</button></div>`).join('')||'<p class="empty">Nenhuma captura pendente.</p>'}</div>`}
+async function shoppingShare(id){const n=S.notes.find(x=>x.id===id&&x.kind==='shopping');if(!n)return;const text=n.t+'\n'+(n.items||[]).map(x=>(x.done?'☑ ':'☐ ')+x.t+(x.q?' · '+x.q:'')).join('\n');try{if(navigator.share)await navigator.share({title:n.t,text});else if(navigator.clipboard){await navigator.clipboard.writeText(text);toast('Lista copiada para a área de transferência')}else toast('Compartilhamento indisponível neste navegador')}catch(e){if(e.name!=='AbortError')toast('Não foi possível compartilhar a lista')}}
 /* vencimentos na tela Hoje */
 function dues(n){
  const F=finInit(),out=[],end=ds(add(today,n)),push=(d,t,v,k,x)=>out.push({d,t,v,k,...(x||{})});
@@ -27,10 +28,10 @@ function dues(n){
  F.rec.forEach(r=>{for(let i=1;i<=n;i++){const d=add(today,i),iso=ds(d),dd=Math.min(+r.day||1,dimOf(d.getFullYear(),d.getMonth())),id='r_'+r.id+'_'+iso.slice(0,7);if(d.getDate()===dd&&(r.ini||T)<=iso&&(!r.end||iso<=r.end)&&!F.tx.some(t=>t.id===id)&&!(r.skip||[]).includes(id))push(iso,r.t,r.v,r.k==='in'?'in':'sched')}});
  return out.sort((a,b)=>a.d.localeCompare(b.d))}
 function duesPanel(){
- const L=dues(7),td=L.filter(x=>x.d===T),wk=L.filter(x=>x.d>T),tot=a=>a.filter(x=>x.k!=='in').reduce((s,x)=>s+x.v,0);
+ const L=dues(7),td=L.filter(x=>x.d===T),wk=L.filter(x=>x.d>T),month=dues(30).filter(x=>x.k!=='in'),tot=a=>a.filter(x=>x.k!=='in').reduce((s,x)=>s+x.v,0);
  const row=x=>{const dd=mDays(x.d),when=dd===0?'hoje':dd===1?'amanhã':DIA[new Date(x.d+'T00:00').getDay()]+', '+fmt(x.d);
   return `<div class="item"><span class="chip c-${x.k==='card'?'b':x.k==='bill'?'y':x.k==='in'?'g':'p'}">${when}</span><div class="t">${esc(x.t)}<small>${{card:'Vencimento de fatura',bill:'Conta fixa',sched:'Despesa agendada',in:'Receita prevista'}[x.k]}</small></div><strong class="${x.k==='in'?'pos':''}">${x.k==='in'?'+ ':''}${BRL(x.v)}</strong>${x.k==='card'?`<button class="pill" data-a="payfat" data-id="${x.id}" data-o="${x.o}">Pagar</button>`:''}</div>`};
- return `<div class="panel"><h2>Contas e vencimentos</h2>${L.length?`<p class="empty" style="padding:0 0 6px">${td.length?'Hoje: <strong>'+BRL(tot(td))+'</strong> a pagar. ':'Nada vence hoje. '}Próximos 7 dias: <strong>${BRL(tot(wk))}</strong>.</p>${L.map(row).join('')}`:'<p class="empty">Nada a pagar ou receber nos próximos 7 dias. Cadastre contas fixas, recorrentes e cartões em Finanças.</p>'}</div>`}
+ return `<div class="panel"><h2>Contas e vencimentos</h2>${L.length?`<p class="empty" style="padding:0 0 6px">${td.length?'Hoje: <strong>'+BRL(tot(td))+'</strong> a pagar. ':'Nada vence hoje. '}Próximos 7 dias: <strong>${BRL(tot(wk))}</strong>.</p>${L.map(row).join('')}`:'<p class="empty">Nada a pagar ou receber nos próximos 7 dias. Cadastre contas fixas, recorrentes e cartões em Finanças.</p>'}<p class="empty">Próximos 30 dias: <strong>${BRL(tot(month))}</strong> em valores previstos. Uma conta fixa e uma recorrente podem representar a mesma despesa; confira antes de somar. Lançamentos comuns de hoje não entram nesta previsão.</p>${month.length?`<details><summary>Ver valores previstos</summary>${month.map(row).join('')}</details>`:''}</div>`}
 function payInv(id,o){const a=S.fin.acc.find(x=>x.id===id),f=$('#ffin');if(!a||!f)return;const iv=invoice(a,o);f.className='bar ktr';const s=(n,v)=>{f.querySelector('[name='+n+']').value=v};s('k','tr');s('t','Pagamento da fatura: '+a.n);s('v',iv.tot.toFixed(2));s('d',iv.due);s('to',a.id);const x=S.fin.acc.find(y=>y.id!==a.id);if(x)s('ac',x.id);trValid(f);f.querySelector('[name=t]').focus();window.scrollTo({top:0,behavior:SMOOTH()});toast('Confira a conta de origem e clique em Lançar')}
 /* busca global ampliada */
 function busca(){
@@ -40,7 +41,7 @@ function busca(){
  const out=sec('Caixa de entrada',(S.inbox||[]).filter(x=>h(x.t)),x=>esc(x.t),()=>v('hoje'))
  +sec('Tarefas',S.tasks.filter(t=>h(t.t)||h(t.tg)||h(t.pj)),t=>`${esc(t.t)}<small>${t.done?'Concluída':'Pendente'}${t.due?', prazo '+fmt(t.due):''}</small>`,()=>v('tarefas'))
  +sec('Eventos',S.events.filter(e=>h(e.t)||h(e.d)||h(e.tg)),e=>`${esc(e.t)}<small>${fmt(e.d)} às ${e.h}</small>`,()=>v('agenda'))
- +sec('Notas',S.notes.filter(n=>h(n.t)||h(plain(n.b))||h(n.f)||h(n.g)||(n.items||[]).some(x=>h(x.t))),n=>`${esc(n.t||'Sem título')}<small>${esc(plain(n.b).slice(0,90))}</small>`,()=>v('notas'))
+ +sec('Notas',S.notes.filter(n=>h(n.t)||h(plain(n.b))||h(n.f)||h(n.g)||(n.items||[]).some(x=>h(x.t))),n=>`${esc(n.t||'Sem título')}<small>${esc(plain(n.b).slice(0,90))}</small>`,n=>`data-a="lkgo" data-id="nt:${esc(n.id)}"`)
  +sec('Links',S.links.filter(l=>h(l.n)||h(l.u)||h(l.tg)||h(l.cat)),l=>`${esc(l.n)}<small>${esc(l.u)}</small>`,()=>v('links'))
  +sec('Lançamentos',F.tx.filter(t=>h(t.t)||h(t.cat)||h(t.sub)||h(t.tg)||h(t.pj)||h(t.d)||h(String(t.v))||h(String(t.v).replace('.',','))).sort((a,b)=>b.d.localeCompare(a.d)),t=>`${esc(t.t)}<small>${fmt(t.d)} · ${t.k==='tr'?'Transferência':esc(t.cat)+(t.sub?' › '+esc(t.sub):'')} · ${t.k==='in'?'+':t.k==='tr'?'':'−'} ${BRL(t.v)}</small>`,t=>`data-a="sgo" data-view="financas" data-tab="lanc" data-fmo="${fm(t)}"`)
  +sec('Metas',S.metas.filter(g=>h(g.t)||g.kr.some(k=>h(k.t))),g=>`${esc(g.t)}<small>${Math.round(metaProg(g)*100)}% concluída</small>`,()=>v('metas'))
@@ -337,18 +338,17 @@ function setPriv(){const b=$('#pv');if(!b)return;b.innerHTML=ic(PRIV?'eyeoff':'e
 function togglePriv(){PRIV=!PRIV;try{localStorage.setItem('hub-priv',PRIV?'1':'0')}catch(e){}setPriv();render();toast(PRIV?'Valores e textos ocultos neste aparelho.':'Valores e textos visíveis.')}
 setTimeout(setPriv,0);
 /* versões automáticas (só neste aparelho) */
-const SNK='hub-snaps',SNMAX=8,SNBYTES=1.2e6;
+const SNK='hub-snaps',SNMAX=8;
 function snaps(){try{const a=JSON.parse(localStorage.getItem(SNK));return Array.isArray(a)?a:[]}catch(e){return[]}}
 function snapPut(why,minGap,state){
  try{const data=state||pick(),j=JSON.stringify(data),L=snaps();if(L[0]&&L[0].j===j)return true;if(minGap&&L[0]&&Date.now()-L[0].t<minGap)return false;
   const F=data.fin||{};L.unshift({t:Math.max(Date.now(),L[0]?L[0].t+1:0),why,j,c:{tk:(data.tasks||[]).length,ev:(data.events||[]).length,nt:(data.notes||[]).length,tx:(F.tx||[]).length}});
-  while(L.length>SNMAX)L.pop();while(L.length>1&&JSON.stringify(L).length>SNBYTES)L.pop();
-  if(JSON.stringify(L).length>SNBYTES)return false;
-  for(;;){try{localStorage.setItem(SNK,JSON.stringify(L));return true}catch(e){if(L.length<=1)return false;L.pop()}}}catch(e){return false}}
-function snapAuto(){const has=(S.tasks||[]).length+(S.events||[]).length+(S.notes||[]).length+(S.inbox||[]).length+((S.fin||{}).tx||[]).length+(S.habits||[]).length>0;const L=snaps();if(!has)return;if(L[0]&&Date.now()-L[0].t<12*36e5)return;snapPut('Automática')}
+  while(L.length>SNMAX)L.pop();
+  for(;;){try{localStorage.setItem(SNK,JSON.stringify(L));return true}catch(e){if(L.length<=(state?2:1))return false;L.pop()}}}catch(e){return false}}
+function snapAuto(){if(LOCAL_CORRUPT)return;const has=(S.tasks||[]).length+(S.events||[]).length+(S.notes||[]).length+(S.inbox||[]).length+((S.fin||{}).tx||[]).length+(S.habits||[]).length>0;const L=snaps();if(!has)return;if(L[0]&&Date.now()-L[0].t<12*36e5)return;snapPut('Automática')}
 setTimeout(snapAuto,4000);setInterval(snapAuto,30*60e3);
 function snapRestore(t){const x=snaps().find(s=>s.t===t);if(!x)return;let d;try{d=JSON.parse(x.j)}catch(e){toast('Esta versão está corrompida.');return}
- if(!snapPut('Antes de restaurar uma versão')){toast('Não foi possível guardar a versão atual. Exporte um backup e libere espaço.');return}applyState(d);save();render();toast('Versão de '+snapFmt(t)+' restaurada. Os dados anteriores foram guardados como versão.',true)}
+ const previous=JSON.stringify(S),wasCorrupt=LOCAL_CORRUPT;if(!wasCorrupt&&!snapPut('Antes de restaurar uma versão')){toast('Não foi possível guardar a versão atual. Exporte um backup e libere espaço.');return}applyState(d);LOCAL_CORRUPT=false;if(!save()){S=JSON.parse(previous);LOCAL_CORRUPT=wasCorrupt;applyTheme();undoReset();render();toast('Não foi possível salvar a restauração. Os dados anteriores foram mantidos.');return}render();toast('Versão de '+snapFmt(t)+' restaurada.'+(wasCorrupt?'':' Os dados anteriores foram guardados como versão.'),true)}
 const snapFmt=t=>new Date(t).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 function snapPanel(){
  const L=snaps();

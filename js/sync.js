@@ -8,9 +8,10 @@ const saveSY=()=>{try{localStorage.setItem('hub-sync',JSON.stringify(SY))}catch(
 let DBr=null,metaRef=null,P='',DEAD=false,pushing=false,again=false,ST=0,ARM=null,chain=Promise.resolve();
 let SYS={s:'local',d:'',at:''};
 function synText(){return {local:'Somente neste aparelho'+(SYS.d?' ('+SYS.d+')':''),sync:'Sincronizando…',ok:'Sincronizado'+(SYS.at?' às '+SYS.at:''),err:'Falha ao sincronizar'+(SYS.d?' ('+SYS.d+')':'')+'. Tentando de novo.'}[SYS.s]}
-function setSt(s,d){SYS.s=s;SYS.d=d||'';if(s==='ok')SYS.at=nowH();const a=$('#syn'),p=$('#synp');if(a){a.dataset.st=s;a.innerHTML='<b>'+({local:'☁',sync:'↻',ok:'☁',err:'⚠'}[s])+'</b>'+esc(synText().split('.')[0])}if(p)p.textContent=synText()}
+function setSt(s,d){SYS.s=s;SYS.d=d||'';if(s==='ok'){SYS.at=nowH();SY.lastAt=new Date().toISOString();saveSY()}const a=$('#syn'),p=$('#synp');if(a){a.dataset.st=s;a.innerHTML='<b>'+({local:'☁',sync:'↻',ok:'☁',err:'⚠'}[s])+'</b>'+esc(synText().split('.')[0])}if(p)p.textContent=synText()}
 const syncPanel=()=>{
- const head=`<div class="panel" style="margin-top:14px"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 8px">${synText()}</p>`;
+ const last=SY.lastAt?new Date(SY.lastAt).toLocaleString('pt-BR'):'ainda não confirmada',pending=LOCAL_CORRUPT?'indisponíveis até recuperar os dados':!SY.last||pickJSON()!==SY.last?'há alterações locais pendentes':'nenhuma alteração pendente';
+ const head=`<div class="panel" style="margin-top:14px"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 8px">${synText()}</p><p class="empty">Última sincronização: ${esc(last)}. Estado das alterações: ${pending}.</p>`;
  const btns=`<div class="bar"><button class="pill dark" data-a="syncnow">Sincronizar agora</button><button class="pill" data-a="syncup">Enviar este aparelho para a nuvem</button><button class="pill" data-a="syncdown">Trazer os dados da nuvem</button><button class="pill" data-a="fbout">Sair da conta</button></div>`;
  if(!FB_CONFIG)return head+'<p class="empty" style="padding:0">A sincronização ainda não foi configurada (veja o README do projeto). Os dados ficam só neste navegador.</p></div>';
  if(FB.err)return head+'<p class="empty" style="padding:0">Sem conexão com o servidor. Suas mudanças ficam neste aparelho e são sincronizadas quando você abrir o site de novo com internet.</p></div>';
@@ -33,19 +34,23 @@ function merge3(b,l,r,conflicts){
   return o}
  if(conflicts)conflicts.push(true);return l}
 const applyState=o=>{SK.forEach(k=>{if(k in o)S[k]=o[k]});applyTheme()};
-function after(){save();if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)||document.activeElement.isContentEditable)setTimeout(()=>render(),2500);else render()}
+let remoteRenderPending=false;
+function remoteFormDirty(){return [...document.querySelectorAll('#main form')].some(f=>[...f.elements].some(x=>{if(x.tagName==='SELECT'){const d=[...x.options].find(o=>o.defaultSelected)||x.options[0];return !!d&&x.value!==d.value}if(/^(checkbox|radio)$/.test(x.type))return x.checked!==x.defaultChecked;return /^(text|search|number|date|time|url|textarea)$/i.test(x.type||'')&&x.value!==x.defaultValue}))}
+function remoteEditing(){const a=document.activeElement;return !!(a.closest&&a.closest('#main')&&(/INPUT|TEXTAREA|SELECT/.test(a.tagName)||a.isContentEditable))}
+function after(){save();if(remoteEditing()||remoteFormDirty())remoteRenderPending=true;else render()}
+document.addEventListener('focusout',()=>{if(remoteRenderPending)setTimeout(()=>{if(remoteRenderPending&&!remoteEditing()&&!remoteFormDirty())render()},0)});
 async function readRemote(m){const cs=await Promise.all([...Array(m.n)].map((_,i)=>DBr.doc(P+'hub-'+i).get()));if(cs.some(c=>!c.exists||c.data().rev!==m.rev))return null;const rj=cs.map(c=>c.data().s).join('');return{rj,remote:JSON.parse(rj)}}
 async function pullRemote(m,replace){
  const r=await readRemote(m);if(!r)return false;
  const cur=pickJSON(),dirty=cur!==SY.last,fresh=!SY.last&&SY.p&&cur===SY.p;
- if((replace||(dirty&&!fresh))&&!snapPut('Antes de receber dados de outro aparelho')){setSt('err','não foi possível criar uma versão local');toast('Não foi possível guardar a versão atual. Exporte um backup e libere espaço.');return false}
- if(replace||fresh||!dirty)applyState(r.remote);
+ if(!LOCAL_CORRUPT&&(replace||(dirty&&!fresh))&&!snapPut('Antes de receber dados de outro aparelho')){setSt('err','não foi possível criar uma versão local');toast('Não foi possível guardar a versão atual. Exporte um backup e libere espaço.');return false}
+ if(replace||fresh||!dirty){applyState(r.remote);if(replace)LOCAL_CORRUPT=false;}
  else{const conflicts=[],merged=merge3(SY.last?JSON.parse(SY.last):{},pick(),r.remote,conflicts);if(conflicts.length&&!snapPut('Versão recebida com conflito',0,r.remote)){setSt('err','não foi possível guardar a versão recebida');toast('Não foi possível guardar a versão recebida. Exporte um backup e libere espaço.');return false}applyState(merged);toast(conflicts.length?'O mesmo campo mudou em dois aparelhos. Mantivemos o valor local; as duas versões estão em Backup.':'Alterações de outro aparelho foram mescladas. A versão anterior está em Backup.')}
  SY.rev=m.rev;SY.last=r.rj;SY.n=m.n;SY.p='';saveSY();undoReset();after();return true}
 // pedaços de até n caracteres sem separar um emoji (par surrogate): metade solta vira "�" no Firestore
 const chunks=(s,n)=>{const p=[];for(let i=0;i<s.length;){let e=Math.min(i+n,s.length);if(e<s.length&&e-1>i&&/[\uD800-\uDBFF]/.test(s[e-1]))e--;p.push(s.slice(i,e));i=e}return p.length?p:['']};
 async function push(force,skipRec){
- if(!DBr||DEAD)return false;
+ if(!DBr||DEAD||LOCAL_CORRUPT)return false;
  if(pushing){again=true;return false}
  pushing=true;setSt('sync');
  try{
@@ -62,6 +67,7 @@ async function push(force,skipRec){
 }
 function syncSoon(){if(!DBr||DEAD)return;clearTimeout(ST);ST=setTimeout(()=>push(),2000)}
 async function handleMeta(snap){
+ if(LOCAL_CORRUPT){setSt('err','dados locais corrompidos');return}
  if(!snap.exists){if(snap.metadata&&snap.metadata.fromCache)return;const g=await metaRef.get();if(!g.exists)await push(true);return}
  const m=snap.data();if(m.rev<=SY.rev)return;
  if(!(await pullRemote(m)))setTimeout(()=>metaRef.get().then(handleMeta).catch(()=>{}),2000);else setSt(pickJSON()===SY.last?'ok':'sync')}
