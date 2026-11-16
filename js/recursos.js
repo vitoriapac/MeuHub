@@ -15,8 +15,9 @@ function financas(){return S.fvw==='ano'?relAnual():financasTabs(financasMes())}
 function qa(t){
  if(t)QT=t;const el=$('#qa'),F=finInit();el.classList.remove('hide');
  const pb=(k,l)=>`<button type="button" class="pill ${QT===k?'on':''}" data-a="qat" data-id="${k}">${l}</button>`,money=QT==='dp'||QT==='rc';
- el.innerHTML=`<form class="panel bar" id="fqa"><div class="bar" style="width:100%;margin:0">${pb('tk','Tarefa')}${pb('nt','Nota')}${pb('ev','Evento')}${pb('dp','Despesa')}${pb('rc','Receita')}<button type="button" class="x" data-a="qax" aria-label="Fechar" style="margin-left:auto">×</button></div><input class="in grow" name="t" placeholder="${{tk:'Nova tarefa',nt:'Título da nota',ev:'Novo evento',dp:'Descrição (ex.: mercado 85,90 ontem)',rc:'Descrição (ex.: freela 500 hoje)'}[QT]}" required>${money?`<input class="in" name="v" type="text" inputmode="decimal" autocomplete="off" placeholder="Valor (ou na descrição)" aria-label="Valor" style="width:140px"><input class="in" type="date" name="d" value="${T}" required aria-label="Data">${QT==='dp'?`<select class="in" name="cat" aria-label="Categoria">${catOpts('')}</select>`:''}${F.acc.length>1?`<select class="in" name="ac" aria-label="Conta ou cartão">${accOpts('')}</select>`:''}`:''}${QT==='ev'?`<input class="in" type="date" name="d" value="${T}" required aria-label="Data"><input class="in" type="time" name="h" value="09:00" required aria-label="Hora">`:''}${QT==='tk'?'<input class="in" type="date" name="due" aria-label="Prazo">':''}<button class="pill dark">Adicionar</button></form>`;
- el.querySelector('input[name=t]').focus()}
+ el.innerHTML=`<form class="panel bar" id="fqa"><div class="bar" style="width:100%;margin:0">${QI?'':pb('ib','Guardar para depois')}${pb('tk','Tarefa')}${pb('nt','Nota')}${pb('ev','Evento')}${pb('dp','Despesa')}${pb('rc','Receita')}<button type="button" class="x" data-a="qax" aria-label="Fechar" style="margin-left:auto">×</button></div><input class="in grow" name="t" placeholder="${{ib:'O que você quer lembrar?',tk:'Nova tarefa',nt:'Título da nota',ev:'Novo evento',dp:'Descrição (ex.: mercado 85,90 ontem)',rc:'Descrição (ex.: freela 500 hoje)'}[QT]}" required>${money?`<input class="in" name="v" type="text" inputmode="decimal" autocomplete="off" placeholder="Valor (ou na descrição)" aria-label="Valor" style="width:140px"><input class="in" type="date" name="d" value="${T}" required aria-label="Data">${QT==='dp'?`<select class="in" name="cat" aria-label="Categoria">${catOpts('')}</select>`:''}${F.acc.length>1?`<select class="in" name="ac" aria-label="Conta ou cartão">${accOpts('')}</select>`:''}`:''}${QT==='ev'?`<input class="in" type="date" name="d" value="${T}" required aria-label="Data"><input class="in" type="time" name="h" value="09:00" required aria-label="Hora">`:''}${QT==='tk'?'<input class="in" type="date" name="due" aria-label="Prazo">':''}<button class="pill dark">Adicionar</button></form>`;
+ const input=el.querySelector('input[name=t]'),item=(S.inbox||[]).find(x=>x.id===QI);if(item)input.value=item.t;input.focus()}
+function inboxPanel(){const L=S.inbox||[];return `<div class="panel" style="margin-top:12px"><h2>Caixa de entrada</h2><p class="empty" style="padding:0 0 8px">Guarde uma ideia agora e escolha depois o que fazer com ela.</p><form class="bar" id="finbox"><input class="in grow" name="t" aria-label="Captura para a caixa de entrada" placeholder="O que você quer lembrar?" required><button class="pill dark">Capturar</button></form>${L.map(x=>`<div class="item"><div class="t">${esc(x.t)}</div><button class="pill" data-a="inboxconvert" data-id="${esc(x.id)}">Organizar</button><button class="x" data-a="inboxdel" data-id="${esc(x.id)}" aria-label="Excluir ${esc(x.t)}">×</button></div>`).join('')||'<p class="empty">Nenhuma captura pendente.</p>'}</div>`}
 /* vencimentos na tela Hoje */
 function dues(n){
  const F=finInit(),out=[],end=ds(add(today,n)),push=(d,t,v,k,x)=>out.push({d,t,v,k,...(x||{})});
@@ -36,7 +37,8 @@ function busca(){
  const q=norm(Q),h=x=>norm(x).includes(q),F=finInit(),v=n=>`data-v="${n}"`;
  const sec=(ti,arr,fn,go)=>{if(!arr.length)return '';const sh=arr.slice(0,15);return `<h2>${ti} (${arr.length})</h2>`+sh.map(x=>`<button class="item" style="width:100%;border:0;text-align:left;cursor:pointer;color:inherit" ${go(x)}><div class="t">${fn(x)}</div></button>`).join('')+(arr.length>sh.length?`<p class="empty" style="padding:2px 0 8px">Mais ${arr.length-sh.length} resultados. Refine a busca.</p>`:'')};
  const fm=t=>(+t.d.slice(0,4)-today.getFullYear())*12+ +t.d.slice(5,7)-1-today.getMonth();
- const out=sec('Tarefas',S.tasks.filter(t=>h(t.t)||h(t.tg)||h(t.pj)),t=>`${esc(t.t)}<small>${t.done?'Concluída':'Pendente'}${t.due?', prazo '+fmt(t.due):''}</small>`,()=>v('tarefas'))
+ const out=sec('Caixa de entrada',(S.inbox||[]).filter(x=>h(x.t)),x=>esc(x.t),()=>v('hoje'))
+ +sec('Tarefas',S.tasks.filter(t=>h(t.t)||h(t.tg)||h(t.pj)),t=>`${esc(t.t)}<small>${t.done?'Concluída':'Pendente'}${t.due?', prazo '+fmt(t.due):''}</small>`,()=>v('tarefas'))
  +sec('Eventos',S.events.filter(e=>h(e.t)||h(e.d)||h(e.tg)),e=>`${esc(e.t)}<small>${fmt(e.d)} às ${e.h}</small>`,()=>v('agenda'))
  +sec('Notas',S.notes.filter(n=>h(n.t)||h(plain(n.b))||h(n.f)||h(n.g)),n=>`${esc(n.t||'Sem título')}<small>${esc(plain(n.b).slice(0,90))}</small>`,()=>v('notas'))
  +sec('Links',S.links.filter(l=>h(l.n)||h(l.u)||h(l.tg)||h(l.cat)),l=>`${esc(l.n)}<small>${esc(l.u)}</small>`,()=>v('links'))
@@ -138,7 +140,7 @@ const pwaPanel=()=>`<div class="panel" style="margin-top:12px"><h2>Aplicativo</h
 
 /* ===== Pacote A: lixeira e lembretes ===== */
 const TRD=30*864e5;
-const TRC={ev:{n:'Evento',g:()=>S.events,l:x=>x.t},nt:{n:'Nota',g:()=>S.notes,l:x=>x.t||'Nota sem título'},tk:{n:'Tarefa',g:()=>S.tasks,l:x=>x.t},lk:{n:'Link',g:()=>S.links,l:x=>x.n},hb:{n:'Hábito',g:()=>S.habits,l:x=>x.n},mt:{n:'Meta',g:()=>S.metas,l:x=>x.t},tx:{n:'Lançamento',g:()=>finInit().tx,l:x=>x.t+' · '+BRL(x.v)},bl:{n:'Conta fixa',g:()=>finInit().bills,l:x=>x.n},gl:{n:'Meta de economia',g:()=>finInit().goals,l:x=>x.n},rc:{n:'Recorrente',g:()=>finInit().rec,l:x=>x.t},rl:{n:'Regra',g:()=>finInit().rules,l:x=>x.m||'Regra'},sp:{n:'Divisão',g:()=>finInit().split,l:x=>x.p+' · '+x.t},pr:{n:'Meta de renda',g:()=>finInit().prules,l:x=>prName(x)},rd:{n:'Leitura',g:()=>S.reads||(S.reads=[]),l:x=>x.t}};
+const TRC={inbox:{n:'Captura',g:()=>S.inbox||(S.inbox=[]),l:x=>x.t},ev:{n:'Evento',g:()=>S.events,l:x=>x.t},nt:{n:'Nota',g:()=>S.notes,l:x=>x.t||'Nota sem título'},tk:{n:'Tarefa',g:()=>S.tasks,l:x=>x.t},lk:{n:'Link',g:()=>S.links,l:x=>x.n},hb:{n:'Hábito',g:()=>S.habits,l:x=>x.n},mt:{n:'Meta',g:()=>S.metas,l:x=>x.t},tx:{n:'Lançamento',g:()=>finInit().tx,l:x=>x.t+' · '+BRL(x.v)},bl:{n:'Conta fixa',g:()=>finInit().bills,l:x=>x.n},gl:{n:'Meta de economia',g:()=>finInit().goals,l:x=>x.n},rc:{n:'Recorrente',g:()=>finInit().rec,l:x=>x.t},rl:{n:'Regra',g:()=>finInit().rules,l:x=>x.m||'Regra'},sp:{n:'Divisão',g:()=>finInit().split,l:x=>x.p+' · '+x.t},pr:{n:'Meta de renda',g:()=>finInit().prules,l:x=>prName(x)},rd:{n:'Leitura',g:()=>S.reads||(S.reads=[]),l:x=>x.t}};
 function trashSnap(){const o={};for(const k in TRC)o[k]=new Map((TRC[k].g()||[]).map(x=>[x.id,x]));return o}
 function trashFlush(B){
  if(!B)return;const b=uid(),now=Date.now(),add2=[];
@@ -276,7 +278,7 @@ function flashEl(){if(!FLASH)return;const el=document.querySelector('[data-lid="
 document.addEventListener('input',e=>{if(e.target.id==='lkq'&&LKP){LKP.q=e.target.value;const r=$('#lkres');if(r)r.innerHTML=lkResHtml()}});
 function lkGo(ref){
  const r=lkItem(ref);if(!r)return;LKP=null;S.view=LKV[r.ty];Q='';ED=null;$('#q').value='';FLASH=ref;
- if(r.ty==='ev'){S.mode='day';S.dy=mDays(r.it.d)}else if(r.ty==='nt'){S.nf='';S.ng=''}else if(r.ty==='tk'){S.filter='all';S.pf=''}else if(r.ty==='lk')S.lc='';else if(r.ty==='rd'){S.rk='';S.rs=''}}
+ if(r.ty==='ev'){S.mode='day';S.dy=mDays(r.it.d)}else if(r.ty==='nt'){S.nf='';S.ng='';PG={nt:Math.max(30,S.notes.length)};PGV='notas'}else if(r.ty==='tk'){S.filter='all';S.pf=''}else if(r.ty==='lk')S.lc='';else if(r.ty==='rd'){S.rk='';S.rs=''}}
 /* leituras */
 const RK={livro:['Livro','y',['Quero ler','Lendo','Lido']],filme:['Filme','p',['Quero ver','Assistindo','Visto']],série:['Série','g',['Quero ver','Assistindo','Visto']],artigo:['Artigo','b',['Quero ler','Lendo','Lido']],podcast:['Podcast','b',['Quero ouvir','Ouvindo','Ouvido']]},RS=['q','a','f'];
 const rdLab=r=>(RK[r.k]||RK.livro)[2][RS.indexOf(r.st)];
@@ -338,15 +340,15 @@ setTimeout(setPriv,0);
 const SNK='hub-snaps',SNMAX=8,SNBYTES=1.2e6;
 function snaps(){try{const a=JSON.parse(localStorage.getItem(SNK));return Array.isArray(a)?a:[]}catch(e){return[]}}
 function snapPut(why,minGap){
- try{const j=pickJSON(),L=snaps();if(L[0]&&L[0].j===j)return false;if(minGap&&L[0]&&Date.now()-L[0].t<minGap)return false;
+ try{const j=pickJSON(),L=snaps();if(L[0]&&L[0].j===j)return true;if(minGap&&L[0]&&Date.now()-L[0].t<minGap)return false;
   const F=S.fin||{};L.unshift({t:Date.now(),why,j,c:{tk:(S.tasks||[]).length,ev:(S.events||[]).length,nt:(S.notes||[]).length,tx:(F.tx||[]).length}});
   while(L.length>SNMAX)L.pop();while(L.length>1&&JSON.stringify(L).length>SNBYTES)L.pop();
   if(JSON.stringify(L).length>SNBYTES)return false;
   for(;;){try{localStorage.setItem(SNK,JSON.stringify(L));return true}catch(e){if(L.length<=1)return false;L.pop()}}}catch(e){return false}}
-function snapAuto(){const has=(S.tasks||[]).length+(S.events||[]).length+(S.notes||[]).length+((S.fin||{}).tx||[]).length+(S.habits||[]).length>0;const L=snaps();if(!has)return;if(L[0]&&Date.now()-L[0].t<12*36e5)return;snapPut('Automática')}
+function snapAuto(){const has=(S.tasks||[]).length+(S.events||[]).length+(S.notes||[]).length+(S.inbox||[]).length+((S.fin||{}).tx||[]).length+(S.habits||[]).length>0;const L=snaps();if(!has)return;if(L[0]&&Date.now()-L[0].t<12*36e5)return;snapPut('Automática')}
 setTimeout(snapAuto,4000);setInterval(snapAuto,30*60e3);
 function snapRestore(t){const x=snaps().find(s=>s.t===t);if(!x)return;let d;try{d=JSON.parse(x.j)}catch(e){toast('Esta versão está corrompida.');return}
- snapPut('Antes de restaurar uma versão');applyState(d);save();render();toast('Versão de '+snapFmt(t)+' restaurada. Os dados anteriores foram guardados como versão.',true)}
+ if(!snapPut('Antes de restaurar uma versão')){toast('Não foi possível guardar a versão atual. Exporte um backup e libere espaço.');return}applyState(d);save();render();toast('Versão de '+snapFmt(t)+' restaurada. Os dados anteriores foram guardados como versão.',true)}
 const snapFmt=t=>new Date(t).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 function snapPanel(){
  const L=snaps();
@@ -362,7 +364,7 @@ function ckItems(q){
  A('Ações','Lançar despesa','wallet',cap('dp'),'gasto finanças');A('Ações','Lançar receita','wallet',cap('rc'),'entrada salário finanças');
  A('Ações',PRIV?'Mostrar valores':'Ocultar valores',PRIV?'eye':'eyeoff',togglePriv,'privacidade esconder dinheiro');
  A('Ações','Alternar tema claro e escuro','moon',()=>{const r=document.documentElement;r.dataset.theme=isDark()?'light':'dark';applyTheme()},'escuro noite');
- A('Ações','Salvar versão agora','clock',()=>{toast(snapPut('Manual')?'Versão salva em Backup.':'Nada mudou desde a última versão.');if(S.view==='backup')render()},'backup');
+ A('Ações','Salvar versão agora','clock',()=>{toast(snapPut('Manual')?'Versão salva em Backup.':'Não foi possível salvar a versão. Libere espaço neste navegador.');if(S.view==='backup')render()},'backup');
  A('Ações','Desfazer','undo',undo,'voltar');
  A('Ações','Rever o tour de boas-vindas','search',()=>tourOpen(0),'ajuda primeiro uso começar');
  if(!isPWA())A('Ações','Instalar aplicativo','save',pwaInstall,'pwa celular tela inicial atalho');
@@ -400,7 +402,7 @@ document.addEventListener('click',e=>{
  if(CK){const o=e.target.closest('.cko');if(o){e.preventDefault();e.stopPropagation();ckRun(+o.dataset.ck);return}if(e.target.closest('[data-ckclose]')){e.stopPropagation();ckClose();return}}
  const b=e.target.closest&&e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a;
  if(a==='priv'){e.stopPropagation();togglePriv()}
- else if(a==='snapnow'){e.stopPropagation();toast(snapPut('Manual')?'Versão salva.':'Nada mudou desde a última versão.');render()}
+ else if(a==='snapnow'){e.stopPropagation();toast(snapPut('Manual')?'Versão salva.':'Não foi possível salvar a versão. Libere espaço neste navegador.');render()}
  else if(a==='snaprest'){e.stopPropagation();snapRestore(+b.dataset.id)}},true);
 /* datas no padrão brasileiro: campo dd/mm/aaaa com seletor de calendário */
 const DTI='<svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>';

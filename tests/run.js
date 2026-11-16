@@ -15,7 +15,7 @@ const snap=p=>{const c=cloud();return{exists:p in c,data:()=>c[p],metadata:{from
 const MA={cb:null,onAuthStateChanged(cb){this.cb=cb;setTimeout(()=>cb(ld('__sess')),20)},
  signInWithPopup(){const u={uid:window.__next,email:window.__next+'@teste.com'};st('__sess',u);this.cb(u);return Promise.resolve()},
  signOut(){st('__sess',null);this.cb(null);return Promise.resolve()}};
-const MDB={doc(p){return{get:async()=>snap(p),
+const MDB={runTransaction:async fn=>{const writes=[],tx={get:async ref=>snap(ref.path),set:(ref,v)=>writes.push([ref.path,v])};await fn(tx);for(const [p,v] of writes){const c=cloud();c[p]=JSON.parse(JSON.stringify(v));st('__cloud',c)}for(const [p] of writes)(L[p]||[]).forEach(f=>f(snap(p)))},doc(p){return{path:p,get:async()=>snap(p),
  set:async v=>{const c=cloud();c[p]=JSON.parse(JSON.stringify(v));st('__cloud',c);(L[p]||[]).forEach(f=>f(snap(p)))},
  delete:async()=>{const c=cloud();delete c[p];st('__cloud',c)},
  onSnapshot(cb){(L[p]=L[p]||[]).push(cb);setTimeout(()=>cb(snap(p)));return()=>{L[p]=L[p].filter(x=>x!==cb)}}}}};
@@ -131,6 +131,99 @@ async function main() {
   const waitCloud = (uid, t) => waitFor(`(${cloudTasksExpr(uid)}||[]).includes(${JSON.stringify(t)})`, `"${t}" na nuvem de ${uid}`);
 
   const scenarios = [
+    ['falhas de sincronização não anunciam sucesso nem encerram a conta', async () => {
+      await fresh(); await login('A');
+      const result = await ev(`(async()=>{const original=metaRef.get, messages=[];const oldToast=toast;
+        toast=m=>messages.push(m);metaRef.get=async()=>{throw new Error('sem rede')};
+        S.tasks.push({id:'fail',t:'pendente',done:false});
+        await syncAct('syncnow');await fbLogout();metaRef.get=original;toast=oldToast;
+        return {messages,on:FB.on}})()`);
+      assert.strictEqual(result.on, true, 'não deve sair com alterações pendentes');
+      assert.ok(!result.messages.some(m=>/^(Sincronizado|Você saiu)/.test(m)), 'não pode informar sucesso: '+result.messages);
+    }],
+    ['falha ao salvar localmente fica visível', async () => {
+      await fresh(); await login('A');
+      const result = await ev(`(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='hub-v1')throw new Error('quota');return original.call(this,k,v)};
+        save();const text=document.body.innerText;Storage.prototype.setItem=original;save();return text})()`);
+      assert.match(result, /não foi possível salvar/i);
+    }],
+    ['alteração remota concorrente não é sobrescrita', async () => {
+      await fresh(); await login('A'); await addTask('t-base'); await waitCloud('A','t-base');
+      await ev(`(()=>{const get=metaRef.get.bind(metaRef);let once=true;metaRef.get=async()=>{const old=await get();if(once){once=false;const c=__cloud(),m=c['data/users/A/hub-meta'],data=JSON.parse(c['data/users/A/hub-0'].s);data.tasks.push({id:'t-outro',t:'t-outro',done:false});const j=JSON.stringify(data),rev=m.rev+1;c['data/users/A/hub-0']={rev,i:0,s:j};c['data/users/A/hub-meta']={...m,rev,len:j.length};localStorage.setItem('__cloud',JSON.stringify(c))}return old};S.tasks.push({id:'t-aqui',t:'t-aqui',done:false});push()})()`);
+      await waitCloud('A','t-aqui');
+      assert.ok((await cloudTasks('A')).includes('t-outro'),'a alteração concorrente deve sobreviver');
+    }],
+    ['restauração preserva dados se não puder criar versão local', async () => {
+      await fresh(); await login('A');
+      const result=await ev(`(()=>{S.tasks=[{id:'anterior',t:'Anterior'}];snapPut('Teste');const t=snaps()[0].t;S.tasks=[{id:'atual',t:'Atual'}];const original=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='hub-snaps')throw Error('quota');return original.call(this,k,v)};snapRestore(t);Storage.prototype.setItem=original;return S.tasks.map(x=>x.t)})()`);
+      assert.deepStrictEqual(result,['Atual']);
+    }],
+    ['Hoje apresenta o próximo compromisso antes dos indicadores e oferece revisão semanal', async () => {
+      await fresh(); await login('A');
+      const result=await ev(`(()=>{S.view='hoje';render();const main=document.querySelector('#main');return {text:main.innerText,review:!!main.querySelector('[data-card=rev]')}})()`);
+      assert.ok(result.text.indexOf('Nenhum evento hoje.') < result.text.indexOf('Compromissos'));
+      assert.ok(result.review,'revisão semanal acessível em Hoje');
+    }],
+    ['adiar tarefa planejada retira ela de hoje', async () => {
+      await fresh(); await login('A');
+      const result=await ev(`(()=>{S.tasks=[{id:'adiar',t:'Tarefa',done:false,hd:T,due:''}];S.view='hoje';render();document.querySelector('[data-a=snooze][data-id=adiar]').click();return {hd:S.tasks[0].hd,due:S.tasks[0].due,tomorrow:ds(add(today,1)),still:!!document.querySelector('[data-a=snooze][data-id=adiar]')}})()`);
+      assert.strictEqual(result.due,result.tomorrow);assert.notStrictEqual(result.hd,await ev('T'));assert.strictEqual(result.still,false);
+    }],
+    ['caixa de entrada captura, preserva ao cancelar e converte em tarefa', async () => {
+      await fresh(); await login('A');
+      const result=await ev(`(()=>{S.view='hoje';render();const f=document.querySelector('#finbox');if(!f)return null;f.querySelector('[name=t]').value='Resolver documento';f.requestSubmit();const it=S.inbox[0];document.querySelector('[data-a=inboxconvert]').click();qaClose();const preserved=S.inbox.length===1;document.querySelector('[data-a=inboxconvert]').click();document.querySelector('#fqa').requestSubmit();return {preserved,left:S.inbox.length,task:S.tasks.some(t=>t.t==='Resolver documento'),sync:pick().inbox,local:JSON.parse(localStorage.getItem('hub-v1')).inbox}})()`);
+      assert.ok(result,'caixa de entrada deve aparecer em Hoje');assert.ok(result.preserved);assert.strictEqual(result.left,0);assert.ok(result.task);assert.deepStrictEqual(result.sync,[]);assert.deepStrictEqual(result.local,[]);
+    }],
+    ['revisão semanal mostra hábitos e despesas do período', async () => {
+      await fresh(); await login('A');
+      const result=await ev(`(()=>{const monday=add(today,-(today.getDay()+6)%7);S.rw=0;S.habits=[{id:'h',n:'Ler',log:{[ds(monday)]:true}}];S.fin.tx=[{id:'w',k:'out',t:'Mercado',v:42,d:ds(monday)},{id:'old',k:'out',t:'Outro',v:500,d:ds(add(monday,-1))}];return revCard()})()`);
+      assert.match(result,/Hábitos registrados/);assert.match(result,/Despesas da semana/);assert.match(result,/42,00/);assert.doesNotMatch(result,/500,00/);
+    }],
+    ['notas relacionadas mostram motivo e excluem notas sem conexão', async () => {
+      await fresh(); await login('A');
+      const result=await ev(`(()=>{S.notes=[{id:'a',t:'Origem',g:'projeto',b:'',c:'p'},{id:'b',t:'Relacionada',g:'projeto',b:'',c:'b'},{id:'c',t:'Sem relação',g:'outro',b:'',c:'g'}];return noteRelated(S.notes[0])})()`);
+      assert.match(result,/Relacionada/);assert.match(result,/etiqueta/i);assert.doesNotMatch(result,/Sem relação/);
+    }],
+    ['recorrências mostram próxima cobrança e variação apenas com histórico', async () => {
+      await fresh(); await login('A');
+      const result=await ev(`(()=>{const r={id:'r',k:'out',t:'Assinatura',day:31,ini:T,v:50};S.fin.rec=[r];S.fin.tx=[{id:'old',rc:'r',k:'out',t:'Assinatura',v:40,d:ds(add(today,-30))}];return recurringInfo(r)})()`);
+      assert.match(result,/Próxima/);assert.match(result,/40,00/);assert.match(result,/50,00/);
+    }],
+    ['meta exibe notas vinculadas para consultar decisões', async () => {
+      await fresh(); await login('A');
+      const result=await ev(`(()=>{S.notes=[{id:'n1',t:'Decisão do projeto',g:'',b:'',c:'p'}];S.metas=[{id:'m1',t:'Projeto',ini:T,kr:[]}];S.lnk=[];lkSet('mt:m1','nt:n1',true);return metaCard(S.metas[0])})()`);
+      assert.match(result,/Decisão do projeto/);assert.match(result,/Notas e decisões/);
+    }],
+    ['conversão financeira inválida preserva captura e exclusão vai à lixeira', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.view='hoje';S.inbox=[{id:'i',t:'Mercado sem valor'}];render();document.querySelector('[data-a=inboxconvert]').click();document.querySelector('[data-a=qat][data-id=dp]').click();document.querySelector('#fqa').requestSubmit();const kept=S.inbox.length===1;qaClose();document.querySelector('[data-a=inboxdel]').click();return {kept,removed:S.inbox.length===0,trash:S.trash.some(x=>x.ty==='inbox'&&x.it.t==='Mercado sem valor')}})()`);
+      assert.ok(r.kept);assert.ok(r.removed);assert.ok(r.trash);
+    }],
+    ['revisão semanal continua aberta ao trocar de semana', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.view='hoje';render();const d=document.querySelector('#weekly-review');if(!d)return false;d.open=true;d.querySelector('[data-a=rw][data-id="-1"]').click();return document.querySelector('#weekly-review').open})()`);
+      assert.ok(r);
+    }],
+    ['revisão permite ocultar finanças e mantém escolha no estado sincronizado', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.view='hoje';render();const opt=document.querySelector('[data-revshow=finance]');if(!opt)return null;opt.checked=false;opt.dispatchEvent(new Event('change',{bubbles:true}));return {html:revCard(),saved:pick().revprefs,local:JSON.parse(localStorage.getItem('hub-v1')).revprefs}})()`);
+      assert.ok(r);assert.doesNotMatch(r.html,/Despesas da semana/);assert.strictEqual(r.saved.finance,false);assert.strictEqual(r.local.finance,false);
+    }],
+    ['nota vinculada abre mesmo após as primeiras 30 notas', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=Array.from({length:35},(_,i)=>({id:'n'+i,t:'Nota '+i,b:'',g:'',c:'p'}));S.view='metas';render();lkGo('nt:n34');render();return !!document.querySelector('[data-lid="nt:n34"]')})()`);
+      assert.ok(r);
+    }],
+    ['importação rejeita caixa de entrada inválida sem alterar dados', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{S.inbox=[{id:'ok',t:'Manter'}];S.view='backup';render();const f=document.querySelector('#bkmerge'),d=new DataTransfer();d.items.add(new File([JSON.stringify({tasks:[],events:[],inbox:'inválida'})],'backup.json',{type:'application/json'}));f.files=d.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,150));return {inbox:S.inbox,msg:document.querySelector('#bkmsg').textContent}})()`);
+      assert.deepStrictEqual(r.inbox,[{id:'ok',t:'Manter'}]);assert.match(r.msg,/inválido/i);
+    }],
+    ['captura rápida guarda item na caixa sem escolher categoria', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.view='notas';render();qa();const b=document.querySelector('[data-a=qat][data-id=ib]');if(!b)return null;b.click();const f=document.querySelector('#fqa');f.querySelector('[name=t]').value='Lembrar disto';f.requestSubmit();return {inbox:S.inbox,view:S.view}})()`);
+      assert.ok(r);assert.strictEqual(r.inbox[0].t,'Lembrar disto');assert.strictEqual(r.view,'notas');
+    }],
     ['1. sem login, o hub fica bloqueado', async () => {
       await fresh();
       assert.strictEqual(await ev('$("#gate").hidden'), false, 'tela de login deveria aparecer');

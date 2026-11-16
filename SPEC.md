@@ -19,7 +19,7 @@ Painel pessoal (tarefas, agenda, hábitos, notas, finanças, Spotify, clima…) 
 | Área | O que faz |
 |---|---|
 | Login | Tela inicial bloqueia o hub até entrar com Google (Firebase Auth). Sessão fica salva no aparelho até "Sair da conta". Sem `FB_CONFIG`, o site abre direto, só local. |
-| Sincronização | Estado do hub em `data/users/<uid>/hub-0..n` + `hub-meta` no Firestore, em pedaços de 300 mil caracteres. Envio 2 s após a última mudança; escuta só `hub-meta`. Mescla de três vias (`merge3`) quando dois aparelhos mudam e reconexão automática quando a internet volta (`online`). |
+| Sincronização | Estado do hub em `data/users/<uid>/hub-0..n` + `hub-meta` no Firestore, em pedaços de 300 mil caracteres. Envio 2 s após a última mudança, com transação que verifica a revisão e grava todos os pedaços junto com `hub-meta`; escuta só `hub-meta`. Mescla de três vias (`merge3`) quando dois aparelhos mudam e reconexão automática quando a internet volta (`online`). |
 | Troca de conta | Dados locais da conta anterior guardados em `hub-acct-<uid>` e restaurados quando ela volta. |
 | PWA / Offline | Manifesto (`manifest.webmanifest`), ícones em `img/`, Service Worker (`sw.js`) que guarda a casca e a fonte para abrir sem internet, painel de instalação em Aparência e atalhos de URL (`?v=...`, `?qa=...`). |
 | Menu | Início, Hoje, Rotina, Lembretes, Agenda, Tarefas, Metas, Hábitos, Notas, Diário, Links, Etiquetas, Finanças, Aparência, Backup, Lixeira, Leituras, Personalizar menu. |

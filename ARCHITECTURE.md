@@ -171,37 +171,28 @@ sequenceDiagram
     participant FS as Firestore (data/users/<uid>/)
     participant AppB as Aparelho B
 
-    AppA->>AppA: Usuário edita item (item._m = Date.now(), S.rev++)
-    AppA->>AppA: save() -> grava hub-v1 + agenda syncHook (debounce 2s)
-    AppA->>FS: cloudPush(): lê hub-meta remoto
-    alt remoto mudou desde base (rem.updatedAt != SY.lastSync)
+    AppA->>AppA: Usuário edita item
+    AppA->>AppA: save() -> grava hub-v1 + agenda envio em 2s
+    AppA->>FS: push(): lê hub-meta remoto
+    alt remoto mudou desde a última revisão
         FS-->>AppA: Baixa hub-0..n remotos
         AppA->>AppA: snapPut('antes de mesclar')
         AppA->>AppA: S = merge3(base, local, remoto)
     end
-    AppA->>FS: batch.set(hub-0..n) + batch.set(hub-meta)
+    AppA->>FS: Transação verifica revisão e grava hub-0..n e hub-meta
     FS-->>AppB: onSnapshot(hub-meta) dispara
-    AppB->>FS: cloudPull() lê hub-0..n
+    AppB->>FS: pullRemote() lê hub-0..n
     AppB->>AppB: S = merge3(base, local, remoto) + render()
 ```
 
 ### 5.1. Fragmentação Segura em Pedaços (`chunks`)
 O Firestore impõe limite de 1 MiB por documento. Para suportar anos de diário, notas e finanças sem falhar:
-- O JSON do estado `S` é dividido em blocos de até `CH = 300.000` caracteres (`hub-0`, `hub-1`, ...) gravados em um único `writeBatch` atômico junto com o documento leve `hub-meta` (`{ rev, n, updatedAt, by }`).
+- O JSON do estado `S` é dividido em blocos de até `CH = 300.000` caracteres (`hub-0`, `hub-1`, ...) gravados em uma transação atômica junto com `hub-meta` (`{ rev, n, dev, at, len, v }`). A transação verifica a revisão observada; se outro aparelho gravou primeiro, o envio é repetido após baixar e mesclar os dados. Pedaços antigos excedentes ficam ignorados e podem ser reutilizados em envios futuros.
 - A função [`chunks(str)`](file:///c:/Users/vitor/Documents/MeuHub/js/sync.js#L71-L74) verifica se o ponto de corte cai em um **high surrogate UTF-16** (`0xD800`–`0xDBFF`). Se cair, recua 1 unidade de código para nunca partir um emoji de 4 bytes ao meio (testado no Cenário 7).
 - O listener em tempo real (`onSnapshot`) escuta **apenas** o documento leve `hub-meta`, economizando leituras da cota gratuita do Firestore.
 
 ### 5.2. Algoritmo de Mescla de Três Vias (`merge3`)
-Quando dois aparelhos editam o hub antes de sincronizar, [`merge3(base, loc, rem)`](file:///c:/Users/vitor/Documents/MeuHub/js/sync.js#L44-L70) compara o estado **Local (`loc`)**, o estado **Remoto (`rem`)** e o último ancestral comum sincronizado (**Base (`base`)**, salvo em `hub-sync.base`):
-
-1. **Coleções de itens com `id` (`todos`, `events`, `notes`, `links`, `habits`, `fin`, `finAcc`, `finCards`, `finRec`, `finRules`, `savGoals`, `diary`, `goals`, `books`, `trash`):**
-   - Exclusão propagada: se um item existia em `base`, foi removido em `loc` (ou `rem`) e **não** foi editado mais recentemente no outro lado, a exclusão é respeitada.
-   - Adição preservada: itens novos criados em qualquer um dos dois lados são mantidos.
-   - Conflito no mesmo item: vence a versão com maior carimbo de modificação `_m` (`(l._m || 0) >= (r._m || 0)`).
-   - Caso especial de **Hábitos** (`habits`): além de mesclar os metadados do hábito por `_m`, o mapa `days` (`{ 'AAAA-MM-DD': boolean }`) é mesclado **dia a dia** comparando `base.days[d]`, `loc.days[d]` e `rem.days[d]`, para que marcar um hábito hoje no celular e outro ontem no computador preserve ambos.
-2. **Mapas por chave (`budgets`, `moods`):** mesclados chave a chave comparando com `base` ou pelo timestamp `_m`.
-3. **Pares de conexões (`links2`):** união dos pares adicionados em `loc` e `rem`, subtraindo os pares que existiam em `base` e foram removidos em um dos lados.
-4. **Campos escalares (`name`, `theme`, `pal`, `spotify`, `wx`, etc.):** se `loc[k]` não mudou em relação a `base[k]`, aceita a mudança de `rem[k]`; se ambos mudaram, prioriza a escolha local do aparelho ativo.
+Quando dois aparelhos editam antes de sincronizar, `merge3(base, local, remoto)` compara cada campo com a última versão sincronizada, armazenada em `hub-sync.last`. Se apenas um lado mudou, essa alteração é mantida. Objetos são mesclados por campo e listas de objetos com `id`, por item; exclusões sem alteração concorrente são propagadas. Para valores ou listas sem IDs alterados dos dois lados, prevalece o valor local. Antes de aplicar uma mescla ou substituição que envolva alterações locais, o aplicativo tenta guardar uma versão neste aparelho; se não conseguir, interrompe a operação e orienta a exportar um backup.
 
 ### 5.3. Isolamento Multi-Conta (`acctSwap`) e Reconexão
 - Quando o usuário sai ou entra com outra conta Google (`from !== to`), [`acctSwap(from, to)`](file:///c:/Users/vitor/Documents/MeuHub/js/sync.js#L26-L34) empacota `['hub-v1', 'hub-sync', 'hub-snaps-v1']` da conta anterior em `hub-acct-<from>` e restaura `hub-acct-<to>` (ou inicia um `DEF()` limpo).

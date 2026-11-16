@@ -12,7 +12,7 @@ Um painel pessoal brasileiro que reúne **planejamento do dia**, **controle fina
 |---|---|
 | **[README.md](README.md)** | Visão geral, funcionalidades, atalhos, configuração do Firebase, execução local e testes. |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Arquitetura detalhada: carga dos módulos, estado `S`, `localStorage`, mescla de 3 vias (`merge3`), PWA/Service Worker e motor de testes CDP. |
-| **[SPEC.md](SPEC.md)** | Especificação técnica, regras de código, limites operacionais, decisões arquiteturais e os 12 cenários de teste. |
+| **[SPEC.md](SPEC.md)** | Especificação técnica, regras de código, limites operacionais, decisões arquiteturais e os cenários de teste. |
 | **[PRODUCT.md](PRODUCT.md)** | Visão de produto, usos principais, posicionamento, voz da marca e princípios. |
 | **[DESIGN.md](DESIGN.md)** | Sistema de design ("Caderno Solar"), tipografia (`Outfit`), paletas de cores, tokens semânticos e padrões de interface. |
 
@@ -22,7 +22,7 @@ Um painel pessoal brasileiro que reúne **planejamento do dia**, **controle fina
 
 ### 1. Planejamento e Produtividade
 - **Início personalizável:** resumo do dia com anel de progresso, gráficos sparkline de 7 dias, linha do tempo interativa (6h–22h), botão **Companhia** (liga/desliga Spotify + Clima com um clique) e 15 cards reordenáveis.
-- **Hoje e Carga do Dia:** foco em até 3 prioridades, alertas de atenção (atrasados, contas vencendo, hábitos pendentes), cálculo de capacidade em horas e botão **Encaixar na agenda** (`autoSlot`).
+- **Hoje e Carga do Dia:** caixa de entrada para capturar e organizar ideias depois, revisão semanal configurável, foco em até 3 prioridades, alertas de atenção (atrasados, contas vencendo, hábitos pendentes), cálculo de capacidade em horas e botão **Encaixar na agenda** (`autoSlot`).
 - **Rotina (Manhã e Noite):** passo a passo guiado configurável com registro de dias seguidos.
 - **Tarefas, Agenda e Metas:** prioridades, subtarefas, recorrência (diária, dias úteis, semanal, mensal), arrastar para agendar, calendário mensal e metas com marcos de progresso.
 - **Hábitos e Pomodoro:** grade de constância, sequência de dias seguidos e timer Pomodoro (25 min foco / 5 min pausa) com histórico e avisos sonoros/notificações.
@@ -32,11 +32,11 @@ Um painel pessoal brasileiro que reúne **planejamento do dia**, **controle fina
 - **Análises:** fluxo de caixa projetado para **30, 60 e 90 dias**, cascata de receitas → despesas → economia, gráfico de rosca por categoria, evolução de 6 meses e correlação **Humor × Gastos**.
 - **Lançamentos:** busca, filtros por categoria/conta/cartão/etiqueta, parcelamento automático (`2x` a `24x`), divisão de despesas com outra pessoa (`split`) e fechamento/arquivamento de mês.
 - **Orçamentos e Metas:** tetos por categoria, regra percentual customizável (`50 / 30 / 20`), calculadora de **Reserva de Emergência** e caixinhas de economia com depósito rápido.
-- **Contas e Recorrentes:** gestão de contas correntes, dinheiro e investimentos, cartões de crédito (limite, fechamento e vencimento) e geração automática de fixos do mês.
+- **Contas e Recorrentes:** gestão de contas correntes, dinheiro e investimentos, cartões de crédito (limite, fechamento e vencimento), próxima data e histórico de valor de recorrências e geração automática de fixos do mês.
 - **Regras e Importação:** regras automáticas por palavra-chave e importação de extratos **CSV** (Nubank, Itaú, Inter, Bradesco, C6 etc.) com pré-visualização e detecção de duplicatas.
 
 ### 3. Conhecimento, Bem-Estar e Recursos Globais
-- **Notas, Diário, Humor e Leituras:** notas fixáveis com checklist e cores, diário com perguntas guiadas e retrospectiva do ano, registro de humor e estante de livros/cursos/filmes/séries.
+- **Notas, Diário, Humor e Leituras:** notas fixáveis com checklist, cores e sugestões por etiqueta ou ligação, diário com perguntas guiadas e retrospectiva do ano, registro de humor e estante de livros/cursos/filmes/séries.
 - **Conexões (`links2`) e Etiquetas:** qualquer item do hub pode ser conectado a outro (ex.: ligar uma tarefa a uma nota ou meta) e filtrado por `#etiquetas`.
 - **Paleta de Comandos (`Ctrl+K`) e Busca Global:** navegue, execute ações ou encontre qualquer item instantaneamente.
 - **Segurança dos Dados:** Desfazer/Refazer (`Ctrl+Z` / `Ctrl+Y`, até 30 passos), Lixeira com retenção de 30 dias, 8 versões automáticas locais e exportação/importação JSON com mescla sem perda.
@@ -113,8 +113,8 @@ O site só abre depois de entrar com o Google. Os dados são sincronizados entre
 # Servir localmente em http://localhost:8080
 python -m http.server 8080
 
-# Executar os 12 cenários de teste ponta a ponta (Node 24+, sem dependências)
+# Executar os cenários de teste ponta a ponta (Node 24+, sem dependências)
 node tests/run.js
 ```
 
-O executor [`tests/run.js`](file:///c:/Users/vitor/Documents/MeuHub/tests/run.js) abre o site em um Chrome ou Edge headless com Firebase simulado e valida login, sincronização, mescla entre aparelhos, troca de conta, saída, modo sem internet, integridade de emojis UTF-16, todas as 18 telas e 6 abas de finanças, cache-busting, rede lenta e PWA/Service Worker (~50 s). Se o navegador não for encontrado automaticamente, defina a variável de ambiente `CHROME_PATH`.
+O executor [`tests/run.js`](file:///c:/Users/vitor/Documents/MeuHub/tests/run.js) abre o site em um Chrome ou Edge headless com Firebase simulado e valida login, sincronização, mescla entre aparelhos, troca de conta, saída, modo sem internet, integridade de emojis UTF-16, todas as 18 telas e 6 abas de finanças, cache-busting, rede lenta, falhas de armazenamento, gravação concorrente e PWA/Service Worker (~50 s). Se o navegador não for encontrado automaticamente, defina a variável de ambiente `CHROME_PATH`.
