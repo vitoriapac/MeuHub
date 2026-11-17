@@ -131,6 +131,208 @@ async function main() {
   const waitCloud = (uid, t) => waitFor(`(${cloudTasksExpr(uid)}||[]).includes(${JSON.stringify(t)})`, `"${t}" na nuvem de ${uid}`);
 
   const scenarios = [
+    ['leituras antigas sem tipo mantêm tratamento de livro na estante', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{RD.tab='shelf';RD.selected='';S.reads=[{id:'old',t:'Livro antigo',st:'f'},{id:'film',t:'Filme',k:'filme',st:'f'}];S.view='leituras';render();return [...document.querySelectorAll('.book-spine')].map(x=>x.textContent)})()`);
+      assert.strictEqual(r.length,1);assert.match(r[0],/Livro antigo/);
+    }],
+    ['cor da lombada também acompanha capas predominantemente brancas', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>({color:coverDominant(new Uint8ClampedArray([255,255,255,255,250,250,250,255])),ink:spineInk('#fcfcfc')}))()`);
+      assert.strictEqual(r.color,'#fdfdfd');assert.strictEqual(r.ink,'#161616');
+    }],
+    ['capas já carregadas podem ser recuperadas do cache sem rede', async () => {
+      const vm=require('vm'),handlers={},store=new Map();let online=true,network=0;
+      const cache={match:async req=>store.get(req.url),put:async(req,res)=>store.set(req.url,res),keys:async()=>[...store.keys()].map(url=>({url})),delete:async req=>store.delete(req.url)};
+      const context={URL,self:{location:{origin:'https://app.example'},addEventListener:(name,fn)=>handlers[name]=fn},caches:{open:async()=>cache},fetch:async()=>{network++;if(!online)throw Error('offline');return {ok:true,type:'cors',clone(){return this}}}};
+      vm.runInNewContext(fs.readFileSync(path.join(ROOT,'sw.js'),'utf8'),context);
+      const request={method:'GET',url:'https://covers.openlibrary.org/b/id/123-M.jpg?default=false'};let response;const event={request,respondWith:p=>{response=p}};handlers.fetch(event);assert.strictEqual((await response).ok,true);online=false;handlers.fetch(event);assert.strictEqual((await response).ok,true);assert.strictEqual(network,1);
+    }],
+    ['busca de capa offline mostra mensagem e preserva a capa atual', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{RD.tab='shelf';RD.selected='b';S.reads=[{id:'b',t:'Livro',k:'livro',st:'f',cover:77,coverColor:'#123456'}];S.view='leituras';render();const old=window.fetch;window.fetch=async()=>{throw Error('offline')};await findCover('b');window.fetch=old;return {error:RD.lookup.error,cover:S.reads[0].cover,color:S.reads[0].coverColor}})()`);
+      assert.match(r.error,/conexão/i);assert.strictEqual(r.cover,77);assert.strictEqual(r.color,'#123456');
+    }],
+    ['páginas e busca da coleção acompanham os dados do livro', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{RD.tab='collection';RD.q='';S.rk='';S.rs='';S.reads=[{id:'b',t:'Livro de aventura',a:'Autora',k:'livro',st:'a',p:0},{id:'c',t:'Outro',k:'filme',st:'q'}];S.view='leituras';render();let i=document.querySelector('[data-rd-pages=b]');i.value='200';i.dispatchEvent(new Event('change',{bubbles:true}));i=document.querySelector('[data-rd-page=b]');i.value='50';i.dispatchEvent(new Event('change',{bubbles:true}));const before={...S.reads[0]},search=document.querySelector('#rd-search');search.value='aventura';search.dispatchEvent(new Event('input',{bubbles:true}));return {before,visible:!!document.querySelector('[data-lid="rd:b"]'),hidden:!document.querySelector('[data-lid="rd:c"]')}})()`);
+      assert.strictEqual(r.before.pages,200);assert.strictEqual(r.before.page,50);assert.strictEqual(r.before.p,25);assert.ok(r.visible&&r.hidden);
+    }],
+    ['backup restaura a coleção e suas capas sem afetar backups antigos', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{S.reads=[{id:'antigo',t:'Anterior',k:'livro',st:'q'}];S.view='backup';render();const f=document.querySelector('#bkfile'),d=new DataTransfer(),data={tasks:[],events:[],reads:[{id:'book',t:'Livro',k:'livro',st:'f',df:T,cover:240727,coverColor:'#325a72'}]};d.items.add(new File([JSON.stringify(data)],'backup.json',{type:'application/json'}));f.files=d.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(x=>setTimeout(x,150));return {reads:S.reads,ok:validBackup(data)}})()`);
+      assert.strictEqual(r.ok,true);assert.strictEqual(r.reads[0].id,'book');assert.strictEqual(r.reads[0].coverColor,'#325a72');
+    }],
+    ['estante exibe somente livros concluídos e mostra detalhes pela lombada', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{RD.tab='collection';RD.q='';RD.selected='';S.rk='';S.rs='';S.reads=[{id:'b',t:'Livro de teste',a:'Autora',k:'livro',st:'f',df:T,r:4,n:'Gostei',coverColor:'#aabbcc'},{id:'other',t:'Pendente',k:'livro',st:'q'},{id:'film',t:'Filme',k:'filme',st:'f'}];S.view='leituras';render();document.querySelector('[data-a=rd-tab][data-id=shelf]').click();const before=[...document.querySelectorAll('.book-spine')].map(x=>x.textContent);document.querySelector('[data-a=rd-open][data-id=b]').click();return {before,text:document.querySelector('.book-detail').innerText,color:document.querySelector('#spine-b').style.getPropertyValue('--spine')}})()`);
+      assert.strictEqual(r.before.length,1);assert.match(r.before[0],/Livro de teste/);assert.match(r.text,/Autora/);assert.match(r.text,/Gostei/);assert.match(r.text,/Capa não selecionada/);assert.strictEqual(r.color,'#aabbcc');
+    }],
+    ['capa escolhida gera cor pela imagem e persiste na coleção', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{RD.tab='shelf';RD.selected='b';S.reads=[{id:'b',t:'Livro',a:'Autora',k:'livro',st:'f',df:T}];S.view='leituras';render();const oldFetch=window.fetch,OldImage=window.Image,oldContext=HTMLCanvasElement.prototype.getContext;window.fetch=async()=>({ok:true,json:async()=>({docs:[{title:'Livro',author_name:['Autora'],cover_i:12345,first_publish_year:2000}]})});window.Image=class{set src(v){queueMicrotask(()=>this.onload())}};HTMLCanvasElement.prototype.getContext=function(){return {drawImage(){},getImageData(){return {data:new Uint8ClampedArray([30,90,150,255,30,90,150,255,255,255,255,255])}}}};await findCover('b');document.querySelector('[data-a=rd-cover-use]').click();await new Promise(resolve=>setTimeout(resolve,20));window.fetch=oldFetch;window.Image=OldImage;HTMLCanvasElement.prototype.getContext=oldContext;return {cover:S.reads[0].cover,color:S.reads[0].coverColor,spine:document.querySelector('#spine-b').style.getPropertyValue('--spine'),url:coverUrl(S.reads[0].cover)}})()`);
+      assert.strictEqual(r.cover,12345);assert.strictEqual(r.color,'#1e5a96');assert.strictEqual(r.spine,r.color);assert.match(r.url,/covers\.openlibrary\.org/);await open();assert.strictEqual(await ev('S.reads[0].coverColor'),'#1e5a96');
+    }],
+    ['edição de leitura preserva data e mantém progresso coerente', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{RD.tab='collection';RD.q='';S.rk='';S.rs='';S.reads=[{id:'b',t:'Livro',k:'livro',st:'f',df:'2020-01-02',p:100,pages:200,page:200}];S.view='leituras';render();const select=document.querySelector('[data-rds=b]');select.value='a';select.dispatchEvent(new Event('change',{bubbles:true}));return S.reads[0]})()`);
+      assert.strictEqual(r.st,'a');assert.strictEqual(r.df,'2020-01-02');assert.strictEqual(r.p,0);assert.strictEqual(r.page,0);
+    }],
+    ['etapa desativada em outro aparelho não prende a navegação', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.rot={};S.rotPrefs={m:{1:false}};S.view='rotina';RT.date=T;RT.mode='m';RT.i=1;render();const corrected=RT.i;document.querySelector('[data-a=rtn][data-id="1"]').click();return {corrected,next:RT.i}})()`);
+      assert.strictEqual(r.corrected,0);assert.strictEqual(r.next,2);
+    }],
+    ['backup restaura rotina, preferências e registros separados', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(async()=>{S.rot={[T]:{m:1,progress:{n:3}}};S.rotPrefs={n:{1:false}};S.dia={[T]:{focus:'Estudar',routine:{m:{m:4},n:{m:5}}}};const data=JSON.parse(JSON.stringify(pick()));S.rot={};S.rotPrefs={};S.dia={};S.view='backup';render();const f=document.querySelector('#bkfile'),files=new DataTransfer();files.items.add(new File([JSON.stringify(data)],'backup.json',{type:'application/json'}));f.files=files.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,150));return {rot:S.rot[T],prefs:S.rotPrefs,day:S.dia[T],msg:document.querySelector('#bkmsg').textContent}})()`);
+      assert.strictEqual(r.rot.m,1);assert.strictEqual(r.rot.progress.n,3);assert.strictEqual(r.prefs.n['1'],false);assert.strictEqual(r.day.routine.m.m,4);assert.strictEqual(r.day.routine.n.m,5);assert.match(r.msg,/restaurado/i);
+    }],
+    ['rascunho da tarefa de amanhã sobrevive ao recarregamento', async () => {
+      await fresh(); await login('A');
+      await ev(`(()=>{S.rot={};S.view='rotina';RT.date=T;RT.mode='n';rtStep('n',3);render();const i=document.querySelector('#rtnew');i.value='Ligar para o banco';i.dispatchEvent(new Event('input',{bubbles:true}));return true})()`);
+      await open();const r=await ev(`(()=>{rtOpen('n');S.view='rotina';render();return {step:RT.i,draft:document.querySelector('#rtnew').value}})()`);
+      assert.strictEqual(r.step,3);assert.strictEqual(r.draft,'Ligar para o banco');
+    }],
+    ['rotina planeja amanhã preservando prazos individuais e em lote', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.rot={};S.tasks=[{id:'future',t:'Projeto',done:false,hd:T,due:ds(add(today,7))},{id:'late',t:'Atrasada',done:false,due:ds(add(today,-2))}];S.view='rotina';RT.date=T;RT.mode='n';RT.i=0;render();document.querySelector('[data-a=rtmove]').click();const late={...S.tasks[1]};S.tasks[0].hd=T;render();document.querySelector('[data-a=rtplan][data-id=future]').click();const one={...S.tasks[0]};return {one,late,tomorrow:ds(add(today,1)),original:ds(add(today,7)),old:ds(add(today,-2))}})()`);
+      assert.strictEqual(r.one.hd,r.tomorrow);assert.strictEqual(r.one.due,r.original);assert.strictEqual(r.late.hd,r.tomorrow);assert.strictEqual(r.late.due,r.old);
+    }],
+    ['rotina prioriza tarefas planejadas e inclui duração padrão na carga', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.rot={};S.tasks=Array.from({length:10},(_,i)=>({id:'o'+i,t:'Atrasada '+i,done:false,due:ds(add(today,-1))}));S.tasks.push({id:'p',t:'Planejada importante',done:false,hd:T,due:ds(add(today,5)),dur:0});S.events=[];S.view='rotina';RT.date=T;RT.mode='m';RT.i=3;render();return {text:document.querySelector('#main').innerText,load:dayLoad(T)}})()`);
+      assert.match(r.text,/Planejada importante/);assert.match(r.text,/Ver outras/);assert.strictEqual(r.load.pl,30);
+    }],
+    ['humor da manhã e noite permanece separado do diário geral', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.dia={[T]:{m:2,e:3}};S.rot={};S.view='rotina';RT.date=T;RT.mode='m';RT.i=0;render();document.querySelector('[data-a=rtmood][data-mode=m][data-k=m][data-id="4"]').click();RT.mode='n';RT.i=2;render();document.querySelector('[data-a=rtmood][data-mode=n][data-k=m][data-id="5"]').click();S.view='diario';render();return {day:S.dia[T],text:document.querySelector('#main').innerText}})()`);
+      assert.strictEqual(r.day.m,2);assert.strictEqual(r.day.routine.m.m,4);assert.strictEqual(r.day.routine.n.m,5);assert.match(r.text,/Manhã: humor Bom/);assert.match(r.text,/Noite: humor Ótimo/);
+    }],
+    ['rotina retoma etapa e preferências após recarregar', async () => {
+      await fresh(); await login('A');
+      await ev(`(()=>{S.rot={};S.rotPrefs={};S.view='rotina';rtOpen('m');render();const c=document.querySelector('[data-rt-pref="m:1"]');c.checked=false;c.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('[data-a=rtn][data-id="1"]').click();return true})()`);
+      await open();const r=await ev(`(()=>{rtOpen('m');S.view='rotina';render();return {i:RT.i,pref:S.rotPrefs.m['1'],saved:pick().rotPrefs.m['1'],text:document.querySelector('#main').innerText}})()`);
+      assert.strictEqual(r.i,2);assert.strictEqual(r.pref,false);assert.strictEqual(r.saved,false);assert.match(r.text,/Seu dia/);
+    }],
+    ['foco e planejamento de amanhã preservam dados antigos', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.focus='Foco antigo';S.rot={};S.dia={};const tm=ds(add(today,1));S.tasks=[{id:'p',t:'Planejada amanhã',done:false,hd:tm,due:ds(add(today,4))}];S.view='rotina';RT.date=T;RT.mode='m';RT.i=1;render();const focus=document.querySelector('#fo');const empty=focus.value;focus.value='Estudar';focus.dispatchEvent(new Event('input',{bubbles:true}));RT.mode='n';RT.i=3;render();const text=document.querySelector('#main').innerText;const f=document.querySelector('#rtnew');f.value='Ligar';f.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('[data-a=rtadd]').click();return {old:S.focus,empty,focus:S.dia[T].focus,text,task:S.tasks[0],tm,history:rtHistory()}})()`);
+      assert.strictEqual(r.old,'Foco antigo');assert.strictEqual(r.empty,'');assert.strictEqual(r.focus,'Estudar');assert.match(r.text,/Planejada amanhã/);assert.strictEqual(r.task.hd,r.tm);assert.strictEqual(r.task.due,'');assert.match(r.history,/Estudar/);
+    }],
+    ['edições independentes de uma nota mesclam datas sem conflito falso', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const base={id:'n',t:'Original',b:'Texto',g:'',updatedAt:100},local={...base,t:'Novo título',updatedAt:200},remote={...base,g:'pessoal',updatedAt:300},c=[],result=merge3(base,local,remote,c),same=[];merge3(base,{...local,b:'Versão local'},{...remote,b:'Versão remota'},same);return {result,conflicts:c.length,real:same.length}})()`);
+      assert.strictEqual(r.result.t,'Novo título');assert.strictEqual(r.result.g,'pessoal');assert.strictEqual(r.result.updatedAt,300);assert.strictEqual(r.conflicts,0);assert.ok(r.real>0);
+    }],
+    ['busca e filtros encontram texto e itens de listas preservando rascunhos', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{noteReset();S.notes=[{id:'n',t:'Ideias',b:'Café da manhã',f:'',g:'',c:'p'},{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[{id:'i',t:'Arroz',q:'2 kg',done:false}]}];S.view='notas';render();const item=document.querySelector('[data-shopping-form] [name=t]');item.value='Feijão';item.dispatchEvent(new Event('input',{bubbles:true}));let q=document.querySelector('#note-search');q.value='cafe';q.dispatchEvent(new Event('input',{bubbles:true}));const text=!!document.querySelector('[data-lid="nt:n"]'),hidden=!document.querySelector('[data-lid="nt:l"]');q=document.querySelector('#note-search');q.value='arroz';q.dispatchEvent(new Event('input',{bubbles:true}));const found=!!document.querySelector('[data-lid="nt:l"]'),draft=document.querySelector('[data-shopping-form] [name=t]').value;const type=document.querySelector('#note-type');type.value='note';type.dispatchEvent(new Event('change',{bubbles:true}));return {text,hidden,found,draft,none:!document.querySelector('[data-lid="nt:l"]')}})()`);
+      assert.ok(r.text&&r.hidden&&r.found&&r.none);assert.strictEqual(r.draft,'Feijão');
+    }],
+    ['notas arquivadas mantêm ligações e podem ser abertas diretamente', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{noteReset();S.notes=[{id:'n',t:'Decisão',b:'texto',f:'',g:'',c:'p'}];S.tasks=[{id:'t',t:'Tarefa'}];S.lnk=[];lkSet('tk:t','nt:n',true);S.view='notas';render();document.querySelector('[data-a=note-archive]').click();const hidden=!document.querySelector('[data-lid="nt:n"]'),link=lkOf('tk:t').includes('nt:n');lkGo('nt:n');render();const opened=!!document.querySelector('[data-lid="nt:n"]'),status=document.querySelector('#note-status').value;document.querySelector('[data-a=note-archive]').click();return {hidden,link,opened,status,restored:!S.notes[0].archived}})()`);
+      assert.ok(r.hidden&&r.link&&r.opened&&r.restored);assert.strictEqual(r.status,'archived');
+    }],
+    ['duplicar e revisitar mantêm conteúdo e não copiam ligações', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{noteReset();S.notes=[{id:'n',t:'Plano',b:'<b>Texto</b>',f:'',g:'ideia',c:'p'}];S.tasks=[{id:'t',t:'Tarefa'}];S.lnk=[];lkSet('tk:t','nt:n',true);S.view='notas';render();document.querySelector('[data-a=note-revisit]').click();document.querySelector('[data-a=note-copy]').click();const c=S.notes[0],original=S.notes.find(x=>x.id==='n');c.b='Outro texto';const filter=document.querySelector('#note-status');filter.value='revisit';filter.dispatchEvent(new Event('change',{bubbles:true}));return {original:original.b,marked:original.revisit,copy:c.id,links:lkOf('nt:'+c.id).length,found:!!document.querySelector('[data-lid="nt:n"]'),copyHidden:!document.querySelector('[data-lid="nt:'+c.id+'"]')}})()`);
+      assert.strictEqual(r.original,'<b>Texto</b>');assert.ok(r.marked&&r.found&&r.copyHidden);assert.strictEqual(r.links,0);
+      await open();assert.strictEqual(await ev("S.notes.find(n=>n.id==='n').revisit"),true);
+    }],
+    ['ordenação respeita edição e identifica notas antigas sem data', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{noteReset();S.notes=[{id:'old',t:'Antiga',b:'',c:'p'},{id:'new',t:'Nova',b:'',c:'p',updatedAt:1000}];S.view='notas';render();const order=nList().map(n=>n.id),text=document.querySelector('[data-lid="nt:old"]').innerText,i=document.querySelector('[data-n=old][data-f=t]');i.value='Editada';i.dispatchEvent(new Event('input',{bubbles:true}));return {order,text,updated:S.notes[0].updatedAt,now:nList()[0].id}})()`);
+      assert.deepStrictEqual(r.order,['new','old']);assert.match(r.text,/Sem data de edição/);assert.ok(r.updated>1000);assert.strictEqual(r.now,'old');
+    }],
+    ['novas cores de notas mantêm contraste no tema claro e escuro', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'n',t:'Ideia',b:'',f:'',g:'',c:'peach'}];S.view='notas';const out=[];for(const mode of ['light','dark']){S.themeMode=mode;applyTheme();render();for(const color of ['peach','mint','lavender','sand','rose','sky','lemon','sage']){const s=document.querySelector('[data-note-color=n]');s.value=color;s.dispatchEvent(new Event('change',{bubbles:true}));const card=document.querySelector('[data-lid="nt:n"]'),parse=x=>x.match(/\\d+(?:\\.\\d+)?/g).slice(0,3).map(Number),lum=rgb=>rgb.map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4}).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0),bg=lum(parse(getComputedStyle(card).backgroundColor)),fg=lum(parse(getComputedStyle(card).color));out.push((Math.max(bg,fg)+.05)/(Math.min(bg,fg)+.05))}}return out})()`);
+      assert.strictEqual(r.length,16);assert.ok(r.every(x=>x>=4.5),JSON.stringify(r));
+    }],
+    ['cores de notas e listas são escolhidas e permanecem ao recarregar', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'n',t:'Ideia',b:'Texto',f:'',g:'',c:'p'},{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[]}];S.view='notas';render();const draft=document.querySelector('[data-shopping-form] [name=t]');draft.value='Feijão';let s=document.querySelector('[data-note-color=n]');const options=[...s.options].map(x=>x.value);s.value='peach';s.dispatchEvent(new Event('change',{bubbles:true}));s=document.querySelector('[data-note-color=l]');s.value='mint';s.dispatchEvent(new Event('change',{bubbles:true}));return {options,n:S.notes[0].c,l:S.notes[1].c,draft:draft.value,bg:getComputedStyle(document.querySelector('[data-lid="nt:n"]')).backgroundColor}})()`);
+      assert.strictEqual(r.options.length,12);assert.strictEqual(r.n,'peach');assert.strictEqual(r.l,'mint');assert.strictEqual(r.draft,'Feijão');assert.notStrictEqual(r.bg,'rgba(0, 0, 0, 0)');
+      await open();const colors=await ev('S.notes.map(n=>n.c)');assert.deepStrictEqual(colors,['peach','mint']);
+    }],
+    ['orçamentos em reais preservam os meses anteriores', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.bud={Alimentação:500};S.fin.budHist={};S.view='financas';S.fvw='mes';S.ftab='orc';S.fmo=0;render();const f=document.querySelector('#fbud');f.elements.cat.value='Alimentação';f.elements.v.value='1.200,00';f.requestSubmit();const cur=T.slice(0,7),previous=addM(T,-1).slice(0,7),next=addM(T,1).slice(0,7);return {past:budgetsAt(previous).Alimentação,cur:budgetsAt(cur).Alimentação,next:budgetsAt(next).Alimentação,valid:validBackup({tasks:[],events:[],fin:S.fin})}})()`);
+      assert.strictEqual(r.past,500);assert.strictEqual(r.cur,1200);assert.strictEqual(r.next,1200);assert.strictEqual(r.valid,true);
+    }],
+    ['conta vinculada a recorrência não pode ser excluída', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.acc=[{id:'a',n:'A',ty:'cc',ini:0},{id:'b',n:'B',ty:'cc',ini:0}];S.fin.tx=[];S.fin.rec=[{id:'r',t:'Aluguel',k:'out',v:100,day:31,ini:ds(add(today,1)),ac:'b'}];S.view='financas';S.fvw='mes';S.ftab='contas';render();document.querySelector('[data-a=delacc][data-id=b]').click();return S.fin.acc.some(x=>x.id==='b')})()`);
+      assert.ok(r);
+    }],
+    ['duplicatas no mesmo CSV exigem escolha', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.tx=[];IMP={hdr:true,inv:false,ac:'main',df:'dmy',map:{d:0,t:1,v:2},rows:[['data','desc','valor'],[T,'Café','-10'],[T,'Café','-10']]};return impRows().rows.map(x=>x.dup)})()`);
+      assert.deepStrictEqual(r,[false,true]);
+    }],
+    ['conciliação marca e filtra lançamentos sem alterar saldo', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.tx=[{id:'x',k:'out',t:'Mercado',v:20,cat:'Alimentação',d:T,ac:'main'}];S.view='financas';S.fvw='mes';S.ftab='lanc';render();const before=bal(S.fin.acc[0]),c=document.querySelector('[data-tx-checked=x]');c.checked=true;c.dispatchEvent(new Event('change',{bubbles:true}));const f=document.querySelector('[data-reconcile-filter]');f.value='pending';f.dispatchEvent(new Event('change',{bubbles:true}));return {checked:S.fin.tx[0].checked,before,after:bal(S.fin.acc[0]),visible:!!document.querySelector('[data-tx-checked=x]')}})()`);
+      assert.strictEqual(r.checked,true);assert.strictEqual(r.before,r.after);assert.strictEqual(r.visible,false);
+    }],
+    ['associação de transferência antiga não duplica movimento e respeita restante', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.acc=[{id:'a',n:'Conta',ty:'cc',ini:0},{id:'c',n:'Cartão',ty:'card',close:28,due:10,ini:0}];S.fin.tx=[];S.view='financas';S.fvw='mes';S.ftab='contas';S.fmo=0;const iv=invoice(S.fin.acc[1]);S.fin.tx=[{id:'buy',k:'out',t:'Compra',v:100,cat:'Outros',d:iv.end,ac:'c'},{id:'old',k:'tr',t:'Pagamento',v:40,d:T,ac:'a',to:'c'}];render();const f=document.querySelector('[data-invoice-link]');f.elements.confirm.checked=true;f.requestSubmit();return {count:S.fin.tx.length,invoice:S.fin.tx[1].invoice,left:invoice(S.fin.acc[1]).left,end:iv.end}})()`);
+      assert.strictEqual(r.count,2);assert.strictEqual(r.invoice,r.end);assert.strictEqual(r.left,60);
+    }],
+    ['edição de cartão exige confirmação e protege pagamentos vinculados', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.acc=[{id:'main',n:'Conta',ty:'cc',ini:0},{id:'c',n:'Cartão',ty:'card',close:28,due:10,lim:500,ini:0}];S.fin.tx=[{id:'pay',k:'tr',t:'Pagamento',v:20,d:T,ac:'main',to:'c',invoice:T.slice(0,7)+'-28'}];S.view='financas';S.fvw='mes';S.ftab='contas';render();let f=document.querySelector('[data-acc-edit=c]');f.elements.due.value='12';f.requestSubmit();const before=S.fin.acc[1].due;f.elements.confirm.checked=true;f.requestSubmit();const after=S.fin.acc[1].due;f=document.querySelector('[data-acc-edit=c]');f.elements.close.value='20';f.elements.confirm.checked=true;f.requestSubmit();return {before,after,close:S.fin.acc[1].close}})()`);
+      assert.strictEqual(r.before,10);assert.strictEqual(r.after,12);assert.strictEqual(r.close,28);
+    }],
+    ['parcelas futuras e média variável não duplicam gastos do cartão', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.acc=[{id:'main',n:'Conta',ty:'cc',ini:1000},{id:'c',n:'Cartão',ty:'card',close:28,due:10,ini:0}];S.fin.rec=[];S.fin.bills=[];S.fac='';S.fin.tx=[{id:'past',k:'out',t:'Cartão',v:600,cat:'Outros',d:ds(add(today,-1)),ac:'c'},{id:'p',k:'out',t:'Notebook',v:100,cat:'Outros',d:ds(add(today,30)),ac:'c',pc:{g:'p1',i:2,n:3}},{id:'p2',k:'out',t:'Notebook',v:100,cat:'Outros',d:ds(add(today,60)),ac:'c',pc:{g:'p1',i:3,n:3}}];return {avg:cashFlow({days:90,fac:'',vary:true}).avg,html:installmentsPanel()}})()`);
+      assert.strictEqual(r.avg,0);assert.match(r.html,/Notebook/);assert.match(r.html,/200,00/);
+    }],
+    ['relatório anual usa a mesma média mensal da tela', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.acc=[{id:'main',n:'Conta',ty:'cc',ini:0}];S.fac='';S.fyr=0;S.fin.tx=[{id:'x',k:'out',t:'Compra',cat:'Lazer',v:120,d:T,ac:'main'}];S.view='financas';S.fvw='ano';render();let csv='';const old=siteSave;siteSave=(n,c)=>{csv=c};exportYear();siteSave=old;return {csv,text:document.querySelector('#main').innerText}})()`);
+      assert.match(r.csv,/"Lazer";"120,00";"120,00"/);assert.match(r.text,/Média por mês com movimento/);
+    }],
+    ['fatura registra pagamento parcial por ciclo e impede valor maior que o restante', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.acc=[{id:'a',n:'Conta',ty:'cc',ini:500},{id:'c',n:'Cartão',ty:'card',close:28,due:10,ini:0}];S.fin.tx=[];S.fac='';S.fmo=0;S.view='financas';S.fvw='mes';S.ftab='contas';const iv=invoice(S.fin.acc[1]);S.fin.tx.push({id:'buy',k:'out',t:'Compra',v:100,cat:'Outros',d:iv.end,ac:'c'});render();payInv('c');let f=document.querySelector('#ffin');f.elements.v.value='40';f.requestSubmit();let after=invoice(S.fin.acc[1]);render();payInv('c');f=document.querySelector('#ffin');const suggested=f.elements.v.value;f.elements.v.value='70';f.requestSubmit();const rejected=invoice(S.fin.acc[1]).paid;render();payInv('c');f=document.querySelector('#ffin');f.requestSubmit();return {paid:after.paid,left:after.left,suggested,rejected,finished:invoice(S.fin.acc[1]).left,count:S.fin.tx.filter(t=>t.invoice===iv.end).length}})()`);
+      assert.strictEqual(r.paid,40);assert.strictEqual(r.left,60);assert.strictEqual(r.suggested,'60.00');assert.strictEqual(r.rejected,40);assert.strictEqual(r.finished,0);assert.strictEqual(r.count,2);
+    }],
+    ['resumo financeiro distingue futuro e projeção por conta não inclui faturas sem origem', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.acc=[{id:'a',n:'Conta A',ty:'cc',ini:100},{id:'b',n:'Conta B',ty:'cc',ini:100},{id:'c',n:'Cartão',ty:'card',close:28,due:10,ini:0}];S.fin.rec=[];S.fin.bills=[{id:'bill',n:'Sem conta',v:20,day:Math.min(28,today.getDate()+1)}];const tomorrow=ds(add(today,1)),iv=invoice(S.fin.acc[2]);S.fin.tx=[{id:'future',k:'in',t:'Salário',v:1000,cat:'Receita',d:tomorrow,ac:'a'},{id:'buy',k:'out',t:'Compra',v:50,cat:'Outros',d:iv.end,ac:'c'}];S.view='financas';S.fvw='mes';S.fmo=0;S.fac='a';render();const text=document.querySelector('#main').innerText,c=cashFlow({days:90,fac:'a',vary:false});return {text,events:c.evs}})()`);
+      assert.match(r.text,/inclui agendadas/);assert.match(r.text,/Até hoje/);assert.ok(!r.events.some(x=>x.k==='card'||x.k==='bill'));
+    }],
+    ['importação permite revisar cada duplicata e mantém descrições diferentes', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.tx=[{id:'old',k:'out',t:'Mercado compra longa A',v:10,d:T,ac:'main'}];IMP={name:'teste.csv',hdr:true,inv:false,ac:'main',df:'dmy',map:{d:0,t:1,v:2},rows:[['data','descrição','valor'],[T,'Mercado compra longa A','-10'],[T,'Mercado compra longa B','-10'],['inválida','Erro','-1']]};S.view='financas';S.fvw='mes';S.ftab='regras';render();const before=impRows(),c=document.querySelector('[data-imp-include]');c.checked=true;c.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('[data-a=impgo]').click();return {before,count:S.fin.tx.length}})()`);
+      assert.strictEqual(r.before.rows[0].dup,true);assert.strictEqual(r.before.rows[1].dup,false);assert.deepStrictEqual(r.before.bad,[4]);assert.strictEqual(r.count,3);
+    }],
+    ['recorrência cria lembrete ligado sem duplicar previsão', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.rec=[];S.fin.bills=[];S.events=[];S.fin.tx=[];S.fin.acc=[{id:'main',n:'Conta',ty:'cc',ini:0}];S.fac='';S.view='financas';S.fvw='mes';S.ftab='contas';render();const f=document.querySelector('#frec');f.elements.t.value='Internet';f.elements.v.value='50';f.elements.day.value='28';f.elements.reminder.checked=true;f.requestSubmit();const rec=S.fin.rec[0],bill=S.fin.bills[0],ev=S.events.find(x=>x.id===bill.eid),flow=cashFlow({days:90,fac:'',vary:false});return {linked:bill.rec===rec.id,event:!!ev,duplicate:flow.evs.some(x=>x.k==='bill'&&x.t==='Internet')}})()`);
+      assert.ok(r.linked);assert.ok(r.event);assert.strictEqual(r.duplicate,false);
+    }],
+    ['metas por quantidade preservam progresso ao editar e recarregar', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.metas=[];S.tasks=[];S.view='metas';render();let f=document.querySelector('#fmeta');f.elements.t.value='Ler 12 livros';f.elements.tg.value='12';f.elements.un.value='livros';f.requestSubmit();const g=S.metas[0],k=g.kr[0];k.cur=3;render();f=document.querySelector('[data-meta-edit]');f.elements.t.value='Leitura anual';f.requestSubmit();f=document.querySelector('[data-kr-edit]');f.elements.tg.value='15';f.requestSubmit();return {goal:S.metas[0],text:document.querySelector('#main').innerText,stored:JSON.parse(localStorage.getItem('hub-v1')).metas[0]}})()`);
+      assert.strictEqual(r.goal.t,'Leitura anual');assert.strictEqual(r.goal.kr[0].tg,15);assert.strictEqual(r.goal.kr[0].cur,3);assert.match(r.text,/3 de 15 livros/);assert.deepStrictEqual(r.stored,r.goal);
+      await open();assert.strictEqual(await ev('S.metas[0].kr[0].cur'),3);
+    }],
+    ['metas por tarefas orientam e impedem transferência silenciosa', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.metas=[{id:'old',t:'Antiga',ini:T,kr:[]}];S.tasks=[{id:'taken',t:'Em outra meta',done:false,mt:'old'}];S.view='metas';render();let f=document.querySelector('#fmeta');f.elements.t.value='Nova meta';f.elements.mode.value='tasks';f.elements.mode.dispatchEvent(new Event('change',{bubbles:true}));const hidden=getComputedStyle(f.querySelector('[data-meta-number]')).display;f.requestSubmit();const g=S.metas[0],card=document.querySelector('[data-lid="mt:'+g.id+'"]'),empty=card.innerText;let tf=card.querySelector('[data-meta-task]');tf.elements.t.value='Primeira etapa';tf.requestSubmit();const fake=document.createElement('form');fake.dataset.mt=g.id;fake.innerHTML='<input name="tk" value="taken">';document.body.appendChild(fake);fake.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));return {hidden,empty,old:S.tasks.find(x=>x.id==='taken').mt,added:S.tasks.find(x=>x.t==='Primeira etapa').mt,id:g.id}})()`);
+      assert.strictEqual(r.hidden,'none');assert.match(r.empty,/Adicione uma tarefa/);assert.doesNotMatch(r.empty,/No ritmo|Atrás do ritmo/);assert.strictEqual(r.old,'old');assert.strictEqual(r.added,r.id);
+    }],
+    ['acompanhamento financeiro aceita no máximo seis meses sem alterar metas existentes', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.metas=[{id:'g',t:'Meta',ini:T,kr:[{id:'k',ty:'pc',ref:'r',t:'Existente',tg:9}]}];S.fin.prules=[{id:'r',k:'out',cat:'Lazer',v:30}];S.view='metas';render();const f=document.querySelector('[data-kr]'),s=f.elements.src;s.value='pc:r';s.dispatchEvent(new Event('change',{bubbles:true}));f.elements.tg.value='7';const valid=f.checkValidity();f.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));return {valid,count:S.metas[0].kr.length,old:S.metas[0].kr[0].tg,max:f.elements.tg.max}})()`);
+      assert.strictEqual(r.valid,false);assert.strictEqual(r.count,1);assert.strictEqual(r.old,9);assert.strictEqual(r.max,'6');
+    }],
     ['falhas de sincronização não anunciam sucesso nem encerram a conta', async () => {
       await fresh(); await login('A');
       const result = await ev(`(async()=>{const original=metaRef.get, messages=[];const oldToast=toast;
@@ -537,7 +739,7 @@ async function main() {
         const rid=S.fin.rec[0].id;document.querySelector('[data-a="edrec"][data-id="'+rid+'"]').click();
         const fr2=$('#frec');fr2.querySelector('[name=v]').value='150';fr2.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
         const okRec=S.fin.rec[0].v===150&&RED===null;
-        S.ftab='orc';render();
+        S.ftab='contas';render();
         const fb=$('#fbill');fb.querySelector('[name=n]').value='Internet';fb.querySelector('[name=v]').value='99';fb.querySelector('[name=day]').value='10';
         fb.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
         const bid=S.fin.bills[0].id;document.querySelector('[data-a="edbill"][data-id="'+bid+'"]').click();

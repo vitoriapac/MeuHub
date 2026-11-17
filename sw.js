@@ -1,5 +1,5 @@
 // Service Worker do Meu Hub: guarda a casca do app e a fonte para abrir sem internet; Firebase e APIs vão direto à rede
-const VER='20261116f',CACHE='meuhub-v'+VER;
+const VER='20261117g',CACHE='meuhub-v'+VER,COVERS='meuhub-covers-v1';
 const ASSETS=[
  './',
  './index.html',
@@ -21,12 +21,15 @@ self.addEventListener('install',e=>{
  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });
 self.addEventListener('activate',e=>{
- e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
+ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE&&k!==COVERS).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
 });
 self.addEventListener('fetch',e=>{
  const req=e.request;if(req.method!=='GET')return;
  const u=new URL(req.url);
  if(u.origin!==self.location.origin){
+  if(u.protocol==='https:'&&u.hostname==='covers.openlibrary.org'&&/^\/b\/id\/\d+-(S|M)\.jpg$/.test(u.pathname)){
+   e.respondWith(caches.open(COVERS).then(async c=>{const hit=await c.match(req);if(hit)return hit;const res=await fetch(req);if(res.ok&&res.type==='cors'){try{await c.put(req,res.clone());const keys=await c.keys();if(keys.length>100)await c.delete(keys[0])}catch(x){}}return res}));return;
+  }
   if(u.hostname==='fonts.googleapis.com'||u.hostname==='fonts.gstatic.com'){
    e.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(res=>{const cl=res.clone();caches.open(CACHE).then(c=>c.put(req,cl));return res})));
   }
