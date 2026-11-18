@@ -263,9 +263,9 @@ function rotina(){
  const pos=steps.indexOf(i),last=pos===steps.length-1,fin=done[md],sk=rtStreak();
  return `<div class="top"><h1>Rotina ${md==='m'?'da manhã':'da noite'}</h1><div style="display:flex;gap:var(--space-2);flex-wrap:wrap"><button class="pill ${md==='m'?'on':''}" data-a="rtm" data-id="m" aria-pressed="${md==='m'}">Manhã</button><button class="pill ${md==='n'?'on':''}" data-a="rtm" data-id="n" aria-pressed="${md==='n'}">Noite</button></div></div>
  <p class="empty" style="padding:0 0 var(--space-2)">Cerca de 2 minutos.${sk?` Pelo menos uma rotina concluída em ${sk} ${sk===1?'dia seguido':'dias seguidos'}.`:''}${fin?' Hoje já concluída.':''}</p>
- ${rtPrefs(md)}${rtHistory()}<button class="pill" data-a="rtrestart">Recomeçar esta rotina</button><ol class="rts" aria-label="Etapas">${steps.map((j,n)=>`<li class="${j===i?'on':''}" ${j===i?'aria-current="step"':''}>${n+1}. ${st[j]}</li>`).join('')}</ol>
+ ${rtHistory()}<button class="pill" data-a="rtrestart">Recomeçar esta rotina</button><ol class="rts" aria-label="Etapas">${steps.map((j,n)=>`<li class="${j===i?'on':''}" ${j===i?'aria-current="step"':''}>${n+1}. ${st[j]}</li>`).join('')}</ol>
  <div class="panel" style="margin-top:var(--space-2)">${body}</div>
- <div class="bar" style="margin-top:var(--space-3)">${pos>0?'<button class="pill" data-a="rtn" data-id="-1">‹ Voltar</button>':''}${last?`<button class="pill dark" data-a="rtd">Concluir rotina</button>`:'<button class="pill dark" data-a="rtn" data-id="1">Próximo ›</button>'}</div>`}
+ <div class="bar" style="margin-top:var(--space-3)">${pos>0?'<button class="pill" data-a="rtn" data-id="-1">‹ Voltar</button>':''}${last?`<button class="pill dark" data-a="rtd">Concluir rotina</button>`:'<button class="pill dark" data-a="rtn" data-id="1">Próximo ›</button>'}</div>${rtPrefs(md)}`}
 function routBox(){
  if(S.onb)return '';const h=today.getHours(),r=(S.rot||{})[T]||{};
  const m=h<12&&!r.m,n=h>=18&&!r.n;if(!m&&!n)return '';
