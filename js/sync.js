@@ -1,5 +1,5 @@
 // sincronização entre aparelhos: mescla, envio/recebimento, Firebase, tela de login e troca de conta
-const SK=['events','notes','tasks','links','inbox','habits','fin','dia','metas','revm','rev','revprefs','fm','fpj','goal','focus','cards','frase','frasen','menu','pal','acc','themeMode','profileName','nav','dens','trash','rem','rot','rotPrefs','cap','lnk','reads','sp','spsel','wx','seeded'];let CH=300000;
+const SK=['events','notes','tasks','links','inbox','habits','fin','dia','metas','revm','rev','revprefs','fm','fpj','goal','focus','cards','frase','frasen','menu','pal','acc','themeMode','profileName','nav','dens','trash','rem','rot','rotPrefs','cap','availability','lnk','reads','sp','spsel','wx','seeded'];let CH=300000;
 const pick=()=>{const o={};SK.forEach(k=>{o[k]=S[k]});return o},pickJSON=()=>JSON.stringify(pick());
 let FRESH=false;try{FRESH=!localStorage.getItem('hub-v1')}catch(e){}
 let SY={};try{SY=JSON.parse(localStorage.getItem('hub-sync')||'{}')}catch(e){}
@@ -8,7 +8,7 @@ const saveSY=()=>{try{localStorage.setItem('hub-sync',JSON.stringify(SY))}catch(
 let DBr=null,metaRef=null,P='',DEAD=false,pushing=false,again=false,ST=0,ARM=null,chain=Promise.resolve();
 let SYS={s:'local',d:'',at:''};
 function synText(){return {local:'Somente neste aparelho'+(SYS.d?' ('+SYS.d+')':''),sync:'Sincronizando…',ok:'Sincronizado'+(SYS.at?' às '+SYS.at:''),err:'Falha ao sincronizar'+(SYS.d?' ('+SYS.d+')':'')+'. Tentando de novo.'}[SYS.s]}
-function setSt(s,d){SYS.s=s;SYS.d=d||'';if(s==='ok'){SYS.at=nowH();SY.lastAt=new Date().toISOString();saveSY()}const a=$('#syn'),p=$('#synp');if(a){a.dataset.st=s;a.innerHTML='<b>'+({local:'☁',sync:'↻',ok:'☁',err:'⚠'}[s])+'</b>'+esc(synText().split('.')[0])}if(p)p.textContent=synText()}
+function setSt(s,d){SYS.s=s;SYS.d=d||'';if(s==='ok'){SYS.at=nowH();SY.lastAt=new Date().toISOString();saveSY()}const a=$('#syn'),p=$('#synp');if(a){a.dataset.st=s;a.innerHTML='<b>'+({local:'☁',sync:'↻',ok:'☁',err:'⚠'}[s])+'</b>'+esc(synText().split('.')[0])}if(p)p.textContent=synText();const summary=document.querySelector('[data-safety-summary]');if(summary)summary.querySelector('p').innerHTML=safetyText()}
 const syncPanel=()=>{
  const last=SY.lastAt?new Date(SY.lastAt).toLocaleString('pt-BR'):'ainda não confirmada',pending=LOCAL_CORRUPT?'indisponíveis até recuperar os dados':!SY.last||pickJSON()!==SY.last?'há alterações locais pendentes':'nenhuma alteração pendente';
  const head=`<div class="panel" style="margin-top:var(--space-4)"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 var(--space-2)">${synText()}</p><p class="empty">Última sincronização: ${esc(last)}. Estado das alterações: ${pending}.</p>`;
@@ -102,7 +102,7 @@ function fbInit(){
 window.addEventListener('online',()=>{if(FB.err){FB.err=false;fbInit()}else if(DBr)syncSoon()});
 function fbLogin(){if(!FB.auth)return;FB.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>{if(e&&e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast('Não foi possível entrar. Se a janela de login não abriu, permita pop-ups para este site e tente de novo.')})}
 /* outra conta no mesmo aparelho: guarda à parte os dados locais da anterior e traz os da nova, para nenhuma ver nem sobrescrever os da outra */
-function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK];
+function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK,AUDIT_KEY,PROFILE_KEY];
  try{ls.setItem('hub-acct-'+from,JSON.stringify(ks.map(k=>ls.getItem(k))))}catch(e){FB.auth.signOut();toast('Não há espaço neste navegador para trocar de conta. Faça um Backup e tente de novo.');return}
  const b=JSON.parse(ls.getItem('hub-acct-'+to)||'null');ks.forEach((k,i)=>b&&b[i]!=null?ls.setItem(k,b[i]):ls.removeItem(k));ls.removeItem('hub-acct-'+to);location.reload()}
 async function fbLogout(){if(!FB.auth)return;if(!(await push())){toast('Não foi possível sincronizar. Você continua na conta; tente novamente.');return}try{await FB.auth.signOut();toast('Você saiu da conta. Os dados continuam salvos na nuvem.')}catch(e){toast('Não foi possível sair da conta. Tente novamente.')}}

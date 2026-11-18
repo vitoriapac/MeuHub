@@ -1,0 +1,7 @@
+{
+  "tasks": [{"id": "t-parcial", "t": "Planejada", "done": false, "hd": "2030-01-10"}],
+  "events": [],
+  "notes": [{"id": "n-parcial", "t": "Nota", "b": "", "c": "p", "archived": false}],
+  "habits": [{"id": "h-semanal", "n": "Caminhar", "perWeek": 3, "log": {}}],
+  "fin": {"tx": [], "bills": [], "acc": [{"id": "a", "n": "Conta", "ty": "cc", "ini": 0}]}
+}

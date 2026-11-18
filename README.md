@@ -22,13 +22,13 @@ Um painel pessoal brasileiro que reúne **planejamento do dia**, **controle fina
 
 ### 1. Planejamento e Produtividade
 - **Início personalizável:** card opcional para lista de compras fixada, resumo do dia com anel de progresso, gráficos sparkline de 7 dias, linha do tempo interativa (6h–22h), botão **Companhia** (liga/desliga Spotify + Clima com um clique) e 15 cards reordenáveis.
-- **Hoje e Carga do Dia:** caixa de entrada, revisão semanal com pendências, prioridades, alertas e cálculo de capacidade. As sugestões consideram a capacidade e um horário livre; podem ser dispensadas até o próximo carregamento. A captura mantém seus campos ao alternar tipos. Planejar uma tarefa não altera seu prazo; a ação **Adiar para amanhã** altera o prazo para o dia seguinte e retira a tarefa de Hoje.
+- **Hoje e Carga do Dia:** caixa de entrada, revisão semanal com pendências, metas e hábitos, planejamento individual para a próxima semana, prioridades, alertas e cálculo de capacidade. As sugestões consideram a capacidade e um horário livre; podem ser dispensadas até o próximo carregamento. A captura mantém seus campos ao alternar tipos. Planejar uma tarefa não altera seu prazo; em Tarefas, o planejamento em lote permite selecionar, revisar e desfazer a operação. Tarefas recorrentes são planejadas individualmente. A ação **Adiar para amanhã** altera o prazo para o dia seguinte e retira a tarefa de Hoje.
 - **Rotina (Manhã e Noite):** passo a passo guiado configurável com registro de dias seguidos.
-- **Tarefas, Agenda e Metas:** prioridades, subtarefas, recorrência, captura para caixa de entrada ou tarefa com data planejada independente do prazo, encaixe individual em Hoje e metas com acompanhamento por quantidade ou tarefas. Em Metas, use **Nova meta** para acessar o formulário ao final da página; edição e opções de acompanhamento ficam depois do conteúdo de cada meta. Na agenda diária, **Ações dos compromissos do dia** reúne edição, exclusão e ações das tarefas em botões maiores, inclusive para eventos curtos ou simultâneos.
-- **Hábitos e Pomodoro:** hábitos diários ou de 1 a 7 vezes por semana, grade de registros e timer Pomodoro (25 min foco / 5 min pausa). Ao mudar a frequência, os registros são preservados e a sequência passa a usar a meta atual.
+- **Tarefas, Agenda e Metas:** prioridades, subtarefas, recorrência, captura para caixa de entrada ou tarefa com data planejada independente do prazo, encaixe individual em Hoje e metas com acompanhamento por quantidade ou tarefas. Em Metas, use **Nova meta** para acessar o formulário ao final da página; edição e opções de acompanhamento ficam depois do conteúdo de cada meta; o próximo passo pode ser planejado para hoje sem alterar seu prazo. Na agenda diária, **Ações dos compromissos do dia** reúne edição, exclusão e ações das tarefas em botões maiores, inclusive para eventos curtos ou simultâneos.
+- **Hábitos e Pomodoro:** hábitos diários ou de 1 a 7 vezes por semana, grade de registros e timer Pomodoro (25 min foco / 5 min pausa). Ao mudar a frequência, os registros são preservados e a sequência passa a usar a meta atual. Em Início e Hoje, os indicadores de hábitos diários são separados das metas semanais cumpridas.
 
 ### 2. Finanças Pessoais (6 abas + Relatório Anual)
-- **Visão Geral:** KPIs do mês, contas a vencer e previsão até a próxima receita futura da conta principal escolhida em **Contas e Recorrentes → Contas e cartões**. A estimativa inclui despesas até o dia do recebimento e exclui entradas desse dia, faturas sem pagamento agendado e contas sem conta de pagamento vinculada; gastos não cadastrados também ficam fora. Contas fixas independentes podem ser vinculadas a uma conta de pagamento, mas podem coincidir com outros lançamentos e devem ser conferidas. O alerta de saldo negativo considera a previsão consolidada para os próximos 14 dias, mesmo com poucos lançamentos.
+- **Visão Geral:** KPIs do mês, contas a vencer e previsão até a próxima receita futura da conta principal escolhida em **Contas e Recorrentes → Contas e cartões**. A estimativa inclui despesas até o dia do recebimento e exclui entradas desse dia, faturas sem pagamento agendado e contas sem conta de pagamento vinculada; gastos não cadastrados também ficam fora. Contas fixas independentes podem ser vinculadas a uma conta de pagamento, mas podem coincidir com outros lançamentos e devem ser conferidas. O alerta de saldo negativo considera a previsão consolidada para os próximos 14 dias, mesmo com poucos lançamentos. Em Hoje, contas, parcelas e assinaturas futuras indicam a conta vinculada ou avisam quando ela não está definida.
 - **Análises:** fluxo de caixa projetado para **30, 60 e 90 dias**, cascata de receitas → despesas → economia, gráfico de rosca por categoria, evolução de 6 meses e correlação **Humor × Gastos**.
 - **Lançamentos:** busca, filtros por categoria/conta/cartão/etiqueta, parcelamento automático (`2x` a `24x`), divisão de despesas com outra pessoa (`split`) e fechamento/arquivamento de mês.
 - **Orçamentos e Metas:** tetos por categoria, regra percentual customizável (`50 / 30 / 20`), calculadora de **Reserva de Emergência** e caixinhas de economia com depósito rápido.
@@ -36,10 +36,10 @@ Um painel pessoal brasileiro que reúne **planejamento do dia**, **controle fina
 - **Regras e Importação:** regras automáticas por palavra-chave e importação de extratos **CSV** (Nubank, Itaú, Inter, Bradesco, C6 etc.) com pré-visualização e detecção de duplicatas.
 
 ### 3. Conhecimento, Bem-Estar e Recursos Globais
-- **Notas, Diário, Humor e Leituras:** notas fixáveis com checklist e modelos agrupados em **Usar modelo**, listas de compras com quantidades, edição, duplicação, compartilhamento, orçamento estimado, histórico de compras e sugestões de itens, além de sugestões por etiqueta ou ligação, diário com perguntas guiadas e retrospectiva do ano, registro de humor e estante de livros/cursos/filmes/séries.
+- **Notas, Diário, Humor e Leituras:** notas fixáveis com checklist e modelos agrupados em **Usar modelo**, listas de compras com quantidades, edição, duplicação, compartilhamento, orçamento estimado, histórico de compras e sugestões de itens, atalhos para notas fixadas, recentes e para revisitar, além de sugestões por etiqueta ou ligação, diário com perguntas guiadas e retrospectiva do ano, registro de humor e estante de livros/cursos/filmes/séries.
 - **Conexões (`links2`) e Etiquetas:** qualquer item do hub pode ser conectado a outro (ex.: ligar uma tarefa a uma nota ou meta) e filtrado por `#etiquetas`.
 - **Paleta de Comandos (`Ctrl+K`) e Busca Global:** navegue, execute ações ou encontre qualquer item instantaneamente.
-- **Segurança dos Dados:** proteção na abertura e importação de dados inválidos, estado da sincronização em Backup, Desfazer/Refazer (`Ctrl+Z` / `Ctrl+Y`, até 30 passos), Lixeira com retenção de 30 dias, até 8 versões locais, limitadas pelo espaço disponível, e exportação/importação JSON.
+- **Segurança dos Dados:** proteção na abertura e importação de dados inválidos, alertas de tarefas e conflitos de agenda com opção de ocultar até amanhã, resumo da última sincronização e backup no Início, estado detalhado da sincronização em Backup, Desfazer/Refazer (`Ctrl+Z` / `Ctrl+Y`, até 30 passos), Lixeira com retenção de 30 dias, até 8 versões locais, limitadas pelo espaço disponível, e exportação/importação JSON.
 - **Modo Privacidade:** botão do olho na barra lateral borra todos os valores em `R$`, notas e textos do diário quando há alguém por perto.
 
 ---
@@ -118,3 +118,23 @@ node tests/run.js
 ```
 
 O executor [`tests/run.js`](file:///c:/Users/vitor/Documents/MeuHub/tests/run.js) abre o site em um Chrome ou Edge headless com Firebase simulado e valida login, sincronização, mescla entre aparelhos, troca de conta, saída, modo sem internet, integridade de emojis UTF-16, todas as 18 telas e 6 abas de finanças, cache-busting, rede lenta, falhas de armazenamento, gravação concorrente e PWA/Service Worker (~50 s). Se o navegador não for encontrado automaticamente, defina a variável de ambiente `CHROME_PATH`.
+
+### Arquivados e planejamento
+
+A central **Arquivados** reúne notas e listas de compras, permite buscar pelo conteúdo e restaurar os itens preservando seus vínculos. Tarefas e metas ainda não podem ser arquivadas.
+
+Na Agenda, configure uma ou mais janelas de horário para cada dia da semana. A primeira janela substitui o padrão de 8h a 22h; remover todas torna o dia indisponível, e “Usar padrão” recupera o horário inicial. A capacidade diária é um limite separado. As janelas são incluídas no backup e na sincronização.
+
+Em Tarefas, os modelos criam cópias independentes com subtarefas e prazo opcional. Em Hoje, **Fechar o dia** abre a rotina noturna existente, que permite retomar o progresso.
+
+Nas listas de compras, quantidade numérica, unidade e preços estimado e real por unidade são opcionais. Os preços são guardados em centavos e cada subtotal é arredondado para centavos; os totais indicam quando faltam dados. Ao registrar uma compra, confira valor, conta, data e categoria: cada confirmação cria uma despesa independente.
+
+O simulador de compra em Finanças compara débitos em uma conta com os lançamentos já cadastrados, sem salvar o cenário. Ele informa as exclusões e ainda não simula o fechamento de faturas de cartão.
+
+Nas recorrências de assinaturas, marque uma revisão para que ela apareça em Atenção; criar uma tarefa é opcional e não cria cobranças. Em Tarefas, a visão dos projetos reúne tarefas e despesas com o mesmo nome, além de notas e metas ligadas às tarefas.
+
+Em Backup, o histórico local mostra somente o tipo e horário de algumas alterações, sem nomes, conteúdos ou valores. Ele mantém até 100 eventos por até 90 dias, com limpeza ao abrir o app ou registrar uma ação; fica separado por conta no navegador e não é sincronizado nem substitui backup.
+
+Em Backup, **Exportar áreas selecionadas** gera JSON das áreas escolhidas ou CSV de tarefas, eventos e lançamentos. A exportação seletiva não inclui vínculos de outras áreas nem serve para restaurar o aplicativo; mantenha o backup completo para recuperação. O CSV protege células de texto que poderiam ser interpretadas como fórmulas.
+
+Em Personalizar menu, salve perfis de visualização com os cards e o menu atuais. Eles ficam neste navegador, separados por conta, fora do backup; ao trocar, o perfil ativo incorpora a configuração atual. Aplicar um perfil altera cards e menu, que usam a sincronização normal da conta. A escolha é sempre manual.

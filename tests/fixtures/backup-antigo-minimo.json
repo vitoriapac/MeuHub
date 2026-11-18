@@ -1,0 +1,6 @@
+{
+  "tasks": [{"id": "t-antiga", "t": "Tarefa antiga", "done": false, "due": "2030-01-20"}],
+  "events": [],
+  "notes": [{"id": "n-antiga", "t": "Nota antiga", "b": "Conteúdo de teste", "c": "g"}],
+  "habits": [{"id": "h-antigo", "n": "Hábito diário", "log": {"2026-11-17": 1}}]
+}
