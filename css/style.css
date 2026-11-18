@@ -218,8 +218,8 @@ form.bar .in.grow{flex:1;min-width:140px}
 .done .t{text-decoration:line-through;color:var(--mute)}
 .week{display:grid;grid-template-columns:repeat(7,minmax(130px,1fr));gap:var(--space-2);overflow-x:auto;padding-bottom:var(--space-2)}
 .day{background:var(--panel);border-radius:18px;padding:var(--space-2);min-height:300px}
-.day h3{margin:0 0 var(--space-2);font-size:14px;font-weight:500;text-align:center;border-radius:12px;padding:var(--space-2) var(--space-1);background:var(--card)}
-.day h3 small{display:block;color:var(--mute);font-size:12px}
+.day h3{margin:0 0 var(--space-2);font-size:var(--type-small);font-weight:500;text-align:center;border-radius:12px;padding:var(--space-2) var(--space-1);background:var(--card)}
+.day h3 small{display:block;color:var(--mute);font-size:var(--type-small)}
 .day.today h3{background:#161616;color:#fff}.day.today h3 small{color:#bbb}
 .ev{border-radius:14px;padding:var(--space-2) var(--space-2);margin-bottom:var(--space-2);color:#161616;font-size:14px;position:relative}
 .ev small{display:block;opacity:.7}
@@ -390,7 +390,7 @@ html[data-hc="1"][data-theme="dark"]{--mute:#d8d2c1;--line:#8f8979}
 .tb .x{min-width:26px}.chk.sm{width:24px;height:24px}.rt input[type=checkbox]{width:22px;height:22px}
 .item{flex-wrap:wrap}.item>.t{flex:1 1 150px}
 @media (pointer:coarse){.x{min-width:34px;min-height:34px}}
-.day .ev{padding:var(--space-8) var(--space-2) var(--space-2);font-size:13px}.day .ev strong{padding-right:0}
+.day .ev{padding:var(--space-8) var(--space-2) var(--space-2);font-size:var(--type-small)}.day .ev strong{padding-right:0}
 @media (hover:hover){.item:not(:focus-within) .mvb{display:none}}
 .hide{display:none}
 .lk-back{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:60}.lkd{position:fixed;z-index:61;left:50%;top:8vh;transform:translateX(-50%);width:min(480px,calc(100vw - 24px));max-height:84vh;overflow:auto;background:var(--card);color:var(--ink);border-radius:20px;padding:var(--space-4);box-shadow:0 10px 40px rgba(0,0,0,.4)}.lkg{background:none;border:0;text-align:left;cursor:pointer;flex:1;min-width:0;color:inherit;text-decoration:underline;padding:0;font:inherit}.lkres{width:100%;border:0;text-align:left;cursor:pointer;color:inherit}
@@ -411,7 +411,7 @@ html[data-hc="1"][data-theme="dark"]{--mute:#d8d2c1;--line:#8f8979}
  body .side{display:none}
  #mobile-bar{display:flex;position:fixed;left:var(--space-2);right:var(--space-2);bottom:calc(var(--space-2) + env(safe-area-inset-bottom,0px));z-index:30;gap:0;padding:var(--space-1);border-radius:22px;background:var(--acc,var(--side));color:var(--onacc,var(--sideink));box-shadow:0 8px 28px rgba(0,0,0,.22)}
  #mobile-bar .nav{display:flex;flex:1 1 0;min-width:0;min-height:56px;padding:var(--space-1) 0;font-size:.8125rem;line-height:1.15;white-space:normal;overflow-wrap:anywhere}
- #mobile-bar .nav span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:normal;word-break:normal;max-height:2.3em;width:100%}
+ #mobile-bar .nav span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden;overflow-wrap:anywhere;word-break:normal;max-height:3.45em;width:100%}
  #mobile-menu{position:fixed;inset:auto 0 0;width:100%;max-width:600px;max-height:min(80dvh,720px);margin:0 auto;padding:var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom,0px));border-radius:22px 22px 0 0;background:var(--card);color:var(--ink);overflow-y:auto;overscroll-behavior:contain}
  #mobile-menu::backdrop{background:rgba(0,0,0,.45)}
  .mobile-menu-head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);position:sticky;top:calc(-1 * var(--space-4));background:var(--card);padding:var(--space-1) 0 var(--space-3);z-index:1}
@@ -423,6 +423,7 @@ html[data-hc="1"][data-theme="dark"]{--mute:#d8d2c1;--line:#8f8979}
  #mobile-menu .empty{padding:var(--space-2) 0;font-size:14px}
  .mobile-shortcuts{display:block;margin-bottom:var(--space-4)}.mobile-shortcuts p{margin:0 0 var(--space-2)}.mobile-shortcut-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-2)}.mobile-shortcut-list label{display:flex;align-items:center;gap:var(--space-2);min-height:44px}
  .main input:not([type=checkbox]):not([type=radio]),.main select,.main textarea{font-size:max(1rem,16px)}
+ .main input[type=date]{min-width:min(100%,10rem)}
  .main .pill,.main summary{min-height:44px}
  .main .item>.x{min-width:44px;min-height:44px}
  .main .lb,.main .item .t small,.main .panel h2:not(.gh){font-size:var(--type-small)}

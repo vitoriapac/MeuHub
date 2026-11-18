@@ -435,7 +435,7 @@ function cashFlow(o){
 function nextIncomePanel(){
  const F=finInit(),a=F.acc.find(x=>x.id===F.primary&&x.ty!=='card'),head='<div class="panel wide"><h2>Até o próximo recebimento</h2>';
  if(!a)return head+'<p>Escolha uma conta principal em Contas e cartões para ver a previsão.</p></div>';
- const recurring=F.rec.filter(r=>r.k==='in'&&(r.ac||F.acc[0].id)===a.id).flatMap(r=>[...Array(13)].map((_,i)=>{const m=new Date(today.getFullYear(),today.getMonth()+i,1),d=ds(new Date(m.getFullYear(),m.getMonth(),Math.min(+r.day||1,dimOf(m.getFullYear(),m.getMonth())))),id='r_'+r.id+'_'+d.slice(0,7);return d>T&&(r.ini||T)<=d&&(!r.end||d<=r.end)&&!(r.skip||[]).includes(id)?{d}:null}).filter(Boolean));
+ const recurring=F.rec.filter(r=>r.k==='in'&&(r.ac||F.acc[0].id)===a.id).flatMap(r=>[...Array(13)].map((_,i)=>{const m=new Date(today.getFullYear(),today.getMonth()+i,1),d=ds(new Date(m.getFullYear(),m.getMonth(),Math.min(+r.day||1,dimOf(m.getFullYear(),m.getMonth())))),id='r_'+r.id+'_'+d.slice(0,7);return d>T&&(r.ini||T)<=d&&(!r.end||d<=r.end)&&!F.tx.some(t=>t.id===id)&&!(r.skip||[]).includes(id)?{d}:null}).filter(Boolean));
  const next=[...F.tx.filter(t=>t.k==='in'&&t.d>T&&accId(t)===a.id),...recurring].sort((x,y)=>x.d.localeCompare(y.d))[0];
  if(!next)return head+`<p>Nenhuma receita futura cadastrada em ${esc(a.n)}.</p></div>`;
  const days=Math.round((new Date(next.d+'T12:00')-new Date(T+'T12:00'))/864e5);if(days>366)return head+'<p>A próxima receita está a mais de 366 dias; a previsão não está disponível para esse intervalo.</p></div>';

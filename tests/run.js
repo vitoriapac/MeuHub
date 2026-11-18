@@ -317,6 +317,27 @@ async function main() {
       const r=await ev(`(()=>{S.fin.rec=[];S.fin.bills=[];S.events=[];S.fin.tx=[];S.fin.acc=[{id:'main',n:'Conta',ty:'cc',ini:0}];S.fac='';S.view='financas';S.fvw='mes';S.ftab='contas';render();const f=document.querySelector('#frec');f.elements.t.value='Internet';f.elements.v.value='50';f.elements.day.value='28';f.elements.reminder.checked=true;f.requestSubmit();const rec=S.fin.rec[0],bill=S.fin.bills[0],ev=S.events.find(x=>x.id===bill.eid),flow=cashFlow({days:90,fac:'',vary:false});return {linked:bill.rec===rec.id,event:!!ev,duplicate:flow.evs.some(x=>x.k==='bill'&&x.t==='Internet')}})()`);
       assert.ok(r.linked);assert.ok(r.event);assert.strictEqual(r.duplicate,false);
     }],
+    ['campo de data da agenda tem espaço para texto ampliado', async () => {
+      await fresh();await login('A');await b.send('Emulation.setDeviceMetricsOverride',{width:375,height:720,deviceScaleFactor:1,mobile:true});
+      try{const r=await ev(`(()=>{document.documentElement.style.fontSize='200%';S.view='agenda';render();const f=document.querySelector('#fev input[type=date]');return {width:f.getBoundingClientRect().width,overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth}})()`);assert.ok(r.width>=280,JSON.stringify(r));assert.strictEqual(r.overflow,0)}finally{await ev("document.documentElement.style.fontSize=''");await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['rótulos da navegação mobile permanecem legíveis com fonte ampliada', async () => {
+      await fresh();await login('A');await b.send('Emulation.setDeviceMetricsOverride',{width:320,height:720,deviceScaleFactor:1,mobile:true});
+      try{const bad=await ev(`(()=>{document.documentElement.style.fontSize='200%';S.menu=menuDef();S.view='hoje';render();return [...document.querySelectorAll('#mobile-bar .nav')].map(b=>{const span=b.querySelector('span');return {name:b.textContent.trim(),missing:!span,wide:span&&span.scrollWidth-span.clientWidth,high:span&&span.scrollHeight-span.clientHeight}}).filter(x=>x.missing||x.wide>1||x.high>1)})()`);assert.deepStrictEqual(bad,[])}finally{await ev("document.documentElement.style.fontSize=''");await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['textos da agenda semanal acompanham ampliação da fonte', async () => {
+      await fresh();await login('A');await b.send('Emulation.setDeviceMetricsOverride',{width:375,height:720,deviceScaleFactor:1,mobile:true});
+      try{const r=await ev(`(()=>{S.events=[{id:'font-event',t:'Consulta',d:T,h:'10:00',e:'11:00',c:'g'}];S.view='agenda';S.mode='week';S.wk=0;render();const get=()=>({heading:parseFloat(getComputedStyle(document.querySelector('.day.today h3')).fontSize),date:parseFloat(getComputedStyle(document.querySelector('.day.today h3 small')).fontSize),event:parseFloat(getComputedStyle(document.querySelector('.day .ev')).fontSize)});document.documentElement.style.fontSize='100%';const normal=get();document.documentElement.style.fontSize='200%';return {normal,large:get()}})()`);assert.ok(r.normal.heading>=14&&r.normal.date>=14&&r.normal.event>=14);assert.ok(r.large.heading>=r.normal.heading*2&&r.large.date>=r.normal.date*2&&r.large.event>=r.normal.event*2)}finally{await ev("document.documentElement.style.fontSize=''");await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['conteúdo extenso permanece dentro da tela em temas e densidades', async () => {
+      await fresh(); await login('A');await ev('exLoad()');
+      try {
+        for(const width of [320,375]){await b.send('Emulation.setDeviceMetricsOverride',{width,height:720,deviceScaleFactor:1,mobile:true});
+          const failures=await ev(`(()=>{const title='Planejamento de documentação e acompanhamento dos compromissos familiares',url='https://servicos.exemplo.com.br/organizacao/documentos-e-acompanhamento-de-compromissos';S.tasks=[{id:'long-task',t:title,done:false,hd:T}];S.links=[{id:'long-link',n:title,u:url,c:'g'}];S.notes=[{id:'long-note',t:title,b:title,c:'g'}];S.metas=[{id:'long-goal',t:title,ini:T,kr:[]}];const bad=[];for(const theme of ['light','dark'])for(const density of ['conf','compacto'])for(const size of ['100%','200%']){document.documentElement.style.fontSize=size;S.themeMode=theme;S.dens=density;applyTheme();for(const view of ['hoje','tarefas','links','notas','metas']){S.view=view;render();const overflow=document.documentElement.scrollWidth-document.documentElement.clientWidth;if(overflow>1)bad.push({view,theme,density,size,overflow})}}return bad})()`);
+          assert.deepStrictEqual(failures,[],`transbordamento em ${width}px`);
+        }
+      } finally {await ev("document.documentElement.style.fontSize=''");await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
     ['telas com exemplos não ultrapassam viewport nas larguras e fontes verificadas', async () => {
       await fresh(); await login('A'); await ev('exLoad()');
       try {
@@ -371,6 +392,26 @@ async function main() {
         }
       } finally {await b.send('Emulation.clearDeviceMetricsOverride')}
     }],
+    ['sequência semanal considera virada e nova frequência sem mudar histórico', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const ot=today,oldT=T;try{today=new Date(2026,10,23,12);T=ds(today);const log={'2026-11-16':1,'2026-11-18':1,'2026-11-20':1,'2026-11-09':1,'2026-11-11':1};const h={n:'Caminhar',perWeek:3,log},before=JSON.stringify(log),three=habitInfo(h);h.perWeek=2;return {three,two:habitInfo(h),same:before===JSON.stringify(log)}}finally{today=ot;T=oldT}})()`);
+      assert.match(r.three,/1 semana seguida/);assert.match(r.two,/2 semanas seguidas/);assert.ok(r.same);
+    }],
+    ['contexto da meta oculta item removido e o recupera sem cópias', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.metas=[{id:'m',t:'Viagem',ini:T,kr:[]}];S.tasks=[];S.notes=[{id:'n',t:'Roteiro',b:'',g:'',c:'p'}];S.lnk=[];lkSet('mt:m','nt:n',true);const note=S.notes[0];S.notes=[];const removed=metaCard(S.metas[0]);S.notes=[note];return {removed,restored:metaCard(S.metas[0]),count:S.notes.length}})()`);
+      assert.doesNotMatch(r.removed,/Roteiro/);assert.match(r.restored,/Roteiro/);assert.strictEqual(r.count,1);
+    }],
+    ['alerta de saldo previsto aparece com poucos lançamentos e informa escopo', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const F=finInit();F.acc=[{id:'a',n:'Principal',ty:'cc',ini:100}];F.tx=[{id:'expense',t:'Conta',k:'out',v:200,d:ds(add(today,1)),ac:'a'}];F.rec=[];F.bills=[];S.rem={on:true,fat:true,tk:false,hab:false};return attention().find(x=>x.k==='sal')||null})()`);
+      assert.ok(r,'alerta não deve depender de cinco lançamentos');assert.match(r.t,/previsto/i);assert.match(r.s,/14 dias/i);assert.match(r.s,/todas as contas/i);
+    }],
+    ['previsão considera transferências e saldo negativo até o recebimento', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const F=finInit(),d1=ds(add(today,1)),d2=ds(add(today,2));F.acc=[{id:'a',n:'Principal',ty:'cc',ini:100},{id:'b',n:'Outra',ty:'cc',ini:500}];F.primary='a';F.rec=[];F.bills=[];F.tx=[{id:'salary',t:'Receita',k:'in',v:500,d:d2,ac:'a'},{id:'transfer',t:'Transferência',k:'tr',v:200,d:d1,ac:'a',to:'b'},{id:'future',t:'Transferência no dia',k:'tr',v:50,d:d2,ac:'b',to:'a'}];return nextIncomePanel()})()`);
+      assert.match(r,/-\s*R\$\s*100,00|R\$\s*-\s*100,00/);
+    }],
     ['hábito semanal acompanha frequência e preserva registros ao mudar meta', async () => {
       await fresh(); await login('A');
       const r=await ev(`(()=>{const week=add(today,-((today.getDay()+6)%7));S.habits=[{id:'h',n:'Caminhar',log:{[ds(week)]:1}}];S.view='habitos';render();let f=document.querySelector('[data-hfreq=h]');if(!f)return null;f.value='3';f.dispatchEvent(new Event('change',{bubbles:true}));const text=document.querySelector('#main').innerText;f=document.querySelector('[data-hfreq=h]');f.value='2';f.dispatchEvent(new Event('change',{bubbles:true}));return {text,habit:S.habits[0],date:ds(week)}})()`);
@@ -401,6 +442,11 @@ async function main() {
       const r=await ev(`(()=>{const F=finInit(),d1=ds(add(today,1)),d2=ds(add(today,2));F.acc=[{id:'a',n:'Principal',ty:'cc',ini:1000},{id:'b',n:'Outra',ty:'cc',ini:500}];F.primary='a';F.rec=[];F.bills=[];F.tx=[{id:'salary',t:'Salário',k:'in',v:2000,d:d2,ac:'a'},{id:'rent',t:'Conta',k:'out',v:200,d:d1,ac:'a'},{id:'bill',t:'Despesa',k:'out',v:100,d:d2,ac:'a'},{id:'other',t:'Outra conta',k:'out',v:900,d:d1,ac:'b'}];S.view='financas';S.ftab='geral';render();const text=document.querySelector('#main').innerText;return {text,d2}})()`);
       assert.match(r.text,/até o próximo recebimento/i);assert.match(r.text,/700,00/);assert.match(r.text,/não inclui faturas/i);
     }],
+    ['previsão respeita data alterada de receita recorrente já lançada', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const F=finInit(),month=new Date(today.getFullYear(),today.getMonth()+1,1),p=ds(month).slice(0,7),d=n=>ds(new Date(month.getFullYear(),month.getMonth(),n));F.acc=[{id:'a',n:'Principal',ty:'cc',ini:1000}];F.primary='a';F.rec=[{id:'salary',t:'Salário',k:'in',v:2000,day:5,ini:T,ac:'a'}];F.bills=[];F.tx=[{id:'r_salary_'+p,t:'Salário remarcado',k:'in',v:2000,d:d(10),ac:'a'},{id:'other',t:'Receita antecipada',k:'in',v:500,d:d(8),ac:'a'},{id:'expense',t:'Despesa',k:'out',v:300,d:d(6),ac:'a'}];return {html:nextIncomePanel(),expected:fmt(d(8))}})()`);
+      assert.match(r.html,/700,00/);assert.ok(r.html.includes(r.expected));
+    }],
     ['previsão encontra próxima receita recorrente ainda não lançada', async () => {
       await fresh(); await login('A');
       const r=await ev(`(()=>{const F=finInit();F.acc=[{id:'a',n:'Principal',ty:'cc',ini:1000}];F.primary='a';F.tx=[];F.bills=[];F.rec=[{id:'salary',t:'Salário',k:'in',v:2000,day:today.getDate(),ini:ds(add(today,1)),ac:'a'}];S.view='financas';S.ftab='geral';render();return document.querySelector('#main').innerText})()`);
@@ -426,10 +472,51 @@ async function main() {
       const r=await ev(`(()=>{const F=finInit();F.acc=[{id:'a',n:'Conta',ty:'cc',ini:100}];F.tx=[{id:'income',t:'Receita',k:'in',v:'50',d:T,ac:'a'}];return bal(F.acc[0])})()`);
       assert.strictEqual(r,150);
     }],
+    ['mede persistência ao receber atualização remota e editar offline', async () => {
+      await fresh();await login('A');await waitFor('SYS.s==="ok"','sincronização inicial');
+      const remote=await ev(`(async()=>{const data=JSON.parse(pickJSON());data.tasks.push({id:'remote-measure',t:'Remota',done:false});const rev=SY.rev+1;await DBr.doc(P+'hub-0').set({rev,i:0,s:JSON.stringify(data)});const set=Storage.prototype.setItem,soon=syncSoon,stringify=JSON.stringify,c={local:0,cloud:0,scheduled:0,serializations:0};Storage.prototype.setItem=function(k,v){if(k==='hub-v1')c.local++;if(k==='__cloud')c.cloud++;return set.call(this,k,v)};syncSoon=function(){c.scheduled++;return soon()};JSON.stringify=function(v,...args){if(v===S)c.serializations++;return stringify.call(this,v,...args)};try{const ok=await pullRemote({rev,n:1},false);await new Promise(r=>setTimeout(r,2300));return {ok,counts:c,received:S.tasks.some(t=>t.id==='remote-measure')}}finally{Storage.prototype.setItem=set;syncSoon=soon;JSON.stringify=stringify}})()`);
+      assert.ok(remote.ok&&remote.received);console.log('  medição recebimento: '+JSON.stringify(remote.counts));
+      await ev('localStorage.setItem("__offline","1")');await open();
+      const offline=await ev(`(()=>{const set=Storage.prototype.setItem,soon=syncSoon,stringify=JSON.stringify,c={local:0,cloud:0,scheduled:0,serializations:0};Storage.prototype.setItem=function(k,v){if(k==='hub-v1')c.local++;if(k==='__cloud')c.cloud++;return set.call(this,k,v)};syncSoon=function(){c.scheduled++;return soon()};JSON.stringify=function(v,...args){if(v===S)c.serializations++;return stringify.call(this,v,...args)};try{S.tasks.push({id:'offline-measure',t:'Local',done:false});render();return c}finally{Storage.prototype.setItem=set;syncSoon=soon;JSON.stringify=stringify}})()`);
+      assert.ok(offline.local>0);assert.strictEqual(offline.cloud,0);console.log('  medição offline: '+JSON.stringify(offline));
+      await ev('localStorage.removeItem("__offline")');await open();await waitFor('FB.on&&SYS.s==="ok"','reconexão');assert.ok(await ev(`S.tasks.some(t=>t.id==='offline-measure')`));
+    }],
     ['mede persistência ao navegar e editar', async () => {
       await fresh(); await login('A'); await waitFor('SYS.s==="ok"','sincronização inicial');
       const r=await ev(`(async()=>{const orig=Storage.prototype.setItem,soon=syncSoon,c={local:0,cloud:0,scheduled:0};Storage.prototype.setItem=function(k,v){if(k==='hub-v1')c.local++;if(k==='__cloud')c.cloud++;return orig.call(this,k,v)};syncSoon=function(){c.scheduled++;return soon()};try{S.view='hoje';render();await new Promise(r=>setTimeout(r,2300));const navigation={...c};S.tasks.push({id:'measure',t:'Teste',done:false});render();await new Promise(r=>setTimeout(r,2300));return {navigation,edit:{local:c.local-navigation.local,cloud:c.cloud-navigation.cloud,scheduled:c.scheduled-navigation.scheduled}}}finally{Storage.prototype.setItem=orig;syncSoon=soon}})()`);
       console.log('  medições de persistência: '+JSON.stringify(r));assert.strictEqual(r.navigation.cloud,0);assert.ok(r.edit.local>0);assert.ok(r.edit.cloud>0);
+    }],
+    ['captura offline exige data planejada e sobrevive à reconexão', async () => {
+      await fresh(); await login('A');await ev('localStorage.setItem("__offline","1")');await open();
+      const draft=await ev(`(()=>{qa('tk');const f=document.querySelector('#fqa');f.elements.t.value='Preparar offline';f.elements.dest.value='scheduled';f.elements.dest.dispatchEvent(new Event('change',{bubbles:true}));const missing=!f.checkValidity();f.elements.planned.value='2030-02-10';f.requestSubmit();return {missing,count:S.tasks.filter(x=>x.t==='Preparar offline').length,task:S.tasks.find(x=>x.t==='Preparar offline')}})()`);
+      assert.ok(draft.missing);assert.strictEqual(draft.count,1);assert.strictEqual(draft.task.hd,'2030-02-10');await ev('localStorage.removeItem("__offline")');await open();await waitFor('FB.on&&SYS.s==="ok"','reconexão');
+      const task=await ev(`S.tasks.find(x=>x.t==='Preparar offline')`);assert.ok(task);assert.strictEqual(task.hd,'2030-02-10');
+    }],
+    ['encaixe repetido não duplica bloco e usa duração padrão', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.tasks=[{id:'fit',t:'Planejar',hd:T,done:false,due:'2030-03-10'}];S.events=[];S.view='hoje';const original=autoSlot;let duration;autoSlot=(day,dur)=>{duration=dur;return '10:00'};try{render();document.querySelector('[data-a=fitday][data-id=fit]').click();const again=!!document.querySelector('[data-a=fitday][data-id=fit]');return {task:S.tasks[0],count:S.tasks.length,duration,again}}finally{autoSlot=original}})()`);
+      assert.strictEqual(r.duration,30);assert.strictEqual(r.count,1);assert.strictEqual(r.task.bk.h,'10:00');assert.strictEqual(r.task.due,'2030-03-10');assert.strictEqual(r.again,false);
+    }],
+    ['percurso diário preserva captura, conclusão e revisão após recarga', async () => {
+      await fresh(); await login('A');
+      await ev(`(()=>{S.tasks=[];S.inbox=[];S.events=[];S.view='hoje';render();qa('tk');const f=document.querySelector('#fqa');f.elements.t.value='Preparar documento';f.elements.due.value='2030-01-20';f.elements.dest.value='today';f.requestSubmit();return true})()`);
+      const created=await ev(`(()=>{const t=S.tasks.find(x=>x.t==='Preparar documento');return {id:t&&t.id,count:S.tasks.filter(x=>x.t==='Preparar documento').length,hd:t&&t.hd,due:t&&t.due,today:T}})()`);
+      assert.strictEqual(created.count,1);assert.strictEqual(created.hd,created.today);assert.strictEqual(created.due,'2030-01-20');
+      await ev(`(()=>{document.querySelector('[data-a=tog][data-id="${created.id}"]').click();const f=document.querySelector('#fhj');f.elements.t.value='Adiável';f.requestSubmit();const t=S.tasks.find(x=>x.t==='Adiável');document.querySelector('[data-a=snooze][data-id="'+t.id+'"]').click()})()`);
+      await sleep(2300);await open();await waitFor('FB.on&&SYS.s==="ok"','sessão após recarga');
+      const result=await ev(`(()=>{S.view='hoje';render();const t=S.tasks.find(x=>x.id===${JSON.stringify(created.id)}),review=revCard(),text=document.querySelector('#main').innerText;return {t,text,review,postponed:S.tasks.find(x=>x.t==='Adiável'),tomorrow:ds(add(today,1))}})()`);
+      assert.strictEqual(result.postponed.due,result.tomorrow);assert.ok(result.t.done);assert.strictEqual(result.t.due,'2030-01-20');assert.match(result.text,/Concluídas hoje/);assert.match(result.review,/Concluídas: Preparar documento/);assert.doesNotMatch(result.review,/Pendentes agora: Preparar documento/);
+    }],
+    ['encaixe evita compromisso e informa quando não há horário', async () => {
+      await fresh(); await login('A');
+      const result=await ev(`(()=>{const date=ds(add(today,1));S.tasks=[];S.events=[{id:'e',t:'Compromisso',d:date,h:'08:00',e:'09:00',c:'g'}];const free=autoSlot(date,30);S.events[0].e='22:00';return {free,full:autoSlot(date,30)}})()`);
+      assert.strictEqual(result.free,'09:00');assert.strictEqual(result.full,null);
+    }],
+    ['personalização do menu sobrevive à recarga', async () => {
+      await fresh(); await login('A');
+      const before=await ev(`(()=>{S.menu=menuDef();S.menu.bar=['tarefas','financas','menu'];S.menu.groups[0].n='Meu grupo';save();return JSON.stringify(S.menu)})()`);
+      await sleep(2300);await open();await waitFor('FB.on&&SYS.s==="ok"','sessão após recarga');
+      assert.strictEqual(await ev('JSON.stringify(S.menu)'),before);
     }],
     ['tarefa atrasada planejada para hoje aparece uma única vez', async () => {
       await fresh(); await login('A');

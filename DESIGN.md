@@ -181,7 +181,7 @@ Tons de céu claro e papel, com tintas pastel por categoria e um lilás de assin
 ### Named Rules
 **The One Family Rule.** Só Outfit. A ênfase vem do peso 600 ou do tamanho, nunca de itálico decorativo, de uma segunda fonte ou de cor no texto corrido.
 
-**Escala e acessibilidade.** Os papéis compartilhados usam `--type-small` (0,875rem), `--type-body` (1rem), `--type-title` (1,125rem) e `--type-display` (clamp de 1,75 a 2,25rem). Campos no celular usam pelo menos 16px sem impedir ampliação do texto. Rótulos em gráficos, horários e lombadas podem ter medidas próprias para preservar as coordenadas e devem ser conferidos visualmente; a grade não exige arredondar tamanhos de fonte para múltiplos de 8.
+**Escala e acessibilidade.** Os papéis compartilhados usam `--type-small` (0,875rem), `--type-body` (1rem), `--type-title` (1,125rem) e `--type-display` (clamp de 1,75 a 2,25rem). Campos no celular usam pelo menos 16px sem impedir ampliação do texto. Na agenda semanal, nomes dos dias, datas e eventos usam a escala relativa de texto de apoio. Rótulos em gráficos, horários e lombadas podem ter medidas próprias para preservar as coordenadas e devem ser conferidos visualmente; a grade não exige arredondar tamanhos de fonte para múltiplos de 8.
 
 ## Layout
 
