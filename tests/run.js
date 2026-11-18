@@ -317,6 +317,11 @@ async function main() {
       const r=await ev(`(()=>{S.fin.rec=[];S.fin.bills=[];S.events=[];S.fin.tx=[];S.fin.acc=[{id:'main',n:'Conta',ty:'cc',ini:0}];S.fac='';S.view='financas';S.fvw='mes';S.ftab='contas';render();const f=document.querySelector('#frec');f.elements.t.value='Internet';f.elements.v.value='50';f.elements.day.value='28';f.elements.reminder.checked=true;f.requestSubmit();const rec=S.fin.rec[0],bill=S.fin.bills[0],ev=S.events.find(x=>x.id===bill.eid),flow=cashFlow({days:90,fac:'',vary:false});return {linked:bill.rec===rec.id,event:!!ev,duplicate:flow.evs.some(x=>x.k==='bill'&&x.t==='Internet')}})()`);
       assert.ok(r.linked);assert.ok(r.event);assert.strictEqual(r.duplicate,false);
     }],
+    ['progresso reúne tarefas repetidas em um único acompanhamento', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.tasks=[{id:'a',t:'A',done:true,mt:'g',pj:'P'},{id:'b',t:'B',done:false,pj:'P',tg:'x'}];const g={id:'g',t:'Meta',ini:T,kr:[{id:'n',ty:'man',t:'Número',tg:10,cur:10},{id:'p',ty:'pj',ref:'P',t:'Projeto'},{id:'x',ty:'tg',ref:'x',t:'Etiqueta'}]};S.metas=[g];S.view='metas';render();return {progress:metaProg(g),text:document.querySelector('[data-lid="mt:g"]').innerText}})()`);
+      assert.strictEqual(r.progress,0.75);assert.match(r.text,/1 de 2 tarefas/);assert.match(r.text,/sem repetir/);
+    }],
     ['metas por quantidade preservam progresso ao editar e recarregar', async () => {
       await fresh(); await login('A');
       const r=await ev(`(()=>{S.metas=[];S.tasks=[];S.view='metas';render();let f=document.querySelector('#fmeta');f.elements.t.value='Ler 12 livros';f.elements.tg.value='12';f.elements.un.value='livros';f.requestSubmit();const g=S.metas[0],k=g.kr[0];k.cur=3;render();f=document.querySelector('[data-meta-edit]');f.elements.t.value='Leitura anual';f.requestSubmit();f=document.querySelector('[data-kr-edit]');f.elements.tg.value='15';f.requestSubmit();return {goal:S.metas[0],text:document.querySelector('#main').innerText,stored:JSON.parse(localStorage.getItem('hub-v1')).metas[0]}})()`);
