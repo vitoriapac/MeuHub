@@ -23,9 +23,9 @@ colors:
 typography:
   display:
     fontFamily: "Outfit, system-ui, sans-serif"
-    fontSize: "clamp(26px, 4vw, 36px)"
+    fontSize: "clamp(1.75rem, 4vw, 2.25rem)"
     fontWeight: 600
-    lineHeight: 1.45
+    lineHeight: 1.5
     letterSpacing: "-1.2px"
   headline:
     fontFamily: "Outfit, system-ui, sans-serif"
@@ -38,18 +38,18 @@ typography:
     fontWeight: 500
   body:
     fontFamily: "Outfit, system-ui, sans-serif"
-    fontSize: "15px"
+    fontSize: "1rem"
     fontWeight: 400
-    lineHeight: 1.45
+    lineHeight: 1.5
     fontFeature: "\"tnum\""
   label:
     fontFamily: "Outfit, system-ui, sans-serif"
-    fontSize: "12px"
+    fontSize: "0.875rem"
     fontWeight: 600
     letterSpacing: "0.08em"
   caption:
     fontFamily: "Outfit, system-ui, sans-serif"
-    fontSize: "13px"
+    fontSize: "0.875rem"
     fontWeight: 400
 rounded:
   sm: "6px"
@@ -61,40 +61,43 @@ rounded:
   frame: "26px"
   full: "999px"
 spacing:
-  xs: "6px"
-  sm: "10px"
-  md: "12px"
-  lg: "16px"
-  xl: "18px"
+  half: "4px"
+  xs: "8px"
+  sm: "12px"
+  md: "16px"
+  mid-lg: "20px"
+  lg: "24px"
+  mid-xl: "28px"
+  xl: "32px"
 components:
   button-primary:
     backgroundColor: "{colors.lilac-signature}"
     textColor: "{colors.paper}"
     rounded: "{rounded.full}"
-    padding: "7px 14px"
+    padding: "8px 16px"
     typography: "{typography.body}"
   button-secondary:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
     rounded: "{rounded.full}"
-    padding: "7px 14px"
+    padding: "8px 16px"
     typography: "{typography.body}"
   input:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
     rounded: "{rounded.field}"
-    padding: "9px 12px"
+    padding: "8px 12px"
     typography: "{typography.body}"
   search-field:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
     rounded: "{rounded.full}"
-    padding: "11px 18px"
+    padding: "12px 16px"
   chip:
     backgroundColor: "{colors.lilac-mist}"
     textColor: "{colors.ink}"
     rounded: "{rounded.full}"
-    padding: "1px 9px"
+    padding: "4px 8px"
     typography: "{typography.caption}"
   panel:
     backgroundColor: "{colors.sky-panel}"
@@ -103,12 +106,12 @@ components:
   list-item:
     backgroundColor: "{colors.paper}"
     rounded: "{rounded.item}"
-    padding: "10px 12px"
+    padding: "8px 12px"
   nav-item-active:
     backgroundColor: "{colors.lilac-signature}"
     textColor: "{colors.paper}"
     rounded: "{rounded.field}"
-    padding: "7px 12px"
+    padding: "8px 12px"
 ---
 
 # Design System: Meu Hub
@@ -168,21 +171,24 @@ Tons de céu claro e papel, com tintas pastel por categoria e um lilás de assin
 **Character:** uma única família geométrica e arredondada, que conversa com os cantos do sistema. A hierarquia vem do peso (400/500/600) e do tamanho, não de uma segunda fonte. Os números são sempre tabulares (`font-variant-numeric: tabular-nums` no `body`), porque valores e horários precisam alinhar.
 
 ### Hierarchy
-- **Display** (600, clamp 26–36px, tracking −1.2px): o título de cada tela e a saudação do Início ("Bom dia! Hoje é…").
+- **Display** (600, clamp 1,75–2,25rem, tracking −1.2px): o título de cada tela e a saudação do Início ("Bom dia! Hoje é…").
 - **Headline** (500, 30px, tracking −1px; 22px em telas estreitas): números de destaque, como os totais das Finanças e as estatísticas da revisão.
 - **Title** (500, 18px): títulos de bloco que não são painel (o h2 base).
-- **Body** (400, 15px, altura 1.45): todo o texto corrido, itens de lista e campos.
-- **Label** (600, 12px, 0.08em, MAIÚSCULAS, Cinza Quente): o título de cada painel ("DADOS DE EXEMPLO", "DESPESAS POR CATEGORIA"). Variantes de 11px para rótulos de KPI e grupos do menu.
-- **Caption** (400, 13px; 12px nos chips): datas, metadados e textos de apoio.
+- **Body** (400, 1rem, altura 1.5): todo o texto corrido, itens de lista e campos.
+- **Label** (600, 0,875rem, 0.08em, MAIÚSCULAS, Cinza Quente): o título de cada painel ("DADOS DE EXEMPLO", "DESPESAS POR CATEGORIA") e os rótulos de KPI e grupos do menu.
+- **Caption** (400, 0,875rem; variantes menores nos chips e navegação): datas, metadados e textos de apoio.
 
 ### Named Rules
 **The One Family Rule.** Só Outfit. A ênfase vem do peso 600 ou do tamanho, nunca de itálico decorativo, de uma segunda fonte ou de cor no texto corrido.
 
+**Escala e acessibilidade.** Os papéis compartilhados usam `--type-small` (0,875rem), `--type-body` (1rem), `--type-title` (1,125rem) e `--type-display` (clamp de 1,75 a 2,25rem). Campos no celular usam pelo menos 16px sem impedir ampliação do texto. Rótulos em gráficos, horários e lombadas podem ter medidas próprias para preservar as coordenadas e devem ser conferidos visualmente; a grade não exige arredondar tamanhos de fonte para múltiplos de 8.
+
 ## Layout
 
-- **Estrutura:** grade de duas colunas, com o menu lateral de 210px e o conteúdo, 18px de espaço e de margem, centralizada até 1280px. O menu lateral é uma "folha" fixa com cantos de 26px e a altura da tela.
-- **Ritmo:** 18px entre os blocos grandes, 16px dentro dos painéis, 8–10px entre itens de lista e 6px entre o rótulo e o conteúdo.
-- **Densidade:** dois modos, confortável (o padrão) e compacto (os botões passam a 5px 11px).
+- **Estrutura:** grade de duas colunas, com o menu lateral de 208px e o conteúdo, 16px de espaço e de margem, centralizada até 1280px. O menu lateral é uma "folha" fixa com cantos de 26px e a altura da tela.
+- **Ritmo:** base de 8px, com meio passo de 4px para controles compactos; tokens CSS `--space-1` a `--space-8`. Bordas, gráficos, ícones e áreas seguras podem exigir medidas de precisão.
+- **Tokens:** `--space-1` a `--space-8` correspondem a 4, 8, 12, 16, 20, 24, 28 e 32px. Os valores de 4, 12, 20 e 28px são meios passos para situações de maior densidade.
+- **Densidade:** dois modos, confortável (o padrão) e compacto, preservando fontes legíveis e alvos de toque.
 - **Celular (até 860px):** o menu lateral vira uma **barra de abas fixa embaixo** (Início, Hoje, Agenda, Tarefas, Notas e Mais), e os mosaicos de cards caem para duas colunas. Até 520px, os grupos viram uma coluna. Os pontos de quebra observados são 520, 860/861, 1100 e 1179px.
 - **Painéis do Início:** mosaico de cards configurável. Alguns cards são largos (Seu dia, Produtividade, Agenda, Notas, Revisão, Histórico, Finanças).
 
@@ -207,7 +213,7 @@ A linguagem é de **cantos generosos e pílulas**. Quanto maior a superfície, m
 
 ### Buttons
 - **Character:** pílulas macias. A principal é cheia de lilás; as outras são só contorno.
-- **Shape:** pílula completa (999px), padding de 7px 14px (5px 11px no modo compacto).
+- **Shape:** pílula completa (999px), padding de 8px 16px (4px 12px no modo compacto) e altura mínima de 44px.
 - **Primary:** fundo Lilás de Assinatura e texto branco, com a borda na mesma cor. No escuro, o fundo é a Tinta cor de lua e o texto, ameixa. Usado em "Lançar", "Começar" e "Criar".
 - **Secondary:** fundo Papel, texto Tinta e contorno de 1px em Tinta.
 - **Selecionado** (abas e filtros): igual ao primário (`.on`).
@@ -215,28 +221,28 @@ A linguagem é de **cantos generosos e pílulas**. Quanto maior a superfície, m
 - **States:** transição de cor de 0,15s; ao pressionar, encolhe para 0,97; foco com contorno de 2px em Tinta, afastado 2px; desabilitado com opacidade de 0,4.
 
 ### Chips
-- **Style:** pílula com uma tinta de categoria por fundo, texto sempre `#161616`, 12px, padding de 1px 9px.
+- **Style:** pílula com uma tinta de categoria por fundo, texto sempre `#161616`, 0,875rem e padding de 4px 8px.
 - **Use:** tipo de item ("Tarefa", "Hábitos"), categorias e etiquetas. Os chips classificam, não são clicáveis por padrão.
 
 ### Cards / Containers
 - **Painel:** fundo Painel de Céu, cantos de 22px, padding de 16px, sem borda e sem sombra. O título é um rótulo pequeno em maiúsculas.
-- **Item de lista:** fundo Papel dentro do painel, cantos de 14px, padding de 10px 12px, 8px entre itens.
+- **Item de lista:** fundo Papel dentro do painel, cantos de 14px, padding de 8px 12px, 8px entre itens.
 - **Painel de saudação** (Início): cantos de 26px, gradiente diagonal suave do Painel para o Painel com 16% do acento. É o único gradiente de superfície, junto com a frase do dia.
 
 ### Inputs / Fields
-- **Style:** fundo Papel, borda de 1px em Linha de Areia, cantos de 12px, padding de 9px 12px, texto de 15px.
-- **Busca global:** pílula larga no topo, padding de 11px 18px.
+- **Style:** fundo Papel, borda de 1px em Linha de Areia, cantos de 12px, padding de 8px 12px, texto de 1rem.
+- **Busca global:** pílula larga no topo, padding de 12px 16px; a versão estreita ajusta o espaçamento.
 - **Focus:** contorno de 2px em Tinta, afastado 2px (o mesmo de todos os controles).
 - **Datas:** sempre no formato dd/mm/aaaa, com seletor de calendário.
 
 ### Navigation
-- **Desktop:** menu lateral com grupos (Planejar, Registrar, Dinheiro, Sistema) em rótulos de 11px maiúsculos, que podem ser recolhidos. Cada item tem ícone e nome, 15px.
+- **Desktop:** menu lateral com grupos (Planejar, Registrar, Dinheiro, Sistema) em rótulos de 0,875rem maiúsculos, que podem ser recolhidos. Cada item tem ícone e nome, 1rem.
 - **Item ativo:** fundo Lilás de Assinatura e texto branco, cantos de 12px.
 - **Estilos:** "suave" (o padrão, com o menu levemente tingido pelo acento) ou "forte" (o menu inteiro na cor do acento).
 - **Celular:** barra de abas embaixo; a aba ativa ganha o fundo de acento (Lilás de Assinatura no claro, Névoa Lilás no escuro).
 
 ### KPI tile (signature)
-Os cards do topo do Início: fundo Papel, cantos de 18px, padding de 14px, um anel de progresso no acento com ícone no centro, rótulo pequeno em maiúsculas, número em destaque (22px) e uma linha de tendência de uma semana. Mostram "como está o meu dia" num relance.
+Os cards do topo do Início: fundo Papel, cantos de 18px, padding de 16px (12px em telas estreitas), um anel de progresso no acento com ícone no centro, rótulo em maiúsculas, número em destaque (22px) e uma linha de tendência de uma semana. Mostram "como está o meu dia" num relance.
 
 ### Empty state (signature)
 Ícone num quadrado de 64px com cantos de 20px, sobre uma pequena cena geométrica (círculos e uma onda) tingida pelo acento. Embaixo vêm uma frase em negrito, uma dica gentil e, quando faz sentido, um botão. O tom segue a voz do produto: "Tudo em dia!", "Seu dia está livre."

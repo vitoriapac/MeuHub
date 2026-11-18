@@ -8,6 +8,7 @@
 ## Registro de execução
 
 - A usuária autorizou seguir o plano e pediu atualização da documentação ao final.
+- Solicitação posterior: incluir a adoção de uma grade de 8 pontos em todos os componentes e uma escala tipográfica coerente. A migração de espaçamento e tipografia foi aplicada aos estilos compartilhados e às telas, com inventário em `tasks/inventario-grade-8p-2026-11-18.md`. Foram verificados 138 cenários, larguras de 320 a 1280 px e fonte ampliada em emulação. Permanecem pendentes a revisão visual de todos os estados e a validação em telefone físico/PWA instalado; a agenda diária agora oferece uma lista recolhível com ações acessíveis para eventos e tarefas, inclusive quando são curtos ou simultâneos. As ações dos cartões de links e eventos semanais também foram ampliadas e testadas em emulação.
 - A previsão usa a conta principal escolhida no aplicativo e a próxima receita futura cadastrada ou recorrente nela. Despesas do mesmo dia entram; entradas nesse dia, faturas sem pagamento agendado e contas sem conta de pagamento definida não entram e são explicadas. Contas fixas independentes podem ser vinculadas a uma conta de pagamento. Testes de conta, receita, recorrência, despesas e possíveis duplicidades foram adicionados; ainda cabe revisar os demais cenários financeiros antes de concluir M9.
 - Hábitos aceitam meta semanal de 1 a 7 registros. Alterar a frequência preserva o histórico e recalcula a sequência usando a meta atual; hábitos antigos continuam diários. Implementação inicial e testes de alteração e pendência adicionados; ainda faltam os demais cenários e verificação visual de M11.
 - Mobile: menu separado, acessibilidade de Sistema, personalização, tamanhos e espaço inferior implementados anteriormente; validação física e revisão dos demais estados ainda pendentes.
@@ -42,10 +43,13 @@
 M0 mobile em andamento ──► M1 linha de base ──► M2–M4 planejamento diário ──► M5 revisão integrada
                                   └────────────► M6–M7 integridade e persistência
 M4 + M7 ──► M8–M9 finanças       M4 ──► M10 conexões       M7 ──► M11 hábitos
-M5 + M8–M11 ──► M12 refinamento, documentação e decisão de próximos passos
+M0 + inventário da interface ──► M13–M17 grade de 8 pontos e tipografia
+M5 + M8–M11 + M13–M17 ──► M12 refinamento, documentação e decisão de próximos passos
 ```
 
 M6 pode ser investigada junto das tarefas de experiência, mas alterações em persistência e sincronização devem ser sequenciais e não disputar o mesmo checkout com mudanças de interface.
+
+A migração visual M13–M17 deve ser coordenada com o mobile e com as telas em evolução, para não substituir alterações ainda não integradas nem exigir duas migrações dos mesmos componentes. M12 fecha a documentação após as tarefas de grade efetivamente concluídas.
 
 ## Ciclo 0 — Consolidar o que já está em andamento
 
@@ -83,7 +87,33 @@ M6 pode ser investigada junto das tarefas de experiência, mas alterações em p
 
 - [ ] **M11 — Hábitos em dias previstos e frequência semanal.** Arquivos prováveis: `js/core.js`, `js/main.js`, `js/recursos.js`, `js/sync.js`, `tests/run.js`. Primeiro decidir com a usuária como representar dias da semana e metas de N vezes/semana, e como tratar histórico anterior, início de semana, pausas e mudança de frequência. Preservar o padrão diário para hábitos antigos; atualizar Hoje, histórico, sequência e validação/backup de modo coerente. **Aceite:** dia não previsto não é tratado como falha; progresso semanal é legível; os registros antigos não mudam nem somem. **Verificar:** fim de semana, virada de semana, horário local, alteração de frequência, backups antigos e dois aparelhos. **Depende:** M7. **Decisão pendente:** regra de sequência ao alterar frequência.
 
-- [ ] **M12 — Revisão final e documentação.** Arquivos: `README.md`, `SPEC.md`, `ARCHITECTURE.md`, `PRODUCT.md` quando necessário e `tests/run.js`. Atualizar documentação apenas conforme o comportamento efetivamente entregue; verificar campos e fluxos de sincronização no código em vez de assumir que estão defasados. Revisar clareza, contraste, foco, movimento reduzido, navegação e formulários em telas cheias e vazias; preservar personalização. **Aceite:** documentação coincide com a implementação; jornada principal funciona em desktop e mobile; suíte passa; pendências e testes em aparelhos reais ficam explícitos. **Depende:** das tarefas efetivamente escolhidas e concluídas.
+- [ ] **M12 — Revisão final e documentação.** Arquivos: `README.md`, `SPEC.md`, `ARCHITECTURE.md`, `PRODUCT.md`, `DESIGN.md` quando necessário e `tests/run.js`. Atualizar documentação apenas conforme o comportamento efetivamente entregue; verificar campos e fluxos de sincronização no código em vez de assumir que estão defasados. Revisar clareza, contraste, foco, movimento reduzido, navegação e formulários em telas cheias e vazias; preservar personalização. **Aceite:** documentação coincide com a implementação; jornada principal funciona em desktop e mobile; suíte passa; pendências e testes em aparelhos reais ficam explícitos. **Depende:** das tarefas efetivamente escolhidas e concluídas, incluindo M13–M17 quando implementadas.
+
+## Frente transversal — Grade de 8 pontos e tipografia
+
+**Objetivo:** aplicar uma linguagem espacial consistente a todos os componentes do MeuHub, com tipografia legível e alinhada a essa linguagem. A grade organiza principalmente espaçamentos, dimensões de componentes e alturas de linha; tamanhos de fonte não precisam ser múltiplos de 8 para serem legíveis. Preservar a família Outfit e seus fallbacks, salvo decisão posterior da usuária.
+
+**Ponto de partida:** `DESIGN.md` documenta espaçamentos de 6, 10, 12, 16 e 18 px e tamanhos de fonte entre 12 e 36 px; `css/style.css` e estilos inline em `js/` contêm outras medidas. A migração precisa conciliar essas regras e o código existente, abrangendo os estilos de componentes compartilhados e de telas específicas.
+
+**Contrato proposto para implementação:**
+
+1. Usar múltiplos de 8 px como base para espaçamento externo e interno, intervalos e dimensões de componentes; documentar o uso excepcional de meios passos de 4 px quando necessário para elementos compactos.
+2. Definir uma escala tipográfica por função — texto, texto auxiliar, rótulos, títulos e valores — e alturas de linha compatíveis com a grade quando fizer sentido. Não arredondar automaticamente todos os tamanhos de fonte para múltiplos de 8. Usar unidades relativas onde forem adequadas e respeitar o tamanho e o zoom configurados no navegador.
+3. Garantir campos de texto com tamanho legível no mobile e alvos de toque de pelo menos 44 × 44 px, sem reduzir acessibilidade para encaixar um elemento na grade; preferir dimensões alinhadas à grade quando viável.
+4. Não tratar bordas de 1 px, ícones, gráficos, posicionamento de precisão, unidades relativas, percentuais ou áreas seguras do sistema como violações automáticas. Registrar exceções justificadas e conferir o resultado visualmente.
+5. Preservar as duas densidades, os temas, as paletas, os estados de foco/erro/desativado e a identidade existente; a densidade compacta deve continuar utilizável sem diminuir textos ou alvos de toque abaixo do necessário.
+
+- [ ] **M13 — Inventariar componentes e desvios da grade.** Arquivos prováveis: `DESIGN.md`, `css/style.css`, `index.html`, `js/core.js`, `js/recursos.js`, `js/financas.js`, `js/inicio.js`. Listar todos os componentes compartilhados e específicos: estrutura e navegação, botões, campos, listas, cartões, diálogos, avisos, agenda, hábitos, finanças, notas, gráficos e estados vazios. Identificar dimensões e tipografia em CSS, atributos `style` e SVG, separando medidas de layout de medidas que não devem ser arredondadas. **Aceite:** inventário rastreável por componente, telas e arquivo, com exceções justificadas e prioridades. **Verificar:** busca por declarações e estilos inline mais inspeção das telas em desktop e celular. **Depende:** M0 e mapeamento M1.
+
+- [ ] **M14 — Definir os tokens e a escala tipográfica.** Arquivos prováveis: `DESIGN.md`, `css/style.css`. Definir nomes semânticos e valores de espaçamento e tamanho, incluindo meios passos estritamente necessários; definir família/fallback, tamanhos e alturas de linha para cada função. Documentar regras de densidade, zoom, acessibilidade e exceções antes da propagação. **Aceite:** tabela de tokens e exemplos de uso sem regras contraditórias entre guia e código; hierarquia legível em tela pequena e desktop. **Verificar:** amostras com textos curtos e longos, zoom de 200%, temas e densidades; registrar os valores finais e sua justificativa em `DESIGN.md`. **Depende:** M13.
+
+- [ ] **M15 — Migrar os componentes compartilhados.** Arquivos prováveis: `css/style.css`, `index.html`, `js/recursos.js`, `tests/run.js`. Aplicar os tokens à estrutura do app, barra e painel de navegação, botões, campos, seletores, cartões, listas, diálogos, mensagens e estados vazios. Substituir medidas inline desses componentes por classes ou tokens existentes quando necessário; evitar criar uma biblioteca ou dependência nova. **Aceite:** os mesmos componentes usam as mesmas regras em todas as telas; estados de interação e tamanho de toque são preservados; navegação e rodapé não cobrem conteúdo. **Verificar:** testes da navegação e formulários, inspeção visual antes/depois em 320, 375, 430 e 1280 px, modo claro/escuro e densidades confortável/compacta. **Depende:** M14.
+
+- [ ] **M16 — Migrar todos os componentes específicos das telas.** Arquivos prováveis: `css/style.css`, `js/core.js`, `js/financas.js`, `js/recursos.js`, `js/inicio.js`, `tests/run.js`; executar por área em alterações pequenas e verificáveis. Cobrir Início, Hoje, Rotina, Lembretes, Agenda, Tarefas, Metas, Hábitos, Notas, Diário, Links, Etiquetas, Finanças, Leituras e telas de sistema; incluir estados vazios, carregamento, erro, conteúdo extenso e menus. Manter SVGs, calendários e tabelas legíveis e funcionais, justificando exceções em vez de distorcer dados ou interações. **Aceite:** cada componente do inventário M13 é migrado ou possui exceção documentada; nenhum fluxo, configuração ou dado é perdido. **Verificar:** testes relevantes por área, navegação por teclado, texto ampliado e comparação visual responsiva. **Depende:** M15 e implementação de cada tela afetada.
+
+- [ ] **M17 — Auditoria final da grade e regressão.** Arquivos prováveis: `DESIGN.md`, `css/style.css`, arquivos de telas afetados e `tests/run.js`. Comparar a implementação com o inventário M13 e os tokens M14, registrar exceções e atualizar o guia; revisar espaçamento, quebras, hierarquia da fonte, contraste, foco, rolagem e áreas seguras. **Aceite:** nenhuma classe de componente fica sem revisão; exceções têm motivo; sem sobreposição ou corte de conteúdo nos tamanhos verificados; o guia descreve o que foi realmente implementado. **Verificar:** `node tests/run.js`, capturas em 320/375/430/1280 px, temas, densidades, zoom e, quando disponível, telefone físico e PWA instalado. **Depende:** M16.
+
+**Checkpoint da grade:** concluir M13–M17, comparar os componentes com o inventário e registrar qualquer limitação de teste físico antes da revisão final M12.
 
 ## Adiado até existir necessidade concreta
 

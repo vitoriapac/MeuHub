@@ -317,6 +317,60 @@ async function main() {
       const r=await ev(`(()=>{S.fin.rec=[];S.fin.bills=[];S.events=[];S.fin.tx=[];S.fin.acc=[{id:'main',n:'Conta',ty:'cc',ini:0}];S.fac='';S.view='financas';S.fvw='mes';S.ftab='contas';render();const f=document.querySelector('#frec');f.elements.t.value='Internet';f.elements.v.value='50';f.elements.day.value='28';f.elements.reminder.checked=true;f.requestSubmit();const rec=S.fin.rec[0],bill=S.fin.bills[0],ev=S.events.find(x=>x.id===bill.eid),flow=cashFlow({days:90,fac:'',vary:false});return {linked:bill.rec===rec.id,event:!!ev,duplicate:flow.evs.some(x=>x.k==='bill'&&x.t==='Internet')}})()`);
       assert.ok(r.linked);assert.ok(r.event);assert.strictEqual(r.duplicate,false);
     }],
+    ['telas com exemplos não ultrapassam viewport nas larguras e fontes verificadas', async () => {
+      await fresh(); await login('A'); await ev('exLoad()');
+      try {
+        for(const width of [320,375,430,1280]){
+          await b.send('Emulation.setDeviceMetricsOverride',{width,height:800,deviceScaleFactor:1,mobile:width<500});
+          const bad=await ev(`(()=>{const bad=[];for(const size of ['100%','200%']){document.documentElement.style.fontSize=size;for(const view of Object.keys(V)){S.view=view;render();const overflow=document.documentElement.scrollWidth-document.documentElement.clientWidth;if(overflow>1)bad.push({size,view,overflow})}}return bad})()`);
+          assert.deepStrictEqual(bad,[],`transbordamento em ${width}px`);
+        }
+      } finally {await ev("document.documentElement.style.fontSize=''");await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['formulários permanecem na tela com texto ampliado', async () => {
+      await fresh(); await login('A');
+      await b.send('Emulation.setDeviceMetricsOverride',{width:320,height:640,deviceScaleFactor:1,mobile:true});
+      try {
+        const r=await ev(`(()=>{document.documentElement.style.fontSize='200%';S.ftab='contas';const bad=[];for(const view of ['metas','financas','leituras']){S.view=view;render();const overflow=document.documentElement.scrollWidth-document.documentElement.clientWidth;if(overflow>1)bad.push({view,overflow})}return bad})()`);
+        assert.deepStrictEqual(r,[]);
+      } finally {await ev("document.documentElement.style.fontSize=''");await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['barra mobile com nomes longos não cobre fim da página', async () => {
+      await fresh(); await login('A');
+      await b.send('Emulation.setDeviceMetricsOverride',{width:304,height:640,deviceScaleFactor:1,mobile:true});
+      try {
+        for(const size of ['100%','200%']){
+          const r=await ev(`(()=>{document.documentElement.style.fontSize='${size}';S.menu=menuDef();S.menu.bar=['avisos','tarefas','leituras','financas','menu'];S.view='hoje';render();window.scrollTo(0,document.documentElement.scrollHeight);const bar=document.querySelector('#mobile-bar').getBoundingClientRect(),main=document.querySelector('#main').getBoundingClientRect();return {bar:bar.top,end:main.bottom}})()`);
+          assert.ok(r.end<=r.bar, 'conteúdo final deve ficar acima da barra com fonte '+size);
+        }
+      } finally {await ev("document.documentElement.style.fontSize=''");await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['agenda diária oferece ações acessíveis para eventos curtos e simultâneos', async () => {
+      await fresh(); await login('A');
+      await b.send('Emulation.setDeviceMetricsOverride',{width:320,height:640,deviceScaleFactor:1,mobile:true});
+      try {
+        const r=await ev(`(()=>{S.events=[{id:'short1',t:'Consulta breve',d:T,h:'10:00',e:'10:15',c:'g'},{id:'short2',t:'Ligação',d:T,h:'10:00',e:'10:15',c:'b'}];S.tasks=[{id:'block1',t:'Estudar',done:false,dur:15,bk:{d:T,h:'10:00'}}];S.view='agenda';S.mode='day';S.dy=0;render();const details=document.querySelector('.day-actions');if(!details)return null;details.open=true;const rows=[...details.querySelectorAll('[data-day-action]')].map(row=>({id:row.dataset.dayAction,text:row.innerText,buttons:[...row.querySelectorAll('button')].map(b=>{const x=b.getBoundingClientRect();return {action:b.dataset.a,w:x.width,h:x.height}})}));const overflow=document.documentElement.scrollWidth-document.documentElement.clientWidth;details.querySelector('[data-a=ed][data-id=short1]').click();const edited=ED&&ED.id;S.view='agenda';S.mode='day';render();const list=document.querySelector('.day-actions');list.open=true;list.querySelector('[data-a=unbk][data-id=block1]').click();return {rows,overflow,edited,unbooked:!S.tasks[0].bk}})()`);
+        assert.ok(r,'lista de ações ausente');assert.strictEqual(r.edited,'short1');assert.ok(r.unbooked);assert.strictEqual(r.overflow,0);assert.deepStrictEqual(r.rows.map(x=>x.id),['short1','short2','block1']);for(const row of r.rows){for(const b of row.buttons)assert.ok(b.w>=44&&b.h>=44,row.id+' com alvo pequeno');assert.ok(row.buttons.some(b=>b.action===(row.id==='block1'?'unbk':'ed')))}
+      } finally {await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['ações de links e eventos semanais têm alvos de toque separados', async () => {
+      await fresh(); await login('A');
+      await b.send('Emulation.setDeviceMetricsOverride',{width:320,height:640,deviceScaleFactor:1,mobile:true});
+      try {
+        const r=await ev(`(()=>{S.links=[{id:'link-grid',n:'Link de exemplo',u:'https://example.com',c:'g'}];S.events=[{id:'event-grid',t:'Compromisso',d:T,h:'10:00',e:'11:00',c:'g'}];const out=[];for(const view of ['links','agenda']){S.view=view;S.mode='week';S.wk=0;render();const parent=document.querySelector(view==='links'?'.link':'.day .ev');if(!parent){out.push({view,missing:true});continue}const buttons=[...parent.querySelectorAll('button.x')].map(b=>{const r=b.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}});out.push({view,buttons})}return out})()`);
+        for(const {view,buttons,missing} of r){assert.ok(!missing,view+' sem cartão');for(const b of buttons){assert.ok(b.w>=44&&b.h>=44,view+' com alvo pequeno');}for(let i=0;i<buttons.length;i++)for(let j=i+1;j<buttons.length;j++){const a=buttons[i],b=buttons[j];assert.ok(a.x+a.w<=b.x||b.x+b.w<=a.x||a.y+a.h<=b.y||b.y+b.h<=a.y,view+' com ações sobrepostas')}}
+      } finally {await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['componentes compartilhados usam espaçamento da grade em celular e desktop', async () => {
+      await fresh(); await login('A');
+      try {
+        for(const width of [375,1280]){
+          await b.send('Emulation.setDeviceMetricsOverride',{width,height:812,deviceScaleFactor:1,mobile:width<500});
+          const r=await ev(`(()=>{S.tasks=[{id:'grid',t:'Preparar',hd:T,done:false}];S.view='hoje';render();const item=document.querySelector('#main .item'),input=document.querySelector('#finbox input'),panel=document.querySelector('#main .panel');return {gap:getComputedStyle(item).gap,padding:getComputedStyle(panel).paddingTop,inputFont:getComputedStyle(input).fontSize,button:getComputedStyle(document.querySelector('#finbox button')).minHeight}})()`);
+          assert.strictEqual(r.gap,'8px');assert.strictEqual(r.padding,'16px');assert.strictEqual(r.inputFont,'16px');assert.ok(parseFloat(r.button)>=44);
+        }
+      } finally {await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
     ['hábito semanal acompanha frequência e preserva registros ao mudar meta', async () => {
       await fresh(); await login('A');
       const r=await ev(`(()=>{const week=add(today,-((today.getDay()+6)%7));S.habits=[{id:'h',n:'Caminhar',log:{[ds(week)]:1}}];S.view='habitos';render();let f=document.querySelector('[data-hfreq=h]');if(!f)return null;f.value='3';f.dispatchEvent(new Event('change',{bubbles:true}));const text=document.querySelector('#main').innerText;f=document.querySelector('[data-hfreq=h]');f.value='2';f.dispatchEvent(new Event('change',{bubbles:true}));return {text,habit:S.habits[0],date:ds(week)}})()`);

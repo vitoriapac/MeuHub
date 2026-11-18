@@ -11,7 +11,7 @@ function synText(){return {local:'Somente neste aparelho'+(SYS.d?' ('+SYS.d+')':
 function setSt(s,d){SYS.s=s;SYS.d=d||'';if(s==='ok'){SYS.at=nowH();SY.lastAt=new Date().toISOString();saveSY()}const a=$('#syn'),p=$('#synp');if(a){a.dataset.st=s;a.innerHTML='<b>'+({local:'☁',sync:'↻',ok:'☁',err:'⚠'}[s])+'</b>'+esc(synText().split('.')[0])}if(p)p.textContent=synText()}
 const syncPanel=()=>{
  const last=SY.lastAt?new Date(SY.lastAt).toLocaleString('pt-BR'):'ainda não confirmada',pending=LOCAL_CORRUPT?'indisponíveis até recuperar os dados':!SY.last||pickJSON()!==SY.last?'há alterações locais pendentes':'nenhuma alteração pendente';
- const head=`<div class="panel" style="margin-top:14px"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 8px">${synText()}</p><p class="empty">Última sincronização: ${esc(last)}. Estado das alterações: ${pending}.</p>`;
+ const head=`<div class="panel" style="margin-top:var(--space-4)"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 var(--space-2)">${synText()}</p><p class="empty">Última sincronização: ${esc(last)}. Estado das alterações: ${pending}.</p>`;
  const btns=`<div class="bar"><button class="pill dark" data-a="syncnow">Sincronizar agora</button><button class="pill" data-a="syncup">Enviar este aparelho para a nuvem</button><button class="pill" data-a="syncdown">Trazer os dados da nuvem</button><button class="pill" data-a="fbout">Sair da conta</button></div>`;
  if(!FB_CONFIG)return head+'<p class="empty" style="padding:0">A sincronização ainda não foi configurada (veja o README do projeto). Os dados ficam só neste navegador.</p></div>';
  if(FB.err)return head+'<p class="empty" style="padding:0">Sem conexão com o servidor. Suas mudanças ficam neste aparelho e são sincronizadas quando você abrir o site de novo com internet.</p></div>';
@@ -109,7 +109,7 @@ async function fbLogout(){if(!FB.auth)return;if(!(await push())){toast('Não foi
 /* tela de login: o site só abre depois de entrar (sem FB_CONFIG não há login possível, então abre direto) */
 // sem internet, quem já entrou neste aparelho usa os dados locais; a sincronização volta no próximo carregamento com conexão
 function gateR(){const g=$('#gate'),on=!!FB_CONFIG&&!FB.on&&!(FB.err&&SY.uid);g.hidden=!on;$('.app').inert=on;if(!on){g.innerHTML='';return}
- const body=FB.err?'<p class="empty" style="padding:0 0 16px">Não foi possível conectar. Verifique sua internet.</p><div class="bar"><button class="pill dark" data-a="reload">Tentar de novo</button></div>'
+ const body=FB.err?'<p class="empty" style="padding:0 0 var(--space-4)">Não foi possível conectar. Verifique sua internet.</p><div class="bar"><button class="pill dark" data-a="reload">Tentar de novo</button></div>'
   :!FB.ready?'<p class="empty" style="padding:0">Carregando…</p>'
-  :'<p style="margin:0 0 4px;font-size:18px">Bem-vindo!</p><p class="empty" style="padding:0 0 16px">Entre com sua conta Google para começar. Seus dados ficam salvos e aparecem em todos os seus aparelhos.</p><div class="bar"><button class="pill dark" data-a="fblogin">Entrar com o Google</button></div>';
+  :'<p style="margin:0 0 var(--space-1);font-size:var(--type-title)">Bem-vindo!</p><p class="empty" style="padding:0 0 var(--space-4)">Entre com sua conta Google para começar. Seus dados ficam salvos e aparecem em todos os seus aparelhos.</p><div class="bar"><button class="pill dark" data-a="fblogin">Entrar com o Google</button></div>';
  g.innerHTML=`<div class="gbox" role="dialog" aria-modal="true" aria-label="Entrar"><div class="logo">meu hub<i></i></div>${body}</div>`}

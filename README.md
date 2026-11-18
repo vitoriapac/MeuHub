@@ -24,7 +24,7 @@ Um painel pessoal brasileiro que reúne **planejamento do dia**, **controle fina
 - **Início personalizável:** card opcional para lista de compras fixada, resumo do dia com anel de progresso, gráficos sparkline de 7 dias, linha do tempo interativa (6h–22h), botão **Companhia** (liga/desliga Spotify + Clima com um clique) e 15 cards reordenáveis.
 - **Hoje e Carga do Dia:** caixa de entrada, revisão semanal com pendências, prioridades, alertas e cálculo de capacidade. As sugestões consideram a capacidade e um horário livre; podem ser dispensadas até o próximo carregamento. A captura mantém seus campos ao alternar tipos.
 - **Rotina (Manhã e Noite):** passo a passo guiado configurável com registro de dias seguidos.
-- **Tarefas, Agenda e Metas:** prioridades, subtarefas, recorrência, captura para caixa de entrada ou tarefa com data planejada independente do prazo, encaixe individual em Hoje e metas com acompanhamento.
+- **Tarefas, Agenda e Metas:** prioridades, subtarefas, recorrência, captura para caixa de entrada ou tarefa com data planejada independente do prazo, encaixe individual em Hoje e metas com acompanhamento. Na agenda diária, **Ações dos compromissos do dia** reúne edição, exclusão e ações das tarefas em botões maiores, inclusive para eventos curtos ou simultâneos.
 - **Hábitos e Pomodoro:** hábitos diários ou de 1 a 7 vezes por semana, grade de registros e timer Pomodoro (25 min foco / 5 min pausa). Ao mudar a frequência, os registros são preservados e a sequência passa a usar a meta atual.
 
 ### 2. Finanças Pessoais (6 abas + Relatório Anual)
