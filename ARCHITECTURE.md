@@ -61,7 +61,7 @@ flowchart LR
 
 | Arquivo | Linhas aprox. | Papel arquitetural e principais símbolos exportados no escopo global |
 |---|---:|---|
-| [`index.html`](file:///c:/Users/vitor/Documents/MeuHub/index.html) | 109 | Casca HTML semântica: tela de bloqueio (`#gate`), barra lateral/topo (`#side`), barra inferior mobile (`#mbar`), palco principal (`#main`), slot persistente do Spotify (`#sp-slot`), container de modais (`#mroot`) e região `aria-live` (`#toast`). |
+| [`index.html`](file:///c:/Users/vitor/Documents/MeuHub/index.html) | 109 | Casca HTML semântica: tela de bloqueio (`#gate`), barra lateral/topo (`#side`), barra inferior mobile (`#mobile-bar`) e painel `#mobile-menu`, palco principal (`#main`), slot persistente do Spotify (`#sp-slot`), container de modais (`#mroot`) e região `aria-live` (`#toast`). |
 | [`manifest.webmanifest`](file:///c:/Users/vitor/Documents/MeuHub/manifest.webmanifest) | 40 | Metadados PWA (`display: standalone`, `lang: pt-BR`, ícones 192/512/maskable e 4 atalhos de ação rápida). |
 | [`sw.js`](file:///c:/Users/vitor/Documents/MeuHub/sw.js) | 50 | Service Worker: precache da casca na versão `VER`, limpeza de caches antigos no `activate`, cache de fontes e suporte a notificações do sistema. |
 | [`css/style.css`](file:///c:/Users/vitor/Documents/MeuHub/css/style.css) | 380 | Sistema visual completo baseado em custom properties (`--bg`, `--card`, `--ink`, `--p`, `--s1`, `--s2`, `--s3`, `--s4`), suporte a tema claro/escuro (`[data-theme="dark"]`), alto contraste (`[data-hc="1"]`), redução de movimento (`[data-rm="1"]`), responsivo mobile (`@media (max-width:780px)`) e folha de impressão (`@media print`). |
@@ -82,46 +82,23 @@ Como todos os arquivos compartilham o escopo global:
 
 ## 3. Modelo de Dados e Armazenamento Local
 
-### 3.1. O Objeto de Estado `S`
-Todo o conteúdo do usuário vive em um único objeto JSON serializável chamado `S` (inicializado por [`DEF()`](file:///c:/Users/vitor/Documents/MeuHub/js/core.js#L18-L24) e evoluído sem quebrar versões antigas por [`migrate()`](file:///c:/Users/vitor/Documents/MeuHub/js/core.js#L26-L31) e [`migFin()`](file:///c:/Users/vitor/Documents/MeuHub/js/financas.js#L9-L17)):
+### 3.1. O objeto de estado `S`
 
-| Chave em `S` | Tipo | Descrição |
-|---|---|---|
-| `name` | `string` | Nome de exibição nos cumprimentos do Início (`"meu hub"` por padrão). |
-| `theme` | `'light' \| 'dark'` | Tema visual ativo. |
-| `pal` | `string` | Paleta de cores ativa (`'ceu'`, `'ametista'`, `'safira'`, `'floresta'`, `'citrico'`). |
-| `view` | `string` | Tela ativa no momento (`'dash'`, `'hoje'`, `'financas'`, etc.). |
-| `cards` | `string[]` | Lista de IDs dos cards visíveis na tela **Início** (padrão focado: `['linha','todo','agenda','habs','fin']`). |
-| `cardOrder` | `string[]` | Ordem personalizada de exibição dos cards no **Início** (15 cards disponíveis). |
-| `menuOrder` | `string[]` | Ordem personalizada das 18 telas no menu lateral e barra mobile. |
-| `menuHide` | `string[]` | IDs das telas ocultadas do menu principal (acessíveis via `Mais telas`). |
-| `a11y` | `object` | Preferências de acessibilidade: `{ keys: boolean, hc: boolean, rm: boolean }`. |
-| `todos` | `Array<Todo>` | Tarefas (`{ id, txt, pri, done, due, time, dur, rec, tags, sub, note, doneAt, _m }`). |
-| `events` | `Array<Event>` | Compromissos da agenda (`{ id, date, time, dur, end, title, loc, cat, rec, tags, _m }`). |
-| `notes` | `Array<Note>` | Notas com suporte a marcação simples, cor, fixação (`pin`), arquivo (`arch`) e checklist (`items`). |
-| `links` | `Array<Link>` | Atalhos/favoritos (`{ id, title, url, cat, icon, tags, _m }`). |
-| `habits` | `Array<Habit>` | Hábitos diários (`{ id, name, icon, days: { 'AAAA-MM-DD': true }, _m }`). |
-| `fin` | `Array<FinTx>` | Lançamentos financeiros (`{ id, type, desc, cat, val, date, acc, card, paid, fix, parN, parI, splitWith, splitPct, splitPaid, tags, _m }`). |
-| `finAcc` | `Array<Account>` | Contas bancárias/carteiras (`{ id, name, type: 'cc'|'cash'|'inv', init, color, _m }`). |
-| `finCards` | `Array<Card>` | Cartões de crédito (`{ id, name, lim, close, due, color, _m }`). |
-| `finRec` | `Array<RecTx>` | Despesas/receitas recorrentes mensais que geram itens em `fin` automaticamente via `genRec0()`. |
-| `finRules` | `Array<Rule>` | Regras personalizadas de categorização automática (`{ id, match, cat, type, acc }`). |
-| `finArch` | `string[]` | Meses (`'AAAA-MM'`) fechados/arquivados contra edição acidental. |
-| `budgets` | `Object<cat, val>` | Tetos mensais de gastos por categoria (`{ Alimentação: 800, _m: ... }`). |
-| `pctRule` | `object` | Regra percentual de orçamento (`{ ess: 50, est: 30, inv: 20 }`). |
-| `savGoals` | `Array<SavGoal>` | Caixinhas/metas de economia financeira (`{ id, title, target, saved, due, hist, _m }`). |
-| `reserva` | `object` | Configuração da reserva de emergência (`{ months, saved, accId, mode, manualBase }`). |
-| `moods` | `Object<date, Mood>` | Humor diário (`{ 'AAAA-MM-DD': { v: 1..5, note, _m } }`). |
-| `diary` | `Array<Diary>` | Entradas de diário com perguntas guiadas (`{ id, date, txt, p1, p2, p3, mood, tags, _m }`). |
-| `goals` | `Array<Goal>` | Metas pessoais com marcos (`{ id, title, area, due, prog, done, steps, _m }`). |
-| `books` | `Array<Book>` | Leituras, cursos, filmes e séries (`{ id, title, author, kind, status, cur, total, rate, notes, _m }`). |
-| `routine` | `object` | Passos e histórico de conclusão da rotina da manhã e da noite (`{ m, n, log }`). |
-| `links2` | `Array<[a, b]>` | Conexões bidirecionais entre quaisquer dois itens do hub (`['todos:id1', 'notes:id2']`). |
-| `trash` | `Array<TrashItem>` | Lixeira com retenção de 30 dias (`{ id, col, exp, item }`). |
-| `pomo` | `object` | Estatísticas do timer Pomodoro (`{ today, date, total, log }`). |
-| `spotify` | `string` | URL de embed do Spotify configurado pelo usuário (`open.spotify.com/embed/...`). |
-| `wx` | `object` | Cidade e coordenadas selecionadas para o card de Clima (`{ city, lat, lon }`). |
-| `rev` | `number` | Contador monotônico incrementado a cada `save()`, usado pelo motor de sincronização e snapshots. |
+O estado é inicializado em `js/core.js` e mesclado com o conteúdo local válido. A lista `SK` em `js/sync.js` define os campos replicados; campos de navegação temporários podem ficar apenas no aparelho.
+
+| Campo | Conteúdo principal |
+|---|---|
+| `tasks` | Tarefas com `id`, `t`, `done`, prioridade `p`, prazo `due`, data planejada `hd` e bloco opcional `bk`. |
+| `events` | Compromissos com título `t`, data `d` e horário `h`. |
+| `notes`, `links`, `inbox` | Notas, atalhos e capturas pendentes. |
+| `habits` | Hábitos com `id`, nome `n` e registros `log` por data; `perWeek` opcional define a meta de 1 a 7 vezes por semana. Sem esse campo, o hábito é diário. |
+| `fin` | Objeto financeiro com `tx`, `acc`, `rec`, `bills`, `bud`, `goals` e outras coleções. `primary` opcional identifica a conta principal escolhida. |
+| `metas` | Metas pessoais, acompanhamentos e prazo; tarefas usam `mt` para vínculo direto. |
+| `dia`, `rot`, `rotPrefs`, `rev`, `revprefs` | Diário, rotina e preferências de revisão. `rev` não é o contador de sincronização. |
+| `menu`, `cards`, `pal`, `themeMode` | Personalização do menu, cards e aparência. |
+| `lnk`, `trash`, `reads`, `fm` | Ligações, lixeira, leituras e minutos de foco. |
+
+Esta tabela resume os campos mais relevantes; `S`, `SK` e `validBackup()` são as referências para valores e validações completos.
 
 ### 3.2. Chaves do `localStorage`
 
@@ -137,15 +114,11 @@ Todo o conteúdo do usuário vive em um único objeto JSON serializável chamado
 
 ## 4. Ciclo de Renderização e Delegação de Eventos
 
-### 4.1. Pipeline de Renderização (`render()`)
-O Meu Hub usa re-renderização declarativa direta via template strings:
+### 4.1. Pipeline de renderização (`render()`)
 
-1. [`render()`](file:///c:/Users/vitor/Documents/MeuHub/js/main.js#L15-L27) verifica se a visão atual `S.view` existe no mapa de roteamento `V` (18 views).
-2. Antes de substituir o DOM de `#main`, captura os `scrollTop` dos elementos internos com rolagem (`.scr`) para preservá-los após a atualização.
-3. Executa `(V[S.view] || V.dash)()` e injeta o HTML resultante em `#main.innerHTML`.
-4. Atualiza o estado ativo dos botões na barra lateral (`#nav`) e na barra inferior mobile (`#mbar`).
-5. Desenha o anel do Pomodoro se a tela possuir `#pomo-ring` e sincroniza o slot persistente do Spotify via [`spSync()`](file:///c:/Users/vitor/Documents/MeuHub/js/inicio.js#L69-L79).
-6. Um `MutationObserver` em `#main` e `#mroot` dispara [`dtUp()`](file:///c:/Users/vitor/Documents/MeuHub/js/recursos.js#L422-L433) para enriquecer campos `<input type="date">` com máscara brasileira `dd/mm/aaaa` + calendário nativo.
+`render()` em `js/main.js` reconstrói `#main` a partir da busca ou da view `V[S.view]`, atualiza o menu, Pomodoro, etiquetas, acessibilidade e Spotify, e chama `save()`. `renderKeepDraft()` preserva determinados valores de formulários durante atualizações; a sincronização também adia a atualização visual quando há edição ou formulário alterado.
+
+`save()` serializa `S` em `hub-v1`, acompanha desfazer e agenda `syncSoon()` quando o salvamento local permite. O envio compara `pickJSON()` com `SY.last` e não grava no Firestore quando não houve mudança sincronizável. A renderização, portanto, ainda tem efeitos de persistência; ela não deve ser tratada como função pura.
 
 ### 4.2. O Slot Persistente do Spotify (`#sp-slot`)
 Se o `<iframe>` do Spotify ficasse dentro de `#main`, qualquer chamada a `render()` (ex.: marcar uma tarefa como concluída) recriaria o iframe e interromperia a música.
@@ -153,11 +126,9 @@ Se o `<iframe>` do Spotify ficasse dentro de `#main`, qualquer chamada a `render
 - Na tela **Início**, o card do Spotify renderiza apenas um placeholder vazio (`#sp-anchor`).
 - A função [`spSync()`](file:///c:/Users/vitor/Documents/MeuHub/js/inicio.js#L69-L79) usa `ResizeObserver` e `getBoundingClientRect()` para posicionar `#sp-slot` exatamente sobre `#sp-anchor` quando o usuário está no Início, ou recolhê-lo em uma miniatura flutuante (`class="float"`) no canto inferior direito quando navega para outras telas.
 
-### 4.3. Delegação Central de Eventos e Undo Automático
-Em vez de espalhar `onclick` ou dezenas de listeners individuais:
-- Toda ação de clique usa o atributo `data-a="<acao>"` (e `data-id`, `data-col`, etc.) tratado pelo listener central em [`js/main.js`](file:///c:/Users/vitor/Documents/MeuHub/js/main.js#L29-L133).
-- Antes de executar qualquer ação que modifica dados (qualquer `data-a` que não seja puramente de navegação/visualização e qualquer `submit`), [`track(a)`](file:///c:/Users/vitor/Documents/MeuHub/js/recursos.js#L168-L172) empilha uma cópia serializada do estado anterior na pilha `UH` (até 30 níveis) e limpa a pilha de refazer `UR`.
-- Toda função que altera `S` carimba `item._m = Date.now()` no item modificado e chama [`save()`](file:///c:/Users/vitor/Documents/MeuHub/js/core.js#L37-L38), que incrementa `S.rev`, grava em `localStorage`, atualiza snapshots (`snapPut`) e agenda o envio para a nuvem (`syncHook`).
+### 4.3. Eventos e desfazer
+
+Ações usam principalmente `data-a` e listeners delegados em `js/main.js` e nos módulos. `track()` compara o estado sincronizável com o anterior para manter o histórico de desfazer; não existe uma regra geral que carimbe `_m` em todo item nem um contador `S.rev` incrementado por `save()`. A revisão da nuvem fica em `SY.rev` e no documento `hub-meta`.
 
 ---
 

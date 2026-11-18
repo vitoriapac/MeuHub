@@ -401,5 +401,30 @@ html[data-hc="1"][data-theme="dark"]{--mute:#d8d2c1;--line:#8f8979}
 @media (max-width:860px){.dayw{grid-template-columns:minmax(0,1fr)}.plp{position:static;order:-1}.pll>.plt:nth-child(n+5){display:none}}
 @media (max-width:860px){.ring{width:150px}.ring div{font-size:32px;letter-spacing:-1px}.ring small{font-size:11px;max-width:100px}.grid>.stack:first-child{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.grid>.stack:first-child .ring{grid-column:1/-1}.grid>.stack:first-child .stat{padding:10px 12px}.grid>.stack:first-child .stat span{font-size:12px}}
 @media (min-width:861px){.side{overflow:hidden}.nv{overflow-y:auto;min-height:0;flex:0 1 auto;scrollbar-width:thin}.sp{flex:1 0 0}.side>.nav,.side>.logo{flex:none}}
+
+#mobile-bar,.mobile-shortcuts{display:none}
+#mobile-menu{border:0}
+@media (max-width:860px){
+ body,html[data-dens=compacto] body{font-size:16px}
+ body .app,html[data-dens=compacto] .app{padding:12px 12px calc(96px + env(safe-area-inset-bottom,0px))}
+ body .side{display:none}
+ #mobile-bar{display:flex;position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:30;gap:2px;padding:6px;border-radius:22px;background:var(--acc,var(--side));color:var(--onacc,var(--sideink));box-shadow:0 8px 28px rgba(0,0,0,.22)}
+ #mobile-bar .nav{display:flex;flex:1 1 0;min-width:0;min-height:56px;padding:4px 1px;font-size:12px;line-height:1.15;white-space:normal;overflow-wrap:anywhere}
+ #mobile-menu{position:fixed;inset:auto 0 0;width:100%;max-width:600px;max-height:min(80dvh,720px);margin:0 auto;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));border-radius:22px 22px 0 0;background:var(--card);color:var(--ink);overflow-y:auto;overscroll-behavior:contain}
+ #mobile-menu::backdrop{background:rgba(0,0,0,.45)}
+ .mobile-menu-head{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:-18px;background:var(--card);padding:4px 0 12px;z-index:1}
+ .mobile-menu-head h2{font-size:20px;margin:0}
+ #mobile-menu h3{font-size:14px;color:var(--mute);margin:16px 0 8px}
+ .mobile-menu-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+ #mobile-menu .nav{display:flex;flex-direction:row;gap:10px;min-height:48px;padding:10px;text-align:left;font-size:16px;white-space:normal;color:var(--ink);background:var(--panel)}
+ #mobile-menu .nav.on{outline:2px solid var(--s1)}
+ #mobile-menu .empty{padding:8px 0;font-size:14px}
+ .mobile-shortcuts{display:block;margin-bottom:14px}.mobile-shortcuts p{margin:0 0 10px}.mobile-shortcut-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.mobile-shortcut-list label{display:flex;align-items:center;gap:8px;min-height:44px}
+ .main input:not([type=checkbox]):not([type=radio]),.main select,.main textarea{font-size:16px}
+ .main .pill,.main summary{min-height:44px}
+ .main .item>.x{min-width:44px;min-height:44px}
+ .main .lb,.main .item .t small,.main .panel h2:not(.gh){font-size:14px}
+ #toast,#pomo{bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+}
 html[data-priv="1"] :is(.note .rt,textarea[data-dk],textarea[data-rv],textarea[data-rm],textarea[data-rdf="n"],[data-a="dgo"] small,[data-card="notas"] .item small){filter:blur(6px);transition:filter .18s ease}
 html[data-priv="1"] :is(.note .rt,textarea[data-dk],textarea[data-rv],textarea[data-rm],textarea[data-rdf="n"],[data-a="dgo"] small,[data-card="notas"] .item small):is(:hover,:focus){filter:none}

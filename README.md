@@ -22,13 +22,13 @@ Um painel pessoal brasileiro que reúne **planejamento do dia**, **controle fina
 
 ### 1. Planejamento e Produtividade
 - **Início personalizável:** card opcional para lista de compras fixada, resumo do dia com anel de progresso, gráficos sparkline de 7 dias, linha do tempo interativa (6h–22h), botão **Companhia** (liga/desliga Spotify + Clima com um clique) e 15 cards reordenáveis.
-- **Hoje e Carga do Dia:** caixa de entrada para capturar e organizar ideias depois, revisão semanal configurável, foco em até 3 prioridades, alertas de atenção (atrasados, contas vencendo, hábitos pendentes), cálculo de capacidade em horas e botão **Encaixar na agenda** (`autoSlot`).
+- **Hoje e Carga do Dia:** caixa de entrada, revisão semanal com pendências, prioridades, alertas e cálculo de capacidade. As sugestões consideram a capacidade e um horário livre; podem ser dispensadas até o próximo carregamento. A captura mantém seus campos ao alternar tipos.
 - **Rotina (Manhã e Noite):** passo a passo guiado configurável com registro de dias seguidos.
-- **Tarefas, Agenda e Metas:** prioridades, subtarefas, recorrência (diária, dias úteis, semanal, mensal), arrastar para agendar, calendário mensal e metas com marcos de progresso.
-- **Hábitos e Pomodoro:** grade de constância, sequência de dias seguidos e timer Pomodoro (25 min foco / 5 min pausa) com histórico e avisos sonoros/notificações.
+- **Tarefas, Agenda e Metas:** prioridades, subtarefas, recorrência, captura para caixa de entrada ou tarefa com data planejada independente do prazo, encaixe individual em Hoje e metas com acompanhamento.
+- **Hábitos e Pomodoro:** hábitos diários ou de 1 a 7 vezes por semana, grade de registros e timer Pomodoro (25 min foco / 5 min pausa). Ao mudar a frequência, os registros são preservados e a sequência passa a usar a meta atual.
 
 ### 2. Finanças Pessoais (6 abas + Relatório Anual)
-- **Visão Geral:** KPIs do mês (receitas, despesas, saldo, taxa de economia e comparação com o mês anterior), contas a vencer, saldos por conta e faturas de cartão de crédito.
+- **Visão Geral:** KPIs do mês, contas a vencer e previsão até a próxima receita futura da conta principal escolhida em **Contas e Recorrentes → Contas e cartões**. A estimativa inclui despesas até o dia do recebimento e exclui entradas desse dia, faturas sem pagamento agendado e contas sem conta de pagamento vinculada; gastos não cadastrados também ficam fora. Contas fixas independentes podem ser vinculadas a uma conta de pagamento, mas podem coincidir com outros lançamentos e devem ser conferidas.
 - **Análises:** fluxo de caixa projetado para **30, 60 e 90 dias**, cascata de receitas → despesas → economia, gráfico de rosca por categoria, evolução de 6 meses e correlação **Humor × Gastos**.
 - **Lançamentos:** busca, filtros por categoria/conta/cartão/etiqueta, parcelamento automático (`2x` a `24x`), divisão de despesas com outra pessoa (`split`) e fechamento/arquivamento de mês.
 - **Orçamentos e Metas:** tetos por categoria, regra percentual customizável (`50 / 30 / 20`), calculadora de **Reserva de Emergência** e caixinhas de economia com depósito rápido.

@@ -11,17 +11,18 @@ function heroCard(){
  ((S.fin||{}).tx||[]).forEach(t=>{if(t.k==='out'&&t.d in idx)dFx[idx[t.d]]+=+t.v||0});
  const dHb=days.map(k=>S.habits.filter(h=>h.log&&h.log[k]).length),sum=(a,x,y)=>a.slice(x,y).reduce((p,q)=>p+q,0);
  const hj0=dTk[13],goal=S.goal||3,pend=S.tasks.filter(t=>!t.done&&(t.hd===T||(t.due&&t.due<=T))).length;
- const hs=S.habits,hdn=hs.filter(h=>h.log&&h.log[T]).length,best=Math.max(0,...hs.map(hstreak));
+ const hs=S.habits,hdn=hs.filter(h=>h.log&&h.log[T]).length,best=Math.max(0,...hs.filter(h=>!h.perWeek).map(hstreak));
  const evs=evOn(T),nowm=mm(nowH()),cur=evs.find(e=>{const r=sp(e);return r[0]<=nowm&&nowm<r[1]}),nx=evs.find(e=>sp(e)[0]>nowm),past=evs.filter(e=>sp(e)[1]<=nowm).length;
  let eBig='Dia livre',eSub=evs.length?'Sem mais compromissos hoje':'Nenhum evento hoje';
  if(cur){eBig=esc(cur.t);eSub='Agora, até '+hm(sp(cur)[1])}
  else if(nx){eBig=esc(nx.t);eSub='às '+nx.h+' · em '+fdur(sp(nx)[0]-nowm)}
  else{const u=upcoming(8).find(x=>x.d>T);if(u){eBig=esc(u.t);eSub=fmt(u.d)+' às '+u.h}}
  const F=finInit(),{inc,out}=finMonth(0),hasFx=F.tx.length>0,fp=inc>0?Math.round(out/inc*100):0;
- const parts=[];if(pend)parts.push(pend+(pend>1?' tarefas':' tarefa')+' para hoje');if(evs.length)parts.push(evs.length+(evs.length>1?' compromissos':' compromisso'));if(hs.length&&hdn<hs.length)parts.push((hs.length-hdn)+(hs.length-hdn>1?' hábitos pendentes':' hábito pendente'));
- return `<section class="hero2" aria-label="Resumo do dia"><div class="top"><h1>${saud()}${S.profileName?', '+esc(S.profileName):''}! Hoje é ${DIAF[today.getDay()]}, ${today.getDate()} de ${MESF[today.getMonth()]}</h1></div><p class="hsub">${parts.length?parts.join(' · '):'Nada pendente por enquanto. Bom momento para planejar algo.'}</p>${focusBox()}
+ const parts=[];if(pend)parts.push(pend+(pend>1?' tarefas':' tarefa')+' para hoje');if(evs.length)parts.push(evs.length+(evs.length>1?' compromissos':' compromisso'));const dailyPending=hs.filter(h=>!h.perWeek&&!h.log[T]).length;if(dailyPending)parts.push(dailyPending+(dailyPending>1?' hábitos diários pendentes':' hábito diário pendente'));
+ const nextTask=S.tasks.filter(t=>!t.done&&(t.hd===T||(t.due&&t.due<=T))).sort((a,b)=>'amb'.indexOf(a.p||'m')-'amb'.indexOf(b.p||'m')||(a.due||'9999').localeCompare(b.due||'9999'))[0];
+ return `<section class="hero2" aria-label="Resumo do dia"><div class="top"><h1>${saud()}${S.profileName?', '+esc(S.profileName):''}! Hoje é ${DIAF[today.getDay()]}, ${today.getDate()} de ${MESF[today.getMonth()]}</h1></div><p class="hsub">${parts.length?parts.join(' · '):'Nada pendente por enquanto. Bom momento para planejar algo.'}</p>${nextTask?`<p><button class="pill" data-v="hoje">Próxima tarefa: ${esc(nextTask.t)}</button></p>`:''}${focusBox()}
  <div class="kpis">${kpi('tarefas','check','var(--s1)',Math.round(hj0/goal*100),'Meta de hoje',hj0+'/'+goal,pend?pend+' para hoje':'Nada pendente para hoje',dTk,kTrend(sum(dTk,7),sum(dTk,0,7),0,'concluídas'))}
- ${kpi('habitos','repeat','var(--s1)',hs.length?Math.round(hdn/hs.length*100):0,'Hábitos de hoje',hs.length?hdn+'/'+hs.length:'—',hs.length?(best?best+(best>1?' dias seguidos':' dia seguido'):'Comece hoje a sequência'):'Crie seu primeiro hábito',hs.length?dHb:null,hs.length?kTrend(sum(dHb,7),sum(dHb,0,7),0,'marcações'):'')}
+ ${kpi('habitos','repeat','var(--s1)',hs.length?Math.round(hdn/hs.length*100):0,'Hábitos registrados hoje',hs.length?hdn+'/'+hs.length:'—',hs.length?(hs.some(h=>h.perWeek)?'Veja suas metas semanais':best?best+(best>1?' dias seguidos':' dia seguido'):'Comece hoje a sequência'):'Crie seu primeiro hábito',hs.length?dHb:null,hs.length?kTrend(sum(dHb,7),sum(dHb,0,7),0,'marcações'):'')}
  ${kpi('agenda','cal','var(--s1)',evs.length?Math.round(past/evs.length*100):0,cur?'Agora':'Próximo compromisso',eBig,eSub,null,evs.length?past+' de '+evs.length+(evs.length>1?' compromissos já passaram':' compromisso já passou'):'')}
  ${kpi('financas','wallet',fp>100?'var(--neg)':'var(--s1)',Math.min(100,fp),'Resultado do mês',hasFx?BRL(inc-out):'—',hasFx?(inc>0?'Gastou '+fp+'% da renda':'Gastos: '+BRL(out)):'Lance sua primeira despesa',hasFx?dFx:null,hasFx?kTrend(sum(dFx,7),sum(dFx,0,7),1,'nos gastos'):'')}</div></section>`}
 function lineCard(){

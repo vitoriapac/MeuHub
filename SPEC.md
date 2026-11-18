@@ -2,6 +2,8 @@
 
 Status: **aprovado** (21/10/2026) · Atualizado: 22/10/2026, modularização (`tasks/plan.md`)
 
+Atualização de 18/11/2026: o menu mobile usa barra de atalhos e painel agrupado; a captura de tarefas permite escolher data planejada separada do prazo; hábitos aceitam meta semanal e Finanças permite escolher uma conta principal para uma estimativa até a próxima receita. O plano em `tasks/plano-evolucao-meuhub-2026-11-18.md` registra o que ainda falta validar e implementar.
+
 ## Objetivo
 
 Painel pessoal (tarefas, agenda, hábitos, notas, finanças, Spotify, clima…) que a dona do projeto e pessoas próximas usam no navegador, em vários aparelhos, cada uma com o próprio hub.
@@ -26,7 +28,7 @@ Painel pessoal (tarefas, agenda, hábitos, notas, finanças, Spotify, clima…) 
 | Cards do Início | 5 cards ativos por padrão (`linha`, `todo`, `agenda`, `habs`, `fin`) + 10 opcionais (Frase do dia, Spotify, Clima, Produtividade, Links rápidos, Notas recentes, Revisão semanal, Histórico, Humor, Metas). Botão **Companhia** liga/desliga Spotify e Clima juntos com um clique. |
 | Spotify | Link de playlist/álbum/faixa → player oficial embutido (`open.spotify.com/embed`), carregado só ao clicar. |
 | Clima | Busca de cidade ou localização → Open-Meteo (sem chave). Só coordenadas saem do aparelho. |
-| Backup | Baixa/compartilha/importa JSON (importar mescla sem apagar); cópias automáticas antes de receber dados de outro aparelho. |
+| Backup | Baixa/compartilha/importa JSON. A importação válida substitui o estado atual após guardar uma versão local; se não conseguir preservá-la, interrompe a operação. Na recuperação de estado local corrompido não há versão válida a preservar. Há também cópias antes de receber dados de outro aparelho. |
 
 ## Stack
 

@@ -317,6 +317,120 @@ async function main() {
       const r=await ev(`(()=>{S.fin.rec=[];S.fin.bills=[];S.events=[];S.fin.tx=[];S.fin.acc=[{id:'main',n:'Conta',ty:'cc',ini:0}];S.fac='';S.view='financas';S.fvw='mes';S.ftab='contas';render();const f=document.querySelector('#frec');f.elements.t.value='Internet';f.elements.v.value='50';f.elements.day.value='28';f.elements.reminder.checked=true;f.requestSubmit();const rec=S.fin.rec[0],bill=S.fin.bills[0],ev=S.events.find(x=>x.id===bill.eid),flow=cashFlow({days:90,fac:'',vary:false});return {linked:bill.rec===rec.id,event:!!ev,duplicate:flow.evs.some(x=>x.k==='bill'&&x.t==='Internet')}})()`);
       assert.ok(r.linked);assert.ok(r.event);assert.strictEqual(r.duplicate,false);
     }],
+    ['hábito semanal acompanha frequência e preserva registros ao mudar meta', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const week=add(today,-((today.getDay()+6)%7));S.habits=[{id:'h',n:'Caminhar',log:{[ds(week)]:1}}];S.view='habitos';render();let f=document.querySelector('[data-hfreq=h]');if(!f)return null;f.value='3';f.dispatchEvent(new Event('change',{bubbles:true}));const text=document.querySelector('#main').innerText;f=document.querySelector('[data-hfreq=h]');f.value='2';f.dispatchEvent(new Event('change',{bubbles:true}));return {text,habit:S.habits[0],date:ds(week)}})()`);
+      assert.ok(r);assert.match(r.text,/1 de 3/);assert.strictEqual(r.habit.perWeek,2);assert.ok(r.habit.log[r.date]);
+    }],
+    ['hábito semanal concluído não aparece como pendência diária', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const d=ds(add(today,-((today.getDay()+6)%7)));S.habits=[{id:'h',n:'Caminhar',perWeek:1,log:{[d]:1}}];S.rem={on:true,hh:'00:00',hab:true,tk:false,fat:false};return {text:habitInfo(S.habits[0]),alerts:attention().filter(x=>x.k==='hb').length}})()`);
+      assert.match(r.text,/1 de 1 nesta semana/);assert.strictEqual(r.alerts,0);
+    }],
+    ['frequência semanal e marcações sobrevivem à mesclagem e ao backup', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const base={habits:[{id:'h',n:'Caminhar',log:{}}]},local={habits:[{id:'h',n:'Caminhar',log:{},perWeek:3}]},remote={habits:[{id:'h',n:'Caminhar',log:{[T]:1}}]},m=merge3(base,local,remote,[]);return {habit:m.habits[0],valid:validBackup({tasks:[],events:[],habits:m.habits}),today:T}})()`);
+      assert.strictEqual(r.habit.perWeek,3);assert.strictEqual(r.habit.log[r.today],1);assert.ok(r.valid);
+    }],
+    ['conta fixa pode ser vinculada a uma conta de pagamento', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const F=finInit();F.acc=[{id:'a',n:'Principal',ty:'cc',ini:1000}];S.view='financas';S.ftab='contas';render();const f=document.querySelector('#fbill');if(!f.elements.ac)return null;f.elements.n.value='Internet';f.elements.v.value='100';f.elements.day.value='25';f.elements.ac.value='a';f.requestSubmit();return F.bills[0]})()`);
+      assert.ok(r);assert.strictEqual(r.ac,'a');
+    }],
+    ['conta principal é escolhida e mantida após recarregar', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.fin.acc=[{id:'a',n:'Conta A',ty:'cc',ini:0},{id:'b',n:'Conta B',ty:'cc',ini:0}];S.view='financas';S.ftab='contas';render();const b=document.querySelector('[data-a=primaryacc][data-id=b]');if(!b)return null;b.click();return {primary:S.fin.primary,stored:JSON.parse(localStorage.getItem('hub-v1')).fin.primary}})()`);
+      assert.ok(r);assert.strictEqual(r.primary,'b');assert.strictEqual(r.stored,'b');await open();assert.strictEqual(await ev('S.fin.primary'),'b');
+    }],
+    ['previsão até recebimento usa conta principal e despesas até a data', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const F=finInit(),d1=ds(add(today,1)),d2=ds(add(today,2));F.acc=[{id:'a',n:'Principal',ty:'cc',ini:1000},{id:'b',n:'Outra',ty:'cc',ini:500}];F.primary='a';F.rec=[];F.bills=[];F.tx=[{id:'salary',t:'Salário',k:'in',v:2000,d:d2,ac:'a'},{id:'rent',t:'Conta',k:'out',v:200,d:d1,ac:'a'},{id:'bill',t:'Despesa',k:'out',v:100,d:d2,ac:'a'},{id:'other',t:'Outra conta',k:'out',v:900,d:d1,ac:'b'}];S.view='financas';S.ftab='geral';render();const text=document.querySelector('#main').innerText;return {text,d2}})()`);
+      assert.match(r.text,/até o próximo recebimento/i);assert.match(r.text,/700,00/);assert.match(r.text,/não inclui faturas/i);
+    }],
+    ['previsão encontra próxima receita recorrente ainda não lançada', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const F=finInit();F.acc=[{id:'a',n:'Principal',ty:'cc',ini:1000}];F.primary='a';F.tx=[];F.bills=[];F.rec=[{id:'salary',t:'Salário',k:'in',v:2000,day:today.getDate(),ini:ds(add(today,1)),ac:'a'}];S.view='financas';S.ftab='geral';render();return document.querySelector('#main').innerText})()`);
+      assert.match(r,/Estimativa antes de receber/);assert.match(r,/1\.000,00/);
+    }],
+    ['meta reúne tarefa e nota relacionadas sem duplicar dados', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.metas=[{id:'m',t:'Viagem',ini:T,kr:[]}];S.tasks=[{id:'t',t:'Reservar hotel',mt:'m',done:false}];S.notes=[{id:'n',t:'Roteiro',b:'',g:'',c:'p'}];S.lnk=[];lkSet('mt:m','nt:n',true);const before=metaCard(S.metas[0]);S.notes[0].t='Roteiro atualizado';const after=metaCard(S.metas[0]);lkSet('mt:m','nt:n',false);return {before,after,unlinked:metaCard(S.metas[0]),tasks:S.tasks.length,notes:S.notes.length}})()`);
+      assert.match(r.before,/Reservar hotel/);assert.match(r.before,/Roteiro/);assert.match(r.after,/Roteiro atualizado/);assert.doesNotMatch(r.unlinked,/Roteiro atualizado/);assert.strictEqual(r.tasks,1);assert.strictEqual(r.notes,1);
+    }],
+    ['previsão não duplica recorrência já lançada ou conta vinculada', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const F=finInit(),d1=ds(add(today,2)),d2=ds(add(today,5));F.acc=[{id:'a',n:'Principal',ty:'cc',ini:1000}];F.primary='a';F.tx=[{id:'r_exp_'+d1.slice(0,7),t:'Internet',k:'out',v:100,d:d1,ac:'a'},{id:'salary',t:'Receita',k:'in',v:500,d:d2,ac:'a'}];F.rec=[{id:'exp',t:'Internet',k:'out',v:100,day:+d1.slice(8),ini:T,ac:'a'}];F.bills=[{id:'bill',n:'Internet',v:100,day:+d1.slice(8),ac:'a',rec:'exp'}];return nextIncomePanel()})()`);
+      assert.match(r,/900,00/);assert.doesNotMatch(r,/800,00/);
+    }],
+    ['previsão pede conta e receita quando faltam dados', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const F=finInit();F.acc=[{id:'a',n:'Principal',ty:'cc',ini:0}];F.tx=[];F.rec=[];delete F.primary;const noAccount=nextIncomePanel();F.primary='a';return {noAccount,noIncome:nextIncomePanel()}})()`);
+      assert.match(r.noAccount,/Escolha uma conta principal/);assert.match(r.noIncome,/Nenhuma receita futura/);
+    }],
+    ['saldo interpreta valores numéricos de backups antigos', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{const F=finInit();F.acc=[{id:'a',n:'Conta',ty:'cc',ini:100}];F.tx=[{id:'income',t:'Receita',k:'in',v:'50',d:T,ac:'a'}];return bal(F.acc[0])})()`);
+      assert.strictEqual(r,150);
+    }],
+    ['mede persistência ao navegar e editar', async () => {
+      await fresh(); await login('A'); await waitFor('SYS.s==="ok"','sincronização inicial');
+      const r=await ev(`(async()=>{const orig=Storage.prototype.setItem,soon=syncSoon,c={local:0,cloud:0,scheduled:0};Storage.prototype.setItem=function(k,v){if(k==='hub-v1')c.local++;if(k==='__cloud')c.cloud++;return orig.call(this,k,v)};syncSoon=function(){c.scheduled++;return soon()};try{S.view='hoje';render();await new Promise(r=>setTimeout(r,2300));const navigation={...c};S.tasks.push({id:'measure',t:'Teste',done:false});render();await new Promise(r=>setTimeout(r,2300));return {navigation,edit:{local:c.local-navigation.local,cloud:c.cloud-navigation.cloud,scheduled:c.scheduled-navigation.scheduled}}}finally{Storage.prototype.setItem=orig;syncSoon=soon}})()`);
+      console.log('  medições de persistência: '+JSON.stringify(r));assert.strictEqual(r.navigation.cloud,0);assert.ok(r.edit.local>0);assert.ok(r.edit.cloud>0);
+    }],
+    ['tarefa atrasada planejada para hoje aparece uma única vez', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.tasks=[{id:'late',t:'Enviar documento',done:false,due:ds(add(today,-1)),hd:T}];S.events=[];S.view='hoje';render();return document.querySelectorAll('#main [data-a=tog][data-id=late]').length})()`);
+      assert.strictEqual(r,1);
+    }],
+    ['sugestões respeitam capacidade restante do dia', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.tasks=[{id:'busy',t:'Dia cheio',hd:T,dur:480,done:false},{id:'s',t:'Estudar',dur:30,done:false}];S.events=[];S.cap=8;S.view='hoje';render();return {shown:!!document.querySelector('[data-a=hide-suggestion][data-id=s]'),text:document.querySelector('#main').innerText}})()`);
+      assert.strictEqual(r.shown,false);assert.match(r.text,/sem espaço para novas sugestões/i);
+    }],
+    ['sugestões podem ser dispensadas sem excluir tarefas', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.tasks=[{id:'s',t:'Estudar',done:false}];S.events=[];S.cap=8;S.view='hoje';const previous=autoSlot;autoSlot=()=> '10:00';try{render();const b=document.querySelector('[data-a=hide-suggestion][data-id=s]');if(!b)return null;b.click();return {exists:S.tasks.some(t=>t.id==='s'),shown:!!document.querySelector('[data-a=hide-suggestion][data-id=s]')}}finally{autoSlot=previous}})()`);
+      assert.ok(r);assert.ok(r.exists);assert.strictEqual(r.shown,false);
+    }],
+    ['revisão informa pendências sem prazo', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.tasks=[{id:'p',t:'Comprar presente',done:false,due:''},{id:'d',t:'Feita',done:true,dd:T}];S.rw=0;S.revprefs={};return revCard()})()`);
+      assert.match(r,/Comprar presente/);assert.match(r,/Feita/);assert.doesNotMatch(r,/atrasada/i);
+    }],
+    ['Hoje encaixa tarefa sem alterar seu prazo', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.tasks=[{id:'t',t:'Preparar',p:'a',hd:T,due:'2030-01-20',done:false}];S.events=[];S.view='hoje';render();const button=document.querySelector('[data-a=fitday][data-id=t]');if(!button)return null;const previous=autoSlot;autoSlot=()=> '10:00';button.click();autoSlot=previous;return S.tasks[0]})()`);
+      assert.ok(r,'Hoje deve oferecer encaixe');assert.strictEqual(r.bk.d,await ev('T'));assert.strictEqual(r.bk.h,'10:00');assert.strictEqual(r.due,'2030-01-20');
+    }],
+    ['resumo destaca próxima tarefa planejada sem alterar cartões escolhidos', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.tasks=[{id:'p',t:'Enviar documento',p:'a',hd:T,done:false},{id:'x',t:'Outra tarefa',p:'b',done:false}];S.cards=['fin'];S.view='dash';render();return {text:document.querySelector('.hero2').innerText,cards:S.cards}})()`);
+      assert.match(r.text,/Enviar documento/);assert.deepStrictEqual(r.cards,['fin']);
+    }],
+    ['nova compra não herda valor de captura anterior', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.notes=[{id:'s',kind:'shopping',t:'Mercado',items:[],b:'',c:'p'}];S.view='notas';render();qa('dp');document.querySelector('#fqa [name=v]').value='999';document.querySelector('[data-a=shopping-expense][data-id=s]').click();return {value:document.querySelector('#fqa [name=v]').value,title:document.querySelector('#fqa [name=t]').value}})()`);
+      assert.strictEqual(r.value,'');assert.match(r.title,/Mercado/);
+    }],
+    ['captura preserva prazo e data planejada ao alternar tipos', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{qa('tk');let f=document.querySelector('#fqa');f.elements.t.value='Preparar';f.elements.due.value='2030-01-20';f.elements.dest.value='scheduled';f.elements.dest.dispatchEvent(new Event('change',{bubbles:true}));f.elements.planned.value='2030-01-15';qa('nt');qa('tk');f=document.querySelector('#fqa');return {title:f.elements.t.value,due:f.elements.due.value,dest:f.elements.dest.value,planned:f.elements.planned.value,enabled:!f.elements.planned.disabled}})()`);
+      assert.deepStrictEqual(r,{title:'Preparar',due:'2030-01-20',dest:'scheduled',planned:'2030-01-15',enabled:true});
+    }],
+    ['captura rápida planeja ou agenda tarefa sem alterar o prazo', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{S.tasks=[];S.inbox=[];qa('tk');let f=document.querySelector('#fqa');if(!f.elements.dest)return null;f.elements.t.value='Preparar reunião';f.elements.due.value='2030-01-20';f.elements.dest.value='today';f.requestSubmit();const todayTask=S.tasks[0];qa('tk');f=document.querySelector('#fqa');f.elements.t.value='Organizar viagem';f.elements.dest.value='scheduled';f.elements.dest.dispatchEvent(new Event('change',{bubbles:true}));f.elements.planned.value='2030-01-15';f.requestSubmit();return {todayTask,scheduled:S.tasks[0],today:T}})()`);
+      assert.ok(r,'captura deve oferecer destino');
+      assert.strictEqual(r.todayTask.hd,r.today);assert.strictEqual(r.todayTask.due,'2030-01-20');assert.strictEqual(r.scheduled.hd,'2030-01-15');assert.strictEqual(r.scheduled.due,'');
+    }],
+    ['menu mobile mantém sistema acessível e permite fechar o painel', async () => {
+      await fresh(); await login('A');
+      await b.send('Emulation.setDeviceMetricsOverride', { width: 375, height: 812, deviceScaleFactor: 1, mobile: true });
+      try {
+        const r=await ev(`(()=>{S.view='dash';S.mcol=['sis'];render();document.querySelector('[data-a=more]').click();const d=document.querySelector('#mobile-menu'),system=d&&d.querySelector('[data-v=menu]');const open=!!(d&&d.open),visible=!!(system&&system.getClientRects().length);if(d)d.querySelector('[data-a=close-mobile-menu]').click();return {open,visible,closed:!!d&&!d.open}})()`);
+        assert.ok(r.open);assert.ok(r.visible);assert.ok(r.closed);
+      } finally { await b.send('Emulation.clearDeviceMetricsOverride'); }
+    }],
     ['progresso reúne tarefas repetidas em um único acompanhamento', async () => {
       await fresh(); await login('A');
       const r=await ev(`(()=>{S.tasks=[{id:'a',t:'A',done:true,mt:'g',pj:'P'},{id:'b',t:'B',done:false,pj:'P',tg:'x'}];const g={id:'g',t:'Meta',ini:T,kr:[{id:'n',ty:'man',t:'Número',tg:10,cur:10},{id:'p',ty:'pj',ref:'P',t:'Projeto'},{id:'x',ty:'tg',ref:'x',t:'Etiqueta'}]};S.metas=[g];S.view='metas';render();return {progress:metaProg(g),text:document.querySelector('[data-lid="mt:g"]').innerText}})()`);
