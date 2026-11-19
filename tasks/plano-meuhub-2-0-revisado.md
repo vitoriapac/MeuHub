@@ -174,15 +174,18 @@ Para cada entrega: estados vazios e erros claros; teclado e alvos de toque utili
 
 Atualização do PWA e rollback merecem validação separada: uma cópia antiga pode estar aberta em outro aparelho. Testes simulados não comprovam o comportamento em aparelho físico ou Firebase de produção.
 
-## Decisões em aberto antes das fases dependentes
+## Decisões registradas e pontos ainda em aberto
 
-1. Quais situações devem aparecer na Atenção e por quanto tempo uma dispensa deve valer?
-2. Quais tipos poderão ser arquivados, e arquivar uma recorrência pausa futuras ocorrências?
-3. Planejamento em lote deve permitir alterar prazo, além de data planejada? Se sim, essa ação deve ser separada e explícita.
-4. Qual granularidade de compras parciais e como conciliar lista, cartão e lançamentos anteriores?
-5. Para F05, existem janelas de disponibilidade configuráveis ou somente uma capacidade diária?
-6. Quais custos, datas e hipóteses serão admitidos no simulador? Como explicar faturas sem conta de pagamento?
-7. F11 deve ser um projeto independente ou uma evolução de metas e projetos já existentes?
+- **Atenção:** os avisos atuais e a dispensa até o dia seguinte foram implementados; a integração restante com compras depende do fluxo de conciliação.
+- **Arquivamento:** pausar as futuras ocorrências de tarefas recorrentes preservando o histórico; ao arquivar uma meta, pausar também suas tarefas ligadas. Detalhar restauração e situações em que a tarefa já estava pausada ou tem outros vínculos.
+- **Planejamento em lote:** permitir alterar prazos em uma ação separada, com prévia e confirmação.
+- **Compras:** avisar sobre possíveis duplicatas e permitir criar outro lançamento ou associar o existente. A sessão permite selecionar itens, com confirmação quando há indícios de repetição; faltam verificações de arquivamento e concorrência entre aparelhos.
+- **Planejamento semanal:** usar janelas de disponibilidade configuráveis por dia, além da capacidade diária.
+- **Simulador:** usar fechamento e vencimento do cartão cadastrado, aceitar juros informados e avisar quando não houver conta de pagamento vinculada. Detalhar a fórmula de juros e a projeção das faturas antes de implementar.
+- **Projetos:** criar tipo independente com identidade própria para arquivamento e acompanhamento, sem depender de nomes iguais.
+- **Histórico:** sincronizar entre aparelhos, definindo antes deduplicação, retenção e recuperação dos registros existentes.
+
+Essas decisões orientam o trabalho futuro; a implementação dos itens pendentes ainda não foi concluída.
 
 ## Primeira entrega sugerida
 

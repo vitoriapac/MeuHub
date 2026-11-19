@@ -95,6 +95,8 @@ Cada pacote entrega um resultado que pode ser implementado e verificado separada
 
 **Pronto quando:** um lote pode ser revisto, executado e desfeito sem perda, duplicação ou alteração silenciosa de prazo.
 
+**Decisão implementada:** alterar prazo em lote é uma ação separada, com prévia, confirmação e exclusão de recorrências; preserva planejamento e horários.
+
 ## P05 — Política e central de arquivados
 
 **Objetivo:** encontrar e restaurar conteúdo arquivado sem confundi-lo com a Lixeira.
@@ -104,7 +106,7 @@ Cada pacote entrega um resultado que pode ser implementado e verificado separada
 - [x] Começar pela consulta e restauração de notas e listas já arquiváveis.
 - [ ] Expandir para tarefas e metas somente após testes de backup, mesclagem e recuperação.
 
-**Decisão:** ao arquivar futuramente uma tarefa recorrente, pausar suas próximas ocorrências e manter o histórico. A expansão para tarefas e metas ainda não foi implementada.
+**Decisões:** ao arquivar futuramente uma tarefa recorrente, pausar suas próximas ocorrências e manter o histórico. Ao arquivar uma meta, pausar as tarefas ligadas junto com ela. A expansão para tarefas e metas ainda não foi implementada; resta detalhar a restauração e o tratamento de tarefas já pausadas ou ligadas a mais de uma meta.
 
 **Pronto quando:** arquivar e restaurar preserva identidade, vínculos e estado, e itens arquivados deixam de gerar pendências indevidas.
 
@@ -115,7 +117,7 @@ Cada pacote entrega um resultado que pode ser implementado e verificado separada
 - [x] Reaproveitar a revisão guiada, compromissos, tarefas e `autoSlot` existentes.
 - [x] Capacidade diária permanece separada das janelas configuráveis por dia.
 - [x] Exibir conflitos, sobrecarga e duração estimada com clareza.
-- [ ] Permitir confirmar encaixes individualmente, com uma apresentação utilizável no celular.
+- [ ] Confirmar encaixes individualmente: prévia e confirmação implementadas na Agenda; ainda falta validação da apresentação em celular físico.
 
 **Pronto quando:** Hoje e Agenda refletem a mesma tarefa e nenhuma sugestão grava uma mudança sem ação explícita.
 
@@ -128,7 +130,7 @@ Cada pacote entrega um resultado que pode ser implementado e verificado separada
 - [x] Criar modelos simples de tarefas/subtarefas com novos IDs e datas relativas opcionais.
 - [ ] Verificar uso offline, backup e independência das instâncias criadas.
 
-**Situação:** os modelos de viagem e projeto criam tarefas e subtarefas independentes com prazo absoluto ou relativo opcional. A validação offline específica ainda está pendente.
+**Situação:** os modelos de viagem e projeto criam tarefas e subtarefas independentes com prazo absoluto ou relativo opcional. Foi adicionado teste de criação offline, recarga e reconexão simulada; resta verificar a restauração específica de backup.
 
 **Pronto quando:** repetir o fechamento não duplica registros e aplicar um modelo cria somente os itens escolhidos.
 
@@ -152,7 +154,9 @@ Cada pacote entrega um resultado que pode ser implementado e verificado separada
 - [ ] Exigir confirmação antes de criar ou ajustar lançamento financeiro.
 - [ ] Testar repetição, offline, reconexão, arquivamento e restauração.
 
-**Situação:** cada confirmação gera um identificador próprio e registra referências dos itens marcados; o total real completo pode preencher o valor. A conferência de duplicatas entre sessões independentes, a seleção explícita de itens por sessão e os testes offline/reconexão ainda estão pendentes.
+**Decisão:** diante de possível duplicata, avisar e permitir escolher entre criar outro lançamento ou associar o existente. A sessão permite escolher itens explicitamente; criar uma compra semelhante exige confirmação.
+
+**Situação:** cada confirmação gera um identificador próprio e registra referências dos itens marcados; o total real completo pode preencher o valor. É possível escolher uma despesa existente sem associação e confirmar sua vinculação, preservando valor, conta, data e categoria; valores iguais são sinalizados como possíveis duplicatas. Cada sessão permite selecionar itens; itens anteriormente associados e despesas sem associação com mesmo valor, data e conta exigem conferência antes de criar outra despesa. Os testes cobrem alteração concorrente da lista e do lançamento, criação offline e reconexão simulada. Ainda faltam verificações de arquivamento, restauração e conflitos de sincronização entre aparelhos.
 
 **Pronto quando:** marcar um item não movimenta contas e repetir a operação não duplica despesas nem descarta compras legítimas.
 
@@ -164,6 +168,8 @@ Cada pacote entrega um resultado que pode ser implementado e verificado separada
 - [ ] Isolar cálculos de funções existentes que podem alterar estado, como rotinas que chamam `genRec()`.
 - [ ] Apresentar cenário-base, impacto, menor saldo, período e exclusões.
 - [ ] Testar meses curtos, despesas existentes, saldo negativo e contas distintas.
+
+**Decisão:** para cenários de cartão, usar fechamento e vencimento cadastrados, permitir informar juros e avisar quando não houver conta de pagamento vinculada.
 
 **Situação:** há uma comparação somente de débito em conta com parcelas e juros compostos, usando lançamentos já cadastrados. A simulação informa que não inclui recorrências não lançadas nem faturas sem pagamento; cenários específicos de cartão e testes adicionais permanecem pendentes.
 
@@ -187,6 +193,8 @@ Cada pacote entrega um resultado que pode ser implementado e verificado separada
 - [ ] Definir status, datas, custos e regras de arquivamento/exclusão.
 - [ ] Construir a visão escolhida com tratamento de referências indisponíveis.
 
+**Decisão:** implementar projeto independente, com identidade própria, para permitir arquivamento e acompanhamento sem depender de nomes iguais.
+
 **Situação:** foi adicionada uma visão derivada dos nomes já usados em tarefas e despesas, com notas e metas ligadas às tarefas. Cadastro independente, status, datas e regras de arquivamento/exclusão ainda não foram implementados.
 
 **Pronto quando:** remover o projeto não apaga itens vinculados e custos não são contados duas vezes.
@@ -197,6 +205,8 @@ Cada pacote entrega um resultado que pode ser implementado e verificado separada
 
 - [ ] Definir eventos, dados mínimos, prazo de retenção, limite de tamanho e privacidade.
 - [ ] Testar deduplicação e recuperação após edição em aparelhos diferentes.
+
+**Decisão:** sincronizar o histórico entre aparelhos. Definir mesclagem, deduplicação, retenção e recuperação antes de migrar os registros locais.
 
 **Situação:** histórico local separado por conta, com tipo e horário de ações selecionadas, limitado a 100 eventos e 90 dias; a limpeza ocorre ao abrir o aplicativo ou registrar ações. Não inclui conteúdo, nomes ou valores e não sincroniza nem acompanha restaurações. A deduplicação e recuperação entre aparelhos ainda estão pendentes.
 
@@ -235,16 +245,17 @@ Cada pacote entrega um resultado que pode ser implementado e verificado separada
 - [ ] Atualização das versões do PWA e documentação quando necessário.
 - [ ] Registro explícito do que foi ou não verificado em aparelho físico e Firebase real.
 
-## Decisões que precisam anteceder o pacote correspondente
+## Decisões e detalhamentos por pacote
 
 | Pacote | Decisão |
 |---|---|
-| P02 | Quais alertas aparecem e quando uma dispensa expira? |
-| P04 | Além de planejar datas, haverá ação separada de alterar prazo? |
-| P05 | Quais tipos podem ser arquivados e o que acontece com recorrências? |
-| P06 | Há janelas de disponibilidade configuráveis ou apenas capacidade diária? |
-| P08–P09 | Como representar compras parciais e conciliá-las com lançamentos existentes? |
-| P10 | Quais juros, datas e despesas entram em cada cenário? |
-| P12 | Projeto será um tipo próprio ou uma evolução das estruturas atuais? |
+| P02 | Definido: dispensa até o dia seguinte, invalidada se a situação mudar. |
+| P04 | Definido: alterar prazo em ação separada, com prévia e confirmação. |
+| P05 | Definido: tarefas de meta arquivada e próximas ocorrências de recorrências serão pausadas. Detalhar restauração. |
+| P06 | Definido: janelas por dia e capacidade diária separada. |
+| P08–P09 | Definido: selecionar itens, avisar sobre possíveis duplicatas e permitir criar outro lançamento ou associar o existente. |
+| P10 | Definido: usar datas do cartão, aceitar juros e avisar sobre conta não vinculada. Detalhar cálculo e despesas. |
+| P12 | Definido: projeto independente. Detalhar status, datas, migração e exclusão. |
+| P13 | Definido: histórico sincronizado. Detalhar mesclagem, retenção e migração. |
 
 **Fora destes pacotes:** a conexão bancária futura permanece em [plano-open-finance-pessoal.md](plano-open-finance-pessoal.md) e exige avaliação própria de provedor, segurança e custos.

@@ -138,3 +138,9 @@ Em Backup, o histórico local mostra somente o tipo e horário de algumas altera
 Em Backup, **Exportar áreas selecionadas** gera JSON das áreas escolhidas ou CSV de tarefas, eventos e lançamentos. A exportação seletiva não inclui vínculos de outras áreas nem serve para restaurar o aplicativo; mantenha o backup completo para recuperação. O CSV protege células de texto que poderiam ser interpretadas como fórmulas.
 
 Em Personalizar menu, salve perfis de visualização com os cards e o menu atuais. Eles ficam neste navegador, separados por conta, fora do backup; ao trocar, o perfil ativo incorpora a configuração atual. Aplicar um perfil altera cards e menu, que usam a sincronização normal da conta. A escolha é sempre manual.
+
+Em Tarefas, a alteração de prazo em lote é uma ação separada do planejamento: revise os prazos anteriores e confirme para aplicar. Planejamento e horários permanecem iguais; recorrências são alteradas individualmente. Na Agenda diária, sugestões de encaixe exigem confirmação e são invalidadas se a agenda mudar.
+
+Ao registrar uma compra, também é possível associar uma despesa existente ainda não vinculada. Valores iguais são destacados para conferência; a associação não altera valor, conta, data ou categoria e não cria um novo lançamento.
+
+Em compras parciais, escolha os itens da sessão antes de confirmar. O MeuHub avisa se os itens já foram usados em outra compra ou se há despesa sem vínculo com mesmo valor, data e conta; é possível associar a despesa ou confirmar uma nova compra. Se um item selecionado ou o lançamento escolhido mudar enquanto a tela estiver aberta, reabra a operação para conferir.
