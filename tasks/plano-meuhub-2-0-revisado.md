@@ -177,13 +177,13 @@ Atualização do PWA e rollback merecem validação separada: uma cópia antiga 
 ## Decisões registradas e pontos ainda em aberto
 
 - **Atenção:** os avisos atuais e a dispensa até o dia seguinte foram implementados; a integração restante com compras depende do fluxo de conciliação.
-- **Arquivamento:** pausar as futuras ocorrências de tarefas recorrentes preservando o histórico; ao arquivar uma meta, pausar também suas tarefas ligadas. Detalhar restauração e situações em que a tarefa já estava pausada ou tem outros vínculos.
+- **Arquivamento:** pausar as futuras ocorrências de tarefas recorrentes preservando o histórico; ao arquivar uma meta, pausar também suas tarefas ligadas. A restauração preserva pausas individuais e de outras metas; implementação e testes simulados concluídos.
 - **Planejamento em lote:** permitir alterar prazos em uma ação separada, com prévia e confirmação.
-- **Compras:** avisar sobre possíveis duplicatas e permitir criar outro lançamento ou associar o existente. A sessão permite selecionar itens, com confirmação quando há indícios de repetição; faltam verificações de arquivamento e concorrência entre aparelhos.
+- **Compras:** avisar sobre possíveis duplicatas e permitir criar outro lançamento ou associar o existente. A sessão permite selecionar itens, com confirmação quando há indícios de repetição; arquivamento, restauração e mesclagem foram testados em ambiente simulado.
 - **Planejamento semanal:** usar janelas de disponibilidade configuráveis por dia, além da capacidade diária.
-- **Simulador:** usar fechamento e vencimento do cartão cadastrado, aceitar juros informados e avisar quando não houver conta de pagamento vinculada. Detalhar a fórmula de juros e a projeção das faturas antes de implementar.
-- **Projetos:** criar tipo independente com identidade própria para arquivamento e acompanhamento, sem depender de nomes iguais.
-- **Histórico:** sincronizar entre aparelhos, definindo antes deduplicação, retenção e recuperação dos registros existentes.
+- **Simulador:** usar fechamento e vencimento do cartão cadastrado, aceitar juros informados e avisar quando não houver conta de pagamento vinculada. Implementado com juros compostos sobre o total; usa a conta escolhida apenas na simulação e informa as exclusões.
+- **Projetos:** tipo independente implementado, com identidade própria e referências aos registros.
+- **Histórico:** sincronização implementada com IDs estáveis, retenção limitada, migração local e testes simulados.
 
 Essas decisões orientam o trabalho futuro; a implementação dos itens pendentes ainda não foi concluída.
 

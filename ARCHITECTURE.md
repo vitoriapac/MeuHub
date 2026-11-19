@@ -88,15 +88,19 @@ O estado é inicializado em `js/core.js` e mesclado com o conteúdo local válid
 
 | Campo | Conteúdo principal |
 |---|---|
-| `tasks` | Tarefas com `id`, `t`, `done`, prioridade `p`, prazo `due`, data planejada `hd` e bloco opcional `bk`. |
+| `tasks` | Tarefas com `id`, `t`, `done`, prioridade `p`, prazo `due`, data planejada `hd`, bloco opcional `bk`, `archived` e `seriesId` de recorrências novas. |
 | `events` | Compromissos com título `t`, data `d` e horário `h`. |
 | `notes`, `links`, `inbox` | Notas, atalhos e capturas pendentes. |
 | `habits` | Hábitos com `id`, nome `n` e registros `log` por data; `perWeek` opcional define a meta de 1 a 7 vezes por semana. Sem esse campo, o hábito é diário. |
 | `fin` | Objeto financeiro com `tx`, `acc`, `rec`, `bills`, `bud`, `goals` e outras coleções. `primary` opcional identifica a conta principal escolhida. |
-| `metas` | Metas pessoais, acompanhamentos e prazo; tarefas usam `mt` para vínculo direto. |
+| `metas` | Metas pessoais e acompanhamentos; `archived` e `pausedTaskIds` preservam o escopo de tarefas pausadas ao arquivar. |
+| `projects` | Projetos independentes com `id`, nome, situação, datas opcionais e referências tipadas em `refs`; os registros referenciados não são copiados. |
+| `history` | Eventos sincronizáveis com identificador técnico, tipo e horário; sem nomes, valores ou conteúdo, com limite de 100 eventos e 90 dias. |
 | `dia`, `rot`, `rotPrefs`, `rev`, `revprefs` | Diário, rotina e preferências de revisão. `rev` não é o contador de sincronização. |
 | `menu`, `cards`, `pal`, `themeMode` | Personalização do menu, cards e aparência. |
 | `lnk`, `trash`, `reads`, `fm` | Ligações, lixeira, leituras e minutos de foco. |
+
+Ao arquivar uma meta, os identificadores das tarefas acompanhadas ficam registrados para preservar a pausa mesmo se os vínculos mudarem. Vínculos recebidos posteriormente também são considerados enquanto a meta estiver arquivada. Restauração preserva arquivamento individual e pausas causadas por outras metas. O simulador financeiro é uma função de consulta: não grava transações e informa as exclusões da projeção.
 
 Esta tabela resume os campos mais relevantes; `S`, `SK` e `validBackup()` são as referências para valores e validações completos.
 
@@ -106,8 +110,10 @@ Esta tabela resume os campos mais relevantes; `S`, `SK` e `validBackup()` são a
 |---|---|---|
 | `hub-v1` | JSON completo do estado `S` da conta ativa. | Por conta (trocado via `acctSwap`). |
 | `hub-sync` | Metadados de sincronização (`{ uid, email, name, lastSync, base: <JSON do último S sincronizado> }`). | Por conta (trocado via `acctSwap`). |
-| `hub-snaps-v1` | Até 8 snapshots automáticos locais (`[{ rev, ts, note, data }]`) criados a cada ≥ 5 min ou antes de mesclas/importações. | Por conta (trocado via `acctSwap`). |
-| `hub-acct-<uid>` | Backup local congelado de `[hub-v1, hub-sync, hub-snaps-v1]` quando outra pessoa faz login no mesmo navegador. | Persistente por `uid`. |
+| `hub-snaps` | Até 8 versões locais, sujeitas ao espaço disponível, com estado e metadados; criadas automaticamente e antes de operações de recuperação ou mesclagem. | Por conta (trocado via `acctSwap`). |
+| `hub-history` | Histórico local anterior, migrado com IDs estáveis para `S.history` e sujeito à retenção de 90 dias. | Por conta (trocado via `acctSwap`). |
+| `hub-view-profiles` | Perfis nomeados de cards e menu; não são incluídos em backups nem sincronizados. | Por conta (trocado via `acctSwap`). |
+| `hub-acct-<uid>` | Cópia das chaves da conta anterior ao alternar usuários no navegador. | Persistente por `uid`. |
 | `hub-wxc` | Cache de 30 minutos da resposta meteorológica do Open-Meteo (`{ key, ts, cur, d }`). | Global do navegador. |
 
 ---

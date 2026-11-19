@@ -39,7 +39,7 @@ Um painel pessoal brasileiro que reúne **planejamento do dia**, **controle fina
 - **Notas, Diário, Humor e Leituras:** notas fixáveis com checklist e modelos agrupados em **Usar modelo**, listas de compras com quantidades, edição, duplicação, compartilhamento, orçamento estimado, histórico de compras e sugestões de itens, atalhos para notas fixadas, recentes e para revisitar, além de sugestões por etiqueta ou ligação, diário com perguntas guiadas e retrospectiva do ano, registro de humor e estante de livros/cursos/filmes/séries.
 - **Conexões (`links2`) e Etiquetas:** qualquer item do hub pode ser conectado a outro (ex.: ligar uma tarefa a uma nota ou meta) e filtrado por `#etiquetas`.
 - **Paleta de Comandos (`Ctrl+K`) e Busca Global:** navegue, execute ações ou encontre qualquer item instantaneamente.
-- **Segurança dos Dados:** proteção na abertura e importação de dados inválidos, alertas de tarefas e conflitos de agenda com opção de ocultar até amanhã, resumo da última sincronização e backup no Início, estado detalhado da sincronização em Backup, Desfazer/Refazer (`Ctrl+Z` / `Ctrl+Y`, até 30 passos), Lixeira com retenção de 30 dias, até 8 versões locais, limitadas pelo espaço disponível, e exportação/importação JSON.
+- **Segurança dos Dados:** proteção na abertura e importação de dados inválidos, alertas de tarefas e conflitos de agenda com opção de ocultar até amanhã, resumo e estado detalhado da sincronização em Backup, Desfazer/Refazer (`Ctrl+Z` / `Ctrl+Y`, até 30 passos), Lixeira com retenção de 30 dias, até 8 versões locais, limitadas pelo espaço disponível, e exportação/importação JSON.
 - **Modo Privacidade:** botão do olho na barra lateral borra todos os valores em `R$`, notas e textos do diário quando há alguém por perto.
 
 ---
@@ -121,7 +121,7 @@ O executor [`tests/run.js`](file:///c:/Users/vitor/Documents/MeuHub/tests/run.js
 
 ### Arquivados e planejamento
 
-A central **Arquivados** reúne notas e listas de compras, permite buscar pelo conteúdo e restaurar os itens preservando seus vínculos. Tarefas e metas ainda não podem ser arquivadas.
+A central **Arquivados** reúne notas, listas, tarefas, metas e projetos, permitindo buscar e restaurar sem perder vínculos ou histórico. Ao arquivar uma meta, as tarefas pendentes que ela acompanha diretamente, por ligação, projeto ou etiqueta são pausadas. Ao restaurar, permanecem pausadas as tarefas arquivadas individualmente ou por outra meta. Tarefas recorrentes arquivadas não geram novas ocorrências enquanto estiverem pausadas; prazos e horários são preservados.
 
 Na Agenda, configure uma ou mais janelas de horário para cada dia da semana. A primeira janela substitui o padrão de 8h a 22h; remover todas torna o dia indisponível, e “Usar padrão” recupera o horário inicial. A capacidade diária é um limite separado. As janelas são incluídas no backup e na sincronização.
 
@@ -129,11 +129,11 @@ Em Tarefas, os modelos criam cópias independentes com subtarefas e prazo opcion
 
 Nas listas de compras, quantidade numérica, unidade e preços estimado e real por unidade são opcionais. Os preços são guardados em centavos e cada subtotal é arredondado para centavos; os totais indicam quando faltam dados. Ao registrar uma compra, confira valor, conta, data e categoria: cada confirmação cria uma despesa independente.
 
-O simulador de compra em Finanças compara débitos em uma conta com os lançamentos já cadastrados, sem salvar o cenário. Ele informa as exclusões e ainda não simula o fechamento de faturas de cartão.
+O simulador de compra em Finanças compara débitos em conta ou parcelas no cartão com os lançamentos já cadastrados, sem salvar o cenário. No cartão, usa fechamento e vencimento cadastrados e informa que a conta escolhida é apenas para a simulação. Juros compostos incidem mensalmente sobre o valor total. A base exclui recorrências não lançadas e faturas sem pagamento agendado.
 
 Nas recorrências de assinaturas, marque uma revisão para que ela apareça em Atenção; criar uma tarefa é opcional e não cria cobranças. Em Tarefas, a visão dos projetos reúne tarefas e despesas com o mesmo nome, além de notas e metas ligadas às tarefas.
 
-Em Backup, o histórico local mostra somente o tipo e horário de algumas alterações, sem nomes, conteúdos ou valores. Ele mantém até 100 eventos por até 90 dias, com limpeza ao abrir o app ou registrar uma ação; fica separado por conta no navegador e não é sincronizado nem substitui backup.
+Em Backup, o histórico mostra o tipo e horário de algumas alterações, sem nomes, conteúdos ou valores. Ele mantém até 100 eventos por até 90 dias e acompanha a sincronização da conta quando ela estiver ativa. Ao restaurar um backup, os eventos existentes são preservados e a restauração é registrada. O histórico não substitui o backup.
 
 Em Backup, **Exportar áreas selecionadas** gera JSON das áreas escolhidas ou CSV de tarefas, eventos e lançamentos. A exportação seletiva não inclui vínculos de outras áreas nem serve para restaurar o aplicativo; mantenha o backup completo para recuperação. O CSV protege células de texto que poderiam ser interpretadas como fórmulas.
 
@@ -144,3 +144,5 @@ Em Tarefas, a alteração de prazo em lote é uma ação separada do planejament
 Ao registrar uma compra, também é possível associar uma despesa existente ainda não vinculada. Valores iguais são destacados para conferência; a associação não altera valor, conta, data ou categoria e não cria um novo lançamento.
 
 Em compras parciais, escolha os itens da sessão antes de confirmar. O MeuHub avisa se os itens já foram usados em outra compra ou se há despesa sem vínculo com mesmo valor, data e conta; é possível associar a despesa ou confirmar uma nova compra. Se um item selecionado ou o lançamento escolhido mudar enquanto a tela estiver aberta, reabra a operação para conferir.
+
+Na aba **Projetos**, crie agrupamentos com identidade própria, situação e datas opcionais. Vincule tarefas, metas, notas e despesas existentes sem copiá-las. Arquivar ou excluir o projeto preserva os itens; projetos excluídos podem ser recuperados da Lixeira. Os agrupamentos antigos por nome continuam disponíveis em Tarefas e não são convertidos automaticamente.

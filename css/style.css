@@ -453,3 +453,5 @@ html[data-priv="1"] :is(.note .rt,textarea[data-dk],textarea[data-rv],textarea[d
 }
 
 #main details:has(> #task-template)>summary,#main details:has(> #bulk-plan)>summary,#main details:has(> #bulk-due)>summary{padding:var(--space-2) 0;cursor:pointer}
+
+.project-actions{display:inline-flex;align-items:center;gap:var(--space-2);flex:none}

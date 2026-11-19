@@ -10,7 +10,7 @@ function heroCard(){
  S.tasks.forEach(t=>{if(t.done&&t.dd in idx)dTk[idx[t.dd]]++});
  ((S.fin||{}).tx||[]).forEach(t=>{if(t.k==='out'&&t.d in idx)dFx[idx[t.d]]+=+t.v||0});
  const dHb=days.map(k=>S.habits.filter(h=>h.log&&h.log[k]).length),sum=(a,x,y)=>a.slice(x,y).reduce((p,q)=>p+q,0);
- const hj0=dTk[13],goal=S.goal||3,pend=S.tasks.filter(t=>!t.done&&(t.hd===T||(t.due&&t.due<=T))).length;
+ const hj0=dTk[13],goal=S.goal||3,pend=S.tasks.filter(t=>!t.done&&!taskPaused(t)&&(t.hd===T||(t.due&&t.due<=T))).length;
  const hs=S.habits,hsummary=habitSummary();
  const evs=evOn(T),nowm=mm(nowH()),cur=evs.find(e=>{const r=sp(e);return r[0]<=nowm&&nowm<r[1]}),nx=evs.find(e=>sp(e)[0]>nowm),past=evs.filter(e=>sp(e)[1]<=nowm).length;
  let eBig='Dia livre',eSub=evs.length?'Sem mais compromissos hoje':'Nenhum evento hoje';
@@ -19,7 +19,7 @@ function heroCard(){
  else{const u=upcoming(8).find(x=>x.d>T);if(u){eBig=esc(u.t);eSub=fmt(u.d)+' às '+u.h}}
  const F=finInit(),{inc,out}=finMonth(0),hasFx=F.tx.length>0,fp=inc>0?Math.round(out/inc*100):0;
  const parts=[];if(pend)parts.push(pend+(pend>1?' tarefas':' tarefa')+' para hoje');if(evs.length)parts.push(evs.length+(evs.length>1?' compromissos':' compromisso'));const dailyPending=hs.filter(h=>!h.perWeek&&!h.log[T]).length;if(dailyPending)parts.push(dailyPending+(dailyPending>1?' hábitos diários pendentes':' hábito diário pendente'));
- const nextTask=S.tasks.filter(t=>!t.done&&(t.hd===T||(t.due&&t.due<=T))).sort((a,b)=>'amb'.indexOf(a.p||'m')-'amb'.indexOf(b.p||'m')||(a.due||'9999').localeCompare(b.due||'9999'))[0];
+ const nextTask=S.tasks.filter(t=>!t.done&&!taskPaused(t)&&(t.hd===T||(t.due&&t.due<=T))).sort((a,b)=>'amb'.indexOf(a.p||'m')-'amb'.indexOf(b.p||'m')||(a.due||'9999').localeCompare(b.due||'9999'))[0];
  return `<section class="hero2" aria-label="Resumo do dia"><div class="top"><h1>${saud()}${S.profileName?', '+esc(S.profileName):''}! Hoje é ${DIAF[today.getDay()]}, ${today.getDate()} de ${MESF[today.getMonth()]}</h1></div><p class="hsub">${parts.length?parts.join(' · '):'Nada pendente por enquanto. Bom momento para planejar algo.'}</p>${nextTask?`<p><button class="pill" data-v="hoje">Próxima tarefa: ${esc(nextTask.t)}</button></p>`:''}${focusBox()}
  <div class="kpis">${kpi('tarefas','check','var(--s1)',Math.round(hj0/goal*100),'Meta de hoje',hj0+'/'+goal,pend?pend+' para hoje':'Nada pendente para hoje',dTk,kTrend(sum(dTk,7),sum(dTk,0,7),0,'concluídas'))}
  ${kpi('habitos','repeat','var(--s1)',hsummary.daily?Math.round(hsummary.done/hsummary.daily*100):0,'Hábitos diários',hsummary.daily?hsummary.done+'/'+hsummary.daily:'—',hsummary.text||'Registros de hoje',hs.length?dHb:null,hs.length?kTrend(sum(dHb,7),sum(dHb,0,7),0,'marcações'):'')}
@@ -27,7 +27,7 @@ function heroCard(){
  ${kpi('financas','wallet',fp>100?'var(--neg)':'var(--s1)',Math.min(100,fp),'Resultado do mês',hasFx?BRL(inc-out):'—',hasFx?(inc>0?'Gastou '+fp+'% da renda':'Gastos: '+BRL(out)):'Lance sua primeira despesa',hasFx?dFx:null,hasFx?kTrend(sum(dFx,7),sum(dFx,0,7),1,'nos gastos'):'')}</div></section>`}
 function lineCard(){
  const L0=[...evOn(T),...blocksOn(T)].filter(e=>e.h).sort((x,y)=>sp(x)[0]-sp(y)[0]),nowm=mm(nowH());
- const free=S.tasks.filter(t=>!t.done&&(t.hd===T||t.due===T)&&!(t.bk&&t.bk.d===T));
+ const free=S.tasks.filter(t=>!t.done&&!taskPaused(t)&&(t.hd===T||t.due===T)&&!(t.bk&&t.bk.d===T));
  let a=8,z=20;const pts=L0.flatMap(e=>[Math.floor(sp(e)[0]/60),Math.ceil(sp(e)[1]/60)]);
  if(pts.length){a=Math.min(...pts)-1;z=Math.max(...pts)+1;if(z-a<8){const x=8-(z-a);a-=Math.floor(x/2);z+=Math.ceil(x/2)}}
  a=Math.max(0,a);z=Math.min(24,Math.max(z,a+8));if(z-a<8)a=Math.max(0,z-8);const span=(z-a)*60,it=layout(L0),rows=Math.max(1,...it.map(x=>x.l+1)),pc=m=>((m-a*60)/span*100).toFixed(2);
