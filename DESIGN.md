@@ -247,6 +247,11 @@ Os cards do topo do Início: fundo Papel, cantos de 18px, padding de 16px (12px 
 ### Empty state (signature)
 Ícone num quadrado de 64px com cantos de 20px, sobre uma pequena cena geométrica (círculos e uma onda) tingida pelo acento. Embaixo vêm uma frase em negrito, uma dica gentil e, quando faz sentido, um botão. O tom segue a voz do produto: "Tudo em dia!", "Seu dia está livre."
 
+## Organização das abas
+
+- Exiba primeiro o conteúdo principal e as ações frequentes. Coloque configurações e ferramentas secundárias da aba ao final da página, depois do conteúdo.
+- Mantenha filtros e ações necessárias para consultar ou criar itens próximos do conteúdo; ações de edição específicas podem permanecer junto ao item. Em páginas dedicadas exclusivamente a configurações, organize as opções relacionadas em seções claras.
+
 ## Do's and Don'ts
 
 ### Do:
