@@ -4,7 +4,7 @@ const FTABS=[['geral','Visão geral'],['analise','Análises'],['lanc','Lançamen
 function financas(){
  if(S.fvw==='ano')return relAnual();
  const tab=FTABS.some(x=>x[0]===S.ftab)?S.ftab:'geral';
- return financasMes(tab)+(tab==='geral'||tab==='analise'?simulationPanel():'');
+ return financasMes(tab)+(tab==='geral'||tab==='analise'?simulationPanel():'')+finClearPanel();
 }
 /* captura rápida com despesa e receita */
 function qa(t){

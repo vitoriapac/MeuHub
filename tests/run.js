@@ -1797,6 +1797,379 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       assert.notStrictEqual(r.defSwc, 'rgb(18, 18, 18)');
       assert.notStrictEqual(r.accVal, '#121212');
     }],
+    ['importação de extrato com resumo (Mercado Pago), categorização automática, edição na prévia e detecção por ID', async () => {
+      await fresh(); await login('A');
+      const csv = [
+        'INITIAL_BALANCE;CREDITS;DEBITS;FINAL_BALANCE',
+        '559,05;1.246,26;-674,26;1.131,05',
+        '',
+        'RELEASE_DATE;TRANSACTION_TYPE;REFERENCE_ID;TRANSACTION_NET_AMOUNT;PARTIAL_BALANCE',
+        '22-10-2026;Rendimentos ;1751973950668;0,23;559,28',
+        '23-10-2026;Pagamento DIA;185741202268;-4,48;506,54',
+        '27-10-2026;Pagamento com Pix 99 TECNOLOGIA LTDA;185393267235;-20,62;313,97',
+        '29-10-2026;Pagamento ;186727431602;-39,86;250,60',
+        '29-10-2026;Reembolso de pagamento ;186727431602;39,86;261,27',
+        '04-11-2026;Pix automático Ebanx;186617785871;-16,79;181,66',
+        '04-11-2026;Pagamento iFood;186752429457;-49,10;679,56',
+        '05-11-2026;Pagamento Kalunga sant*kalunga 0;187948983462;-99,50;512,55',
+        '06-11-2026;Transferência recebida VITORIA CRISTINA PACHECO DE JESUS;187006854523;1.156,17;1.524,66',
+        '06-11-2026;Reserva por gasto Emergências;188085990522;-2,00;1.494,67',
+        '06-11-2026;Reserva por gasto Emergências;188154756920;-2,00;1.480,81',
+        '09-11-2026;Pagamento com Pix CLARO NXT TELECOMUNICACOES SA;188616751014;-224,70;630,52',
+        '09-11-2026;Pagamento Uber;188757434166;-15,87;561,16',
+        '10-11-2026;Pagamento Restauranteelanch;188865040222;-43,00;397,02',
+        '12-11-2026;Pagamento Av santa catarina;189255754288;-6,00;258,66',
+        '17-11-2026;Dinheiro retirado Emergências;190138051780;50,00;64,45',
+        '20-11-2026;Pagamento Anthropic* claude sub;189593632315;-113,85;808,56',
+        '20-11-2026;Pagamento OXXO;190785071546;-19,59;727,94',
+        '23-10-2026;Pagamento GOOGLE BRASIL PAGAMENTOS LTDA.;184789336743;-16,90;480,58'
+      ].join('\n');
+      const r = await ev(`(()=>{
+        S.fin={tx:[],acc:[{id:'main',n:'Conta principal',ty:'cc',ini:0}],rec:[],rules:[],bud:{},goals:[],prules:[],split:[],bills:[]};
+        S.view='financas';S.fvw='mes';S.ftab='regras';render();
+        const pf=document.querySelector('#fcsvpaste');
+        pf.elements.csv.value=${JSON.stringify(csv)};
+        pf.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const previewBefore={...impRows(),meta:IMP.meta};
+        const rest=document.querySelector('[data-imp-rest]');if(rest)rest.open=true;
+        const avSel=document.querySelector('[data-imp-cat="pagamento av santa catarina"]');
+        avSel.value='Alimentação';avSel.dispatchEvent(new Event('change',{bubbles:true}));
+        const restStayedOpen=!!document.querySelector('[data-imp-rest][open]');
+        document.querySelector('[data-a="impgo"]').click();
+        const tx=S.fin.tx.slice();
+        const byDesc=d=>tx.find(x=>x.t.includes(d));
+        const balance=+bal(S.fin.acc[0]).toFixed(2);
+        const valid=validBackup(pick());
+        const pf2=document.querySelector('#fcsvpaste');
+        pf2.elements.csv.value=${JSON.stringify(csv)};
+        pf2.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const reimport=impRows();
+        IMP=null;
+        S.fin.tx.push({id:'legacy-outros',k:'out',t:'Pagamento OXXO',v:10,cat:'Outros',d:T,ac:'main'});
+        const applied=applyRules(false);
+        const legacy=S.fin.tx.find(x=>x.id==='legacy-outros');
+        return {
+          meta:previewBefore.meta,
+          resTotal:previewBefore.resTotal,
+          bad:previewBefore.bad,
+          dupBefore:previewBefore.rows.filter(x=>x.dup).length,
+          restStayedOpen,
+          count:tx.length,
+          balance,
+          valid,
+          rules:S.fin.rules.length,
+          dia:byDesc('Pagamento DIA'),
+          oxxo:byDesc('Pagamento OXXO'),
+          rest:byDesc('Restauranteelanch'),
+          ifood:byDesc('iFood'),
+          uber:byDesc('Uber'),
+          p99:byDesc('99 TECNOLOGIA'),
+          claro:byDesc('CLARO NXT'),
+          google:byDesc('GOOGLE BRASIL'),
+          ebanx:byDesc('Ebanx'),
+          claude:byDesc('Anthropic'),
+          kalunga:byDesc('Kalunga'),
+          rend:byDesc('Rendimentos'),
+          reemb:byDesc('Reembolso de pagamento'),
+          resgate:byDesc('Dinheiro retirado'),
+          av:byDesc('Av santa catarina'),
+          reservas:tx.filter(x=>x.t==='Reserva por gasto Emergências').length,
+          reimportAllDup:reimport.rows.every(x=>x.dup),
+          applied,
+          legacyCat:legacy.cat,
+          legacySub:legacy.sub,
+          aluguelDia:dictCat('Aluguel dia 5')
+        };
+      })()`);
+      assert.strictEqual(r.meta.ini, 559.05);
+      assert.strictEqual(r.resTotal, 3);
+      assert.deepStrictEqual(r.bad, []);
+      assert.strictEqual(r.dupBefore, 0);
+      assert.ok(r.restStayedOpen);
+      assert.strictEqual(r.count, 19);
+      assert.strictEqual(r.reservas, 2);
+      assert.strictEqual(r.balance, 1131.05);
+      assert.ok(r.valid);
+      assert.strictEqual(r.rules, 1);
+      assert.strictEqual(r.dia.cat, 'Alimentação'); assert.strictEqual(r.dia.sub, 'Mercado');
+      assert.strictEqual(r.oxxo.cat, 'Alimentação'); assert.strictEqual(r.oxxo.sub, 'Mercado');
+      assert.strictEqual(r.rest.cat, 'Alimentação'); assert.strictEqual(r.rest.sub, 'Restaurante');
+      assert.strictEqual(r.ifood.cat, 'Alimentação'); assert.strictEqual(r.ifood.sub, 'Delivery');
+      assert.strictEqual(r.uber.cat, 'Transporte'); assert.strictEqual(r.uber.sub, 'App');
+      assert.strictEqual(r.p99.cat, 'Transporte'); assert.strictEqual(r.p99.sub, 'App');
+      assert.strictEqual(r.claro.cat, 'Moradia'); assert.strictEqual(r.claro.sub, 'Internet e telefone');
+      assert.strictEqual(r.google.cat, 'Assinaturas'); assert.strictEqual(r.google.sub, 'Serviços digitais');
+      assert.strictEqual(r.ebanx.cat, 'Assinaturas');
+      assert.strictEqual(r.claude.cat, 'Assinaturas'); assert.strictEqual(r.claude.sub, 'IA e software');
+      assert.strictEqual(r.kalunga.cat, 'Educação');
+      assert.strictEqual(r.rend.cat, 'Receita'); assert.strictEqual(r.rend.sub, 'Rendimentos');
+      assert.strictEqual(r.reemb.k, 'in'); assert.strictEqual(r.reemb.sub, 'Reembolso');
+      assert.strictEqual(r.resgate.k, 'in'); assert.strictEqual(r.resgate.sub, 'Resgate de reserva');
+      assert.strictEqual(r.av.cat, 'Alimentação');
+      assert.ok(r.reimportAllDup);
+      assert.strictEqual(r.applied, 1);
+      assert.strictEqual(r.legacyCat, 'Alimentação');
+      assert.strictEqual(r.legacySub, 'Mercado');
+      assert.strictEqual(r.aluguelDia, 'Moradia');
+    }],
+    ['limpar lançamentos e zerar finanças exigem confirmação, salvam versão e permitem desfazer', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        localStorage.removeItem(SNK);
+        S.events=[{id:'ev_bill',t:'Conta: Aluguel',d:T,h:'09:00',r:'m',c:'p'},{id:'ev_other',t:'Reunião',d:T,h:'10:00',c:'b'}];
+        S.fin={
+          tx:[{id:'t1',k:'out',t:'Mercado',v:50,cat:'Alimentação',d:T,ac:'main'},{id:'r_rec1_'+T.slice(0,7),k:'out',t:'Academia',v:100,cat:'Saúde',d:T,ac:'main',rc:'rec1'}],
+          acc:[{id:'main',n:'Conta principal',ty:'cc',ini:500},{id:'c1',n:'Cartão',ty:'card',ini:0,lim:1000,close:28,due:10}],
+          rec:[{id:'rec1',k:'out',t:'Academia',v:100,cat:'Saúde',ac:'main',day:+T.slice(8),ini:T}],
+          rules:[{id:'rl1',m:'uber',md:'c',ty:'out',cat:'Transporte',on:true}],
+          bud:{Alimentação:600},
+          goals:[{id:'g1',n:'Viagem',target:1000,saved:200}],
+          prules:[],split:[],
+          bills:[{id:'b1',n:'Aluguel',v:1200,day:5,eid:'ev_bill',ac:'main'}]
+        };
+        S.view='financas';S.fvw='mes';S.ftab='regras';render();
+        const cards=document.querySelector('#main .cards'),tools=document.querySelector('[data-fin-tools]');
+        const toolsAfter=!!(cards&&tools&&(cards.compareDocumentPosition(tools)&Node.DOCUMENT_POSITION_FOLLOWING));
+        document.querySelector('[data-a="fincleartx"]').click();
+        const armTxText=document.querySelector('[data-a="fincleartx"]').textContent;
+        const stillBeforeConfirm=S.fin.tx.length===2&&S.fin.acc[0].ini===500;
+        document.querySelector('[data-a="fincleartx"]').click();
+        genRec();
+        const afterClearTx={txLen:S.fin.tx.length,ini:S.fin.acc[0].ini,rulesLen:S.fin.rules.length,recLen:S.fin.rec.length,snaps:snaps().length,snapWhy:snaps()[0]?.why};
+        document.querySelector('#toast [data-a="undo"]').click();
+        const afterUndoTx={txLen:S.fin.tx.length,ini:S.fin.acc[0].ini};
+        localStorage.removeItem(SNK);
+        document.querySelector('[data-a="finclearall"]').click();
+        const armAllText=document.querySelector('[data-a="finclearall"]').textContent;
+        document.querySelector('[data-a="finclearall"]').click();
+        const afterClearAll={txLen:S.fin.tx.length,accLen:S.fin.acc.length,ini:S.fin.acc[0].ini,rulesLen:S.fin.rules.length,recLen:S.fin.rec.length,billsLen:S.fin.bills.length,goalsLen:S.fin.goals.length,events:S.events.map(e=>e.id),snaps:snaps().length,snapWhy:snaps()[0]?.why,valid:validBackup(pick())};
+        document.querySelector('#toast [data-a="undo"]').click();
+        const afterUndoAll={txLen:S.fin.tx.length,accLen:S.fin.acc.length,rulesLen:S.fin.rules.length,billsLen:S.fin.bills.length,events:S.events.map(e=>e.id)};
+        return {toolsAfter,armTxText,stillBeforeConfirm,afterClearTx,afterUndoTx,armAllText,afterClearAll,afterUndoAll};
+      })()`);
+      assert.ok(r.toolsAfter);
+      assert.match(r.armTxText, /Confirmar/);
+      assert.ok(r.stillBeforeConfirm);
+      assert.deepStrictEqual(r.afterClearTx, {txLen:0, ini:0, rulesLen:1, recLen:1, snaps:1, snapWhy:'Antes de limpar lançamentos das Finanças'});
+      assert.deepStrictEqual(r.afterUndoTx, {txLen:2, ini:500});
+      assert.match(r.armAllText, /Confirmar/);
+      assert.strictEqual(r.afterClearAll.txLen, 0);
+      assert.strictEqual(r.afterClearAll.accLen, 1);
+      assert.strictEqual(r.afterClearAll.ini, 0);
+      assert.strictEqual(r.afterClearAll.rulesLen, 0);
+      assert.strictEqual(r.afterClearAll.recLen, 0);
+      assert.strictEqual(r.afterClearAll.billsLen, 0);
+      assert.strictEqual(r.afterClearAll.goalsLen, 0);
+      assert.deepStrictEqual(r.afterClearAll.events, ['ev_other']);
+      assert.strictEqual(r.afterClearAll.snaps, 1);
+      assert.strictEqual(r.afterClearAll.snapWhy, 'Antes de zerar Finanças');
+      assert.ok(r.afterClearAll.valid);
+      assert.strictEqual(r.afterUndoAll.txLen, 2);
+      assert.strictEqual(r.afterUndoAll.accLen, 2);
+      assert.strictEqual(r.afterUndoAll.rulesLen, 1);
+      assert.strictEqual(r.afterUndoAll.billsLen, 1);
+      assert.deepStrictEqual(r.afterUndoAll.events, ['ev_bill', 'ev_other']);
+    }],
+    ['importação avançada: cofrinhos como transferência, abatimento de estornos, OFX e fatura de cartão', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        S.fin={tx:[],acc:[{id:'main',n:'Conta principal',ty:'cc',ini:0},{id:'card1',n:'Cartão',ty:'card',ini:0,lim:2000,close:28,due:10}],rec:[],recDismiss:[],rules:[],bud:{},budHist:{},goals:[],prules:[],split:[],bills:[]};
+        S.view='financas';S.fvw='mes';S.ftab='regras';S.fmo=0;S.fac='';render();
+        const pm=addM(T,-1).slice(0,7), dmy=(dd)=>dd+'-'+pm.slice(5,7)+'-'+pm.slice(0,4);
+        const csv=[
+          'INITIAL_BALANCE;CREDITS;DEBITS;FINAL_BALANCE',
+          '500,00;35,00;-142,00;393,00',
+          '',
+          'RELEASE_DATE;TRANSACTION_TYPE;REFERENCE_ID;TRANSACTION_NET_AMOUNT;PARTIAL_BALANCE',
+          dmy('05')+';Pagamento iFood;r_ifood;-100,00;400,00',
+          dmy('06')+';Pagamento Loja X;r_loja;-30,00;370,00',
+          dmy('06')+';Reembolso de pagamento ;r_loja;30,00;400,00',
+          dmy('07')+';Reserva por gasto Emergências;r_res1;-2,00;398,00',
+          dmy('08')+';Reserva programada Emergências;r_res2;-10,00;388,00',
+          dmy('09')+';Dinheiro retirado Emergências;r_res3;5,00;393,00'
+        ].join('\\n');
+        const pf=document.querySelector('#fcsvpaste');
+        pf.elements.csv.value=csv;
+        pf.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const trChk=document.querySelector('[data-imp="trRes"]');
+        trChk.checked=true;trChk.dispatchEvent(new Event('change',{bubbles:true}));
+        const trPrev=impRows();
+        document.querySelector('[data-a="impgo"]').click();
+        const resAcc=S.fin.acc.find(a=>a.ty==='inv');
+        const mainBal=r2(bal(S.fin.acc.find(a=>a.id==='main')));
+        const resBal=r2(bal(resAcc));
+        const pmSummary=finMonth(-1,true);
+        const trList=S.fin.tx.filter(t=>t.k==='tr');
+        const rbTx=S.fin.tx.find(t=>t.rb);
+
+        const dtOfx=pm.replace('-','')+'12';
+        const cardOfx='<OFX><CREDITCARDMSGSRSV1><CCSTMTRNRS><CCSTMTRS><BANKTRANLIST>'
+          +'<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>'+dtOfx+'<TRNAMT>150.00<FITID>cc1<NAME>UBER *TRIP</STMTTRN>'
+          +'<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>'+dtOfx+'<TRNAMT>49.90<FITID>cc2<MEMO>SPOTIFY</STMTTRN>'
+          +'<STMTTRN><TRNTYPE>CREDIT<DTPOSTED>'+dtOfx+'<TRNAMT>-200.00<FITID>cc3<MEMO>Pagamento de fatura</STMTTRN>'
+          +'</BANKTRANLIST></CCSTMTRS></CCSTMTRNRS></CREDITCARDMSGSRSV1></OFX>';
+        const pf2=document.querySelector('#fcsvpaste');
+        pf2.elements.csv.value=cardOfx;
+        pf2.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const ofxCardFlags={isCard:IMP.isCard,inv:IMP.inv,skipCardPay:IMP.skipCardPay,ac:IMP.ac};
+        const cardPrev=impRows();
+        document.querySelector('[data-a="impgo"]').click();
+
+        const bankOfx='<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>'
+          +'<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>'+dtOfx+'<TRNAMT>-100.00<FITID>bk1<MEMO>Mercado</STMTTRN>'
+          +'<STMTTRN><TRNTYPE>CREDIT<DTPOSTED>'+dtOfx+'<TRNAMT>200.00<FITID>bk2<MEMO>Pix recebido</STMTTRN>'
+          +'</BANKTRANLIST><LEDGERBAL><BALAMT>850.00</BALAMT></LEDGERBAL></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>';
+        const pf3=document.querySelector('#fcsvpaste');
+        pf3.elements.csv.value=bankOfx;
+        pf3.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const bankMeta=IMP.meta;
+        IMP=null;
+
+        return {
+          trResLabels:trPrev.rows.filter(x=>x.resTr).length,
+          resAccName:resAcc&&resAcc.n,
+          mainBal,resBal,
+          trCount:trList.length,
+          pmOut:pmSummary.out,pmInc:pmSummary.inc,pmBy:pmSummary.by,
+          rb:rbTx&&{rb:rbTx.rb,rcat:rbTx.rcat},
+          ofxCardFlags,
+          cardPayTotal:cardPrev.cardPayTotal,
+          cardRows:cardPrev.rows.length,
+          cardBal:r2(bal(S.fin.acc.find(a=>a.id==='card1'))),
+          bankMeta,
+          valid:validBackup(pick())
+        };
+      })()`);
+      assert.strictEqual(r.trResLabels, 3);
+      assert.strictEqual(r.resAccName, 'Reserva');
+      assert.strictEqual(r.trCount, 3);
+      assert.strictEqual(r.mainBal, 393);
+      assert.strictEqual(r.resBal, 7);
+      assert.strictEqual(r.pmOut, 100);
+      assert.strictEqual(r.pmInc, 0);
+      assert.deepStrictEqual(r.pmBy, { Alimentação: 100 });
+      assert.deepStrictEqual(r.rb, { rb: 1, rcat: 'Outros' });
+      assert.deepStrictEqual(r.ofxCardFlags, { isCard: true, inv: true, skipCardPay: true, ac: 'card1' });
+      assert.strictEqual(r.cardPayTotal, 1);
+      assert.strictEqual(r.cardRows, 2);
+      assert.strictEqual(r.cardBal, -199.9);
+      assert.strictEqual(r.bankMeta.fin, 850);
+      assert.strictEqual(r.bankMeta.ini, 750);
+      assert.ok(r.valid);
+    }],
+    ['lote em lançamentos, ranking de estabelecimentos, detecção de assinaturas e sugestão de orçamento', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        const m1=addM(T,-1),m2=addM(T,-2);
+        S.fin={
+          tx:[
+            {id:'u1',k:'out',t:'Uber',v:20,cat:'Outros',d:T,ac:'main'},
+            {id:'u2',k:'out',t:'Pagamento Uber',v:30,cat:'Outros',d:T,ac:'main'},
+            {id:'px1',k:'out',t:'Pagamento com Pix Joao Silva',v:80,cat:'Outros',d:T,ac:'main',sub:'Pix'},
+            {id:'sp1',k:'out',t:'Spotify',v:21.9,cat:'Assinaturas',d:T,ac:'main',sub:'Serviços digitais'},
+            {id:'in1',k:'out',t:'Internet Fibra',v:100,cat:'Moradia',d:m1,ac:'main',sub:'Internet e telefone'},
+            {id:'in2',k:'out',t:'Internet Fibra',v:100,cat:'Moradia',d:m2,ac:'main',sub:'Internet e telefone'},
+            {id:'f1',k:'out',t:'Mercado',v:600,cat:'Alimentação',d:m1,ac:'main'},
+            {id:'t1',k:'out',t:'Posto',v:200,cat:'Transporte',d:m1,ac:'main'},
+            {id:'f2',k:'out',t:'Mercado',v:400,cat:'Alimentação',d:m2,ac:'main'},
+            {id:'t2',k:'out',t:'Posto',v:100,cat:'Transporte',d:m2,ac:'main'}
+          ],
+          acc:[{id:'main',n:'Conta principal',ty:'cc',ini:2000}],
+          rec:[],recDismiss:[],rules:[],bud:{},budHist:{},goals:[],prules:[],split:[],bills:[]
+        };
+        S.view='financas';S.fvw='mes';S.ftab='lanc';S.fmo=0;S.fac='';render();
+
+        document.querySelector('[data-a="edtx"][data-id="u1"]').click();
+        const f=document.querySelector('#ffin');
+        f.elements.cat.value='Transporte';
+        f.elements.sub.value='App';
+        f.elements.applySame.checked=true;
+        f.requestSubmit();
+        const afterApplySame={
+          u1Cat:S.fin.tx.find(x=>x.id==='u1').cat,
+          u2Cat:S.fin.tx.find(x=>x.id==='u2').cat,
+          u2Sub:S.fin.tx.find(x=>x.id==='u2').sub,
+          rules:S.fin.rules.length
+        };
+
+        const fq=document.querySelector('#fq');
+        fq.value='uber';fq.dispatchEvent(new Event('input',{bubbles:true}));
+        document.querySelector('[data-tx-bulk]').open=true;
+        const bf=document.querySelector('#ftxbulk');
+        bf.elements.sub.value='Corrida';
+        bf.elements.tg.value='trabalho';
+        bf.requestSubmit();
+        const afterBulk={
+          u1Sub:S.fin.tx.find(x=>x.id==='u1').sub,
+          u2Tg:S.fin.tx.find(x=>x.id==='u2').tg,
+          pxTg:S.fin.tx.find(x=>x.id==='px1').tg||''
+        };
+
+        document.querySelector('[data-a="txbulkdel"]').click();
+        document.querySelector('[data-a="txbulkdel"]').click();
+        const afterBulkDel=S.fin.tx.filter(x=>x.id==='u1'||x.id==='u2').length;
+        document.querySelector('#toast [data-a="undo"]').click();
+        const afterBulkUndo=S.fin.tx.filter(x=>x.id==='u1'||x.id==='u2').length;
+
+        document.querySelector('[data-a="fclr"]').click();
+        document.querySelector('[data-a="ftab"][data-id="analise"]').click();
+        const merchTxt=()=>( [...document.querySelectorAll('#main .panel')].find(p=>(p.querySelector('h2')?.textContent||'').includes('Maiores estabelecimentos'))?.innerText||'' );
+        const merchText=merchTxt();
+        document.querySelector('[data-a="fmpix"]').click();
+        const pixOnlyText=merchTxt();
+        document.querySelector('[data-a="fmpix"]').click();
+        document.querySelector('[data-a="fmerch"][data-id="Uber"]').click();
+        const merchJump={tab:S.ftab,fq:FQ};
+        FQ='';S.fkd='';
+
+        document.querySelector('[data-a="ftab"][data-id="contas"]').click();
+        const detBefore=detectRecurring().map(x=>x.key);
+        const spKey=detBefore.find(k=>k.includes('spotify'));
+        const inKey=detBefore.find(k=>k.includes('internet'));
+        document.querySelector('[data-a="recadd-det"][data-id="'+spKey+'"]').click();
+        document.querySelector('[data-a="recdismiss-det"][data-id="'+inKey+'"]').click();
+        const detAfter={
+          recCount:S.fin.rec.length,
+          spLinked:!!S.fin.tx.find(x=>x.id==='sp1').rc,
+          spNotDuplicated:S.fin.tx.filter(x=>norm(x.t).includes('spotify')).length===1,
+          dismissedCount:S.fin.recDismiss.length
+        };
+
+        document.querySelector('[data-a="ftab"][data-id="orc"]').click();
+        document.querySelector('[data-a="budsuggest"]').click();
+        const curBud=budgetsAt(T.slice(0,7));
+
+        return {
+          afterApplySame,afterBulk,afterBulkDel,afterBulkUndo,
+          hasPixMerch:merchText.includes('Joao Silva')&&merchText.includes('Uber'),
+          pixFilteredOutUber:!pixOnlyText.includes('Uber')&&pixOnlyText.includes('Joao Silva'),
+          merchJump,detBefore,detAfter,curBud,
+          valid:validBackup(pick())
+        };
+      })()`);
+      assert.strictEqual(r.afterApplySame.u1Cat, 'Transporte');
+      assert.strictEqual(r.afterApplySame.u2Cat, 'Transporte');
+      assert.strictEqual(r.afterApplySame.u2Sub, 'App');
+      assert.strictEqual(r.afterApplySame.rules, 1);
+      assert.strictEqual(r.afterBulk.u1Sub, 'Corrida');
+      assert.strictEqual(r.afterBulk.u2Tg, 'trabalho');
+      assert.strictEqual(r.afterBulk.pxTg, '');
+      assert.strictEqual(r.afterBulkDel, 0);
+      assert.strictEqual(r.afterBulkUndo, 2);
+      assert.ok(r.hasPixMerch);
+      assert.ok(r.pixFilteredOutUber);
+      assert.strictEqual(r.merchJump.tab, 'lanc');
+      assert.strictEqual(r.merchJump.fq, 'Uber');
+      assert.ok(r.detBefore.some(k=>k.includes('spotify'))&&r.detBefore.some(k=>k.includes('internet')));
+      assert.strictEqual(r.detAfter.recCount, 1);
+      assert.ok(r.detAfter.spLinked);
+      assert.ok(r.detAfter.spNotDuplicated);
+      assert.strictEqual(r.detAfter.dismissedCount, 1);
+      assert.strictEqual(r.curBud.Alimentação, 500);
+      assert.strictEqual(r.curBud.Transporte, 150);
+      assert.strictEqual(r.curBud.Moradia, 100);
+      assert.ok(r.valid);
+    }],
   ];
 
   let failed = 0;
