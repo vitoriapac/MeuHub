@@ -28,6 +28,15 @@ function render(opts){
  if(!opts||opts.save!==false)save();
 }
 const PAUSE_GUARD=new Set(['plan','review-plan','snooze','focus','fit','fitday','fit-propose','fit-confirm','rtplan','rtdeadline','dash-done']);
+function readStepEpisode(r,d){
+ r.season=r.season||1;
+ r.episode=Math.max(0,(r.episode||0)+d);
+ if(r.episodes>0){
+  r.p=Math.min(100,Math.round(Math.min(r.episode,r.episodes)/r.episodes*100));
+  if(r.episode>=r.episodes&&d>0){r.st='f';r.df=r.df||T;r.p=100;toast('Série concluída!');return}
+ }
+ toast('Episódio '+r.episode+(r.episodes?' de '+r.episodes:'')+' registrado');
+}
 function completeTask(t,done){t.done=done;t.dd=done?T:'';if(t.done&&t.rc&&!t.sp){t.sp=true;const nd=nextDue(t);S.tasks.splice(S.tasks.indexOf(t),0,{...t,id:uid(),seriesId:t.seriesId||t.id,bk:null,done:false,dd:'',sp:false,pm:0,due:nd,sub:(t.sub||[]).map(s=>({...s,id:uid(),done:false}))});toast('Próxima ocorrência criada para '+fmt(nd))}}
 const TRASH_SNAP=new Set(['delev','delnote','deltk','dellk','clear','deltx','deltxg']);
 const FULL_RENDER_ACTIONS=new Set(['ed','edtx','edrec','edbill','fcancel','reccancel','billcancel','cancel']);
@@ -287,7 +296,7 @@ const CLICK_ACTIONS={
  'dash-preset':(id)=>{const p=DASH_PRESETS[id];if(!p)return;const set=new Set(p.c),rest=Object.keys(CARDS).filter(k=>!set.has(k));S.cards=[...p.c.map(k=>({id:k,on:true})),...rest.map(k=>({id:k,on:false}))]},
  'clear-old-focus':()=>{S.focus=''},
  'dash-done':(id)=>{const t=S.tasks.find(x=>x.id===id);if(!t||taskPaused(t))return 'stop';completeTask(t,true)},
- 'rd-ep-inc':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){r.episode=(r.episode||0)+1;toast('Episódio '+r.episode+' registrado')}},
+ 'rd-ep-inc':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r)readStepEpisode(r,1)},
  'rd-prog-inc':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){r.p=Math.min(100,(r.p||0)+10);if(r.pages)r.page=Math.round(r.pages*r.p/100);if(r.p>=100){r.st='f';r.df=r.df||T;toast('Concluído: '+esc(r.t))}else toast('Progresso: '+r.p+'%')}},
  'dash-rd-pick':()=>{const q=(S.reads||[]).filter(r=>r.st==='q');if(q.length){RD.picked=q[Math.floor(Math.random()*q.length)].id;S.view='leituras'}},
  pal:(id)=>{S.pal=id;applyTheme()},
@@ -394,13 +403,19 @@ const CLICK_ACTIONS={
  'rd-pick-random':()=>{const fk=RD.tab==='shelf'?({books:'livro',movies:'filme',series:'série'}[RD.shelfKind]||''):(S.rk||'');const pool=(S.reads||[]).filter(r=>r.st==='q'&&(!fk?(RD.tab==='shelf'?isShelfItem(r):true):(fk==='livro'?isBook(r):r.k===fk)));if(!pool.length){toast('Nenhum item na fila "Quero" para sortear');return}const others=pool.length>1?pool.filter(r=>r.id!==RD.picked):pool;RD.picked=others[Math.floor(Math.random()*others.length)].id},
  'rd-pick-close':()=>{RD.picked=''},
  'rd-start':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){r.st='a';RD.picked='';toast('Movido para Em andamento')}},
- 'rd-finish':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){r.st='f';r.df=r.df||T;r.p=100;if(r.pages)r.page=r.pages;toast((RK[r.k]||RK.livro)[0]+' concluído!')}},
- 'rd-step':(id,b)=>{const r=(S.reads||[]).find(x=>x.id===id);if(!r)return;const d=Math.max(1,+b.dataset.d||1);if(isBook(r)&&r.pages){r.page=Math.min(r.pages,(r.page||0)+d);r.p=Math.round(r.page/r.pages*100);if(r.page>=r.pages){r.st='f';r.df=r.df||T;toast('Livro concluído!')}}else if(r.k==='série'){r.season=r.season||1;r.episode=(r.episode||0)+d;toast('Episódio '+r.episode+' registrado')}},
- 'rd-note-create':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(!r)return;const nid=uid(),kind=(RK[r.k]||RK.livro)[0],body=[r.a?`<p><strong>${isVisualMedia(r)?'Direção':'Autoria'}:</strong> ${esc(r.a)}</p>`:'',r.n?`<p><em>“${esc(r.n)}”</em></p>`:'<p></p>'].filter(Boolean).join('');noteReset();S.notes.unshift({id:nid,t:`Notas: ${r.t}`,b:body,f:kind,g:kind.toLowerCase(),c:COL[S.notes.length%4],updatedAt:Date.now()});lkSet('rd:'+r.id,'nt:'+nid,true);toast('Nota criada e vinculada a "'+esc(r.t)+'"')},
+ 'rd-finish':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){r.st='f';r.df=r.df||T;r.p=100;if(r.pages)r.page=r.pages;if(r.k==='série'&&r.episodes)r.episode=r.episodes;toast((RK[r.k]||RK.livro)[0]+' concluído!')}},
+ 'rd-step':(id,b)=>{const r=(S.reads||[]).find(x=>x.id===id);if(!r)return;const d=+b.dataset.d||1;if(isBook(r)&&r.pages&&d>0){r.page=Math.min(r.pages,(r.page||0)+d);r.p=Math.round(r.page/r.pages*100);if(r.page>=r.pages){r.st='f';r.df=r.df||T;toast('Livro concluído!')}}else if(r.k==='série')readStepEpisode(r,d)},
+ 'rd-note-create':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(!r)return;const nid=uid(),kind=(RK[r.k]||RK.livro)[0],qs=(r.quotes||[]).map(q=>`<p><em>“${esc(q.text)}”</em>${q.ref?' <small>('+esc(q.ref)+')</small>':''}</p>`).join(''),body=[r.a?`<p><strong>${isVisualMedia(r)?'Direção':'Autoria'}:</strong> ${esc(r.a)}</p>`:'',r.n?`<p><em>“${esc(r.n)}”</em></p>`:'',qs].filter(Boolean).join('')||'<p></p>';noteReset();S.notes.unshift({id:nid,t:`Notas: ${r.t}`,b:body,f:kind,g:normTags([kind.toLowerCase(),r.tg||''].filter(Boolean).join(', ')),c:COL[S.notes.length%4],updatedAt:Date.now()});lkSet('rd:'+r.id,'nt:'+nid,true);toast('Nota criada e vinculada a "'+esc(r.t)+'"')},
  'rd-open':(id)=>{RD.selected=id;RD.lookup=null},
  'rd-close':()=>{RD.selected='';RD.lookup=null},
  'rd-edit':(id)=>{lkGo('rd:'+id)},
  'rd-cover-remove':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){delete r.cover;delete r.coverUrl;delete r.coverColor;RD.lookup=null;toast('Capa removida')}},
+ 'rd-fav':(id)=>{RD.fav=RD.fav===id?'':id},
+ 'rd-tag':(id)=>{RD.tag=RD.tag===id?'':id},
+ 'rd-yr':(id)=>{if(id==='all')RD.yr='all';else if(id==='0')RD.yr=0;else RD.yr=Math.min(0,(typeof RD.yr==='number'?RD.yr:0)+ +id)},
+ 'rd-reread':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){r.rereads=(r.rereads||0)+1;toast((isVisualMedia(r)?'Reassistido ':'Relido ')+r.rereads+'×')}},
+ 'rd-plan-today':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(!r)return;const pref=isVisualMedia(r)?'Assistir: ':r.k==='podcast'?'Ouvir: ':'Ler: ',title=pref+r.t;let tk=S.tasks.find(t=>!t.done&&!taskPaused(t)&&(t.t===title||lkOf('rd:'+r.id).includes('tk:'+t.id)));if(tk)tk.hd=T;else{const nid=uid();S.tasks.unshift({id:nid,t:title,done:false,p:'m',due:'',hd:T,dur:30});lkSet('rd:'+r.id,'tk:'+nid,true)}toast('Sessão planejada para hoje')},
+ 'rd-quote-del':(id,b)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r&&Array.isArray(r.quotes))r.quotes=r.quotes.filter(q=>q.id!==b.dataset.q)},
  delrd:(id)=>{S.reads=S.reads.filter(x=>x.id!==id)},
  rfk:(id)=>{S.rk=id},
  rfs:(id)=>{S.rs=id},
@@ -471,7 +486,7 @@ function validBackup(d){
  if(d.history&&d.history.some(x=>!str(x.id)||!x.id||!Object.hasOwn(AUDIT_LABELS,x.type)||!Number.isFinite(x.at)||Math.abs(x.at)>8640000000000000))return false;
  if(d.projects&&d.projects.some(p=>!str(p.id)||!str(p.t)||!['active','done'].includes(p.status)||!optional(p,'archived',v=>typeof v==='boolean')||!optional(p,'budget',v=>typeof v==='number'&&Number.isFinite(v)&&v>=0)||!optional(p,'nextTask',str)||!optional(p,'start',v=>v===''||date(v))||!optional(p,'end',v=>v===''||date(v))||!list(p.refs)||p.refs.some(r=>!str(r.id)||!/^(tk|mt|nt|tx):[^:]+$/.test(r.id))))return false;
  if(d.metas&&d.metas.some(x=>!Array.isArray(x.kr)||!optional(x,'archived',v=>typeof v==='boolean')||!optional(x,'reviewDate',v=>v===''||date(v))||!optional(x,'pausedTaskIds',v=>Array.isArray(v)&&v.every(str))))return false;
- if(d.reads&&d.reads.some(r=>!optional(r,'cover',x=>Number.isSafeInteger(x)&&x>0)||!optional(r,'coverUrl',x=>typeof x==='string'&&(x===''||/^https:\/\/[^\s"'<>]+$/i.test(x)))||!optional(r,'coverColor',x=>typeof x==='string'&&/^#[0-9a-f]{6}$/i.test(x))||!optional(r,'pages',x=>Number.isInteger(x)&&x>=0)||!optional(r,'page',x=>Number.isInteger(x)&&x>=0)||!optional(r,'year',x=>Number.isInteger(x)&&x>=1800&&x<=2100)||!optional(r,'mins',x=>Number.isInteger(x)&&x>=1&&x<=10000)||!optional(r,'season',x=>Number.isInteger(x)&&x>=1&&x<=999)||!optional(r,'episode',x=>Number.isInteger(x)&&x>=0&&x<=9999)||!optional(r,'df',x=>x===''||date(x))))return false;
+ if(d.reads&&d.reads.some(r=>!optional(r,'st',x=>['q','a','f','p'].includes(x))||!optional(r,'cover',x=>Number.isSafeInteger(x)&&x>0)||!optional(r,'coverUrl',x=>typeof x==='string'&&(x===''||/^https:\/\/[^\s"'<>]+$/i.test(x)))||!optional(r,'coverColor',x=>typeof x==='string'&&/^#[0-9a-f]{6}$/i.test(x))||!optional(r,'pages',x=>Number.isInteger(x)&&x>=0)||!optional(r,'page',x=>Number.isInteger(x)&&x>=0)||!optional(r,'year',x=>Number.isInteger(x)&&x>=1800&&x<=2100)||!optional(r,'mins',x=>Number.isInteger(x)&&x>=1&&x<=10000)||!optional(r,'season',x=>Number.isInteger(x)&&x>=1&&x<=999)||!optional(r,'episode',x=>Number.isInteger(x)&&x>=0&&x<=9999)||!optional(r,'episodes',x=>Number.isInteger(x)&&x>=1&&x<=9999)||!optional(r,'rereads',x=>Number.isInteger(x)&&x>=0&&x<=1000)||!optional(r,'tg',str)||!optional(r,'quotes',x=>list(x)&&x.every(q=>str(q.id)&&str(q.text)&&optional(q,'ref',str)))||!optional(r,'df',x=>x===''||date(x))))return false;
  if(d.fin){if(!optional(d.fin,'primary',str)||!optional(d.fin,'recDismiss',x=>Array.isArray(x)&&x.every(str)))return false;for(const k of ['tx','acc','rec','rules','goals','prules','split','bills'])if(d.fin[k]!=null&&!list(d.fin[k]))return false;if(d.fin.bud!=null&&!obj(d.fin.bud))return false;if(d.fin.budHist!=null&&(!obj(d.fin.budHist)||Object.values(d.fin.budHist).some(c=>!obj(c)||Object.entries(c).some(([m,v])=>!/^\d{4}-(0[1-9]|1[0-2])$/.test(m)||(v!==null&&(typeof v!=='number'||!Number.isFinite(v)||v<=0))))))return false;if(d.fin.tx&&d.fin.tx.some(x=>!optional(x,'shoppingReviewed',str)||!optional(x,'rb',v=>v===1||typeof v==='boolean')||!optional(x,'rcat',str)||!optional(x,'ref',str)||!date(x.d)||x.v===null||x.v===''||!Number.isFinite(+x.v)))return false}
  return true}
 document.addEventListener('change',e=>{
@@ -702,9 +717,9 @@ const SUBMIT_BY_ID={
  },
  fmgrp:(f,v)=>{const n=v.n.trim();if(n)menuEdit(m=>{m.groups.push({id:'g'+uid(),n,items:[]})})},
  frd:(f,v)=>{
-  S.reads=S.reads||[];const st=['q','a','f'].includes(v.st)?v.st:'q',t=(v.t||'').trim();
+  S.reads=S.reads||[];const st=['q','a','f','p'].includes(v.st)?v.st:'q',t=(v.t||'').trim();
   if(!t){toast('Informe o título');return 'stop'}
-  const m=RD.draftMeta,item={id:uid(),t,a:(v.a||'').trim(),k:RK[v.k]?v.k:'livro',st,u:(v.u||'').trim(),r:0,p:st==='f'?100:0,n:'',da:T,df:st==='f'?(v.df||T):''};
+  const m=RD.draftMeta,item={id:uid(),t,a:(v.a||'').trim(),k:RK[v.k]?v.k:'livro',st,tg:normTags(v.tg||''),u:(v.u||'').trim(),r:0,p:st==='f'?100:0,n:'',da:T,df:st==='f'?(v.df||T):''};
   if(m){
    if(Number.isInteger(m.year)&&m.year>=1800&&m.year<=2100)item.year=m.year;
    if(isBook(item)&&Number.isInteger(m.pages)&&m.pages>=1){item.pages=m.pages;item.page=st==='f'?m.pages:0}
@@ -740,6 +755,11 @@ const SUBMIT_BY_ID={
  }
 };
 const SUBMIT_BY_DATA=[
+ ['rdQuote',(f,v)=>{
+  const r=(S.reads||[]).find(x=>x.id===f.dataset.rdQuote),text=(v.text||'').trim(),ref=(v.ref||'').trim();
+  if(!r||!text){toast('Informe a citação');return 'stop'}
+  (r.quotes||(r.quotes=[])).push({id:uid(),text,ref});toast('Citação salva');
+ }],
  ['projectEdit',submitProjectForm],
  ['projectLink',(f,v)=>{
   const project=(S.projects||[]).find(x=>x.id===f.dataset.projectLink&&!x.archived),r=lkItem(v.ref);

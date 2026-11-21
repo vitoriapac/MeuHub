@@ -341,7 +341,7 @@ function shoppingHome(){
 function readsCard(){
  const A=(S.reads||[]),act=A.filter(r=>r.st==='a').slice(0,4),hasQ=A.some(r=>r.st==='q');
  const rows=act.map(r=>{
-  const K=(typeof RK!=='undefined'&&RK[r.k])||['Livro','y'],pct=r.p||0,meta=r.k==='série'?`Temp. ${r.season||1} · Ep. ${r.episode??0}`:`${r.pages?(r.page||0)+'/'+r.pages+' pág. · ':''}${pct}%`;
+  const K=(typeof RK!=='undefined'&&RK[r.k])||['Livro','y'],pct=r.p||0,meta=r.k==='série'?`Temp. ${r.season||1} · Ep. ${r.episode??0}${r.episodes?'/'+r.episodes+' ('+pct+'%)':''}`:`${r.pages?(r.page||0)+'/'+r.pages+' pág. · ':''}${pct}%`;
   const btn=r.k==='série'?`<button class="pill" data-a="rd-ep-inc" data-id="${esc(r.id)}">+1 ep</button>`:`<button class="pill" data-a="rd-prog-inc" data-id="${esc(r.id)}">+10%</button>`;
   return `<div class="item"><div class="t">${esc(r.t)}<small>${K[0]}${r.a?' · '+esc(r.a):''} · ${meta}</small><div class="fb" style="margin-top:var(--space-1)"><i style="width:${pct}%"></i></div></div>${btn}<button class="x" data-a="lkgo" data-id="rd:${esc(r.id)}" aria-label="Abrir ${esc(r.t)}" title="Abrir">↗</button></div>`;
  }).join('');
@@ -509,7 +509,7 @@ document.addEventListener('keydown',e=>{const i=e.target;if(e.key==='Enter'&&i.d
 const tagsU=x=>String(x.tg??x.g??'').split(',').map(s=>s.trim().replace(/^#/,'').toLowerCase()).filter(Boolean);
 const normTags=s=>[...new Set(String(s||'').split(',').map(x=>x.trim().replace(/^#/,'').toLowerCase()).filter(Boolean))].join(', ');
 const tagChips=x=>tagsU(x).map(t=>`<button class="chip tgc" data-a="tagv" data-id="${esc(t)}">#${esc(t)}</button>`).join('');
-const TG=()=>[['tarefas','Tarefas',S.tasks],['eventos','Eventos',S.events],['notas','Notas',S.notes],['links','Links',S.links],['lançamentos','Lançamentos',S.fin.tx]];
+const TG=()=>[['tarefas','Tarefas',S.tasks],['eventos','Eventos',S.events],['notas','Notas',S.notes],['links','Links',S.links],['lançamentos','Lançamentos',S.fin.tx],['leituras','Leituras',S.reads||[]]];
 function allTags(){const m={};TG().forEach(([k,,a])=>a.forEach(x=>tagsU(x).forEach(t=>{const o=m[t]=m[t]||{n:0};o[k]=(o[k]||0)+1;o.n++})));return m}
 function fillTags(){const el=$('#alltags');if(el)el.innerHTML=Object.keys(allTags()).sort().map(t=>`<option value="${esc(t)}">`).join('')}
 function renameTag(o,n){TG().forEach(([k,,a])=>a.forEach(x=>{const l=tagsU(x);if(!l.includes(o))return;const nl=[...new Set(l.map(t=>t===o?n:t).filter(Boolean))].join(', ');if(k==='notas')x.g=nl;else x.tg=nl}))}
@@ -523,6 +523,7 @@ function etiquetas(){
   +grp('Tarefas',has(S.tasks.filter(t=>!taskPaused(t))),t=>`<div class="item ${t.done?'done':''}"><input type="checkbox" class="chk" data-a="tog" data-id="${t.id}" ${t.done?'checked':''} aria-label="Concluir"><div class="t">${esc(t.t)}<small>${tkMeta(t)}</small></div></div>`)
   +grp('Eventos',has(S.events),e=>`<button class="item" ${btn} data-a="gotoday" data-id="${e.d}"><div class="t">${esc(e.t)}<small>${fmt(e.d)} às ${tr(e)}</small></div></button>`)
   +grp('Notas',has(S.notes),n=>`<button class="item" ${btn} data-a="tgnote" data-id="${esc(sel)}"><div class="t">${esc(n.t||'Sem título')}<small>${esc(plain(n.b).slice(0,90))}</small></div></button>`)
+  +grp('Leituras',has(S.reads||[]),r=>`<button class="item" ${btn} data-a="lkgo" data-id="rd:${esc(r.id)}"><div class="t">${esc(r.t)}<small>${esc((typeof RK!=='undefined'&&RK[r.k]||['Livro'])[0])}${r.a?' · '+esc(r.a):''}</small></div></button>`)
   +grp('Links',has(S.links),l=>`<a class="item" style="text-decoration:none;color:inherit" href="${esc(safeUrl(l.u))}" target="_blank" rel="noopener"><div class="t">${esc(l.n)}<small>${esc(l.cat||'Outros')}</small></div>↗</a>`)+grp('Lançamentos',has(S.fin.tx),t=>`<div class="item"><div class="t">${esc(t.t)}<small>${fmt(t.d)} · ${esc(t.cat)}</small></div><strong>${BRL(t.v)}</strong></div>`)+'</div>'}
  return `<div class="top"><h1>Etiquetas</h1></div>${ks.length?`<div class="bar">${ks.map(t=>`<button class="pill ${t===sel?'on':''}" data-a="tagv" data-id="${esc(t)}">#${esc(t)} <small>${m[t].n}</small></button>`).join('')}</div>`:''}${sel?body:ks.length?'<p class="empty">Escolha uma etiqueta para ver tudo o que está marcado com ela: tarefas, eventos, notas e links.</p>':emp('tg','Nenhuma etiqueta ainda. Adicione etiquetas em tarefas, eventos, notas e links.','Ir para Tarefas','data-v="tarefas"')}`;
 }

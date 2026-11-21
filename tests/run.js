@@ -2463,6 +2463,95 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       assert.strictEqual(r.openedNoteView, 'notas');
       assert.ok(r.valid);
     }],
+    ['leituras avançadas: capa na coleção, episódios totais, etiquetas, ritmo, citações, pausado, releituras e resumo anual', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        RD.tab='collection';RD.q='';RD.sort='recent';RD.fav='';RD.tag='';RD.yr=0;RD.selected='';
+        S.rk='';S.rs='';S.notes=[];S.tasks=[];S.lnk=[];
+        const tenDaysAgo = ds(add(today, -9));
+        const curY = today.getFullYear(), prevY = curY - 1;
+        S.reads = [
+          { id: 'b1', t: 'Duna', a: 'Frank Herbert', k: 'livro', st: 'a', pages: 400, page: 100, p: 25, da: tenDaysAgo, year: 1965, cover: 12345, tg: 'ficcao, scifi' },
+          { id: 's1', t: 'Série Top', a: 'Criador', k: 'série', st: 'a', season: 1, episode: 8, episodes: 10, p: 80, da: T, year: 2022, r: 4 },
+          { id: 'p1', t: 'Livro Pausado', a: 'Autor P', k: 'livro', st: 'p', pages: 300, page: 150, p: 50, da: T, year: 2010 },
+          { id: 'f1', t: 'Obras-primas', a: 'Frank Herbert', k: 'livro', st: 'f', df: curY + '-02-10', pages: 320, r: 5, tg: 'scifi', year: 1970 },
+          { id: 'f2', t: 'Clássico Antigo', a: 'Frank Herbert', k: 'filme', st: 'f', df: prevY + '-06-15', mins: 120, r: 5, year: 1999 }
+        ];
+        S.view = 'leituras'; render();
+
+        const thumbSrc = document.querySelector('[data-lid="rd:b1"] img')?.getAttribute('src') || '';
+        const b1Text = document.querySelector('[data-lid="rd:b1"]').innerText;
+
+        let srt = document.querySelector('#rd-sort');
+        srt.value = 'rating'; srt.dispatchEvent(new Event('change', { bubbles: true }));
+        const sortedByRating = [...document.querySelectorAll('#main .note')].map(x => x.dataset.lid);
+
+        document.querySelector('[data-a="rd-fav"][data-id="5"]').click();
+        const fav5Ids = [...document.querySelectorAll('#main .note')].map(x => x.dataset.lid);
+        document.querySelector('[data-a="rd-fav"][data-id="5"]').click();
+
+        document.querySelector('[data-a="rd-tag"][data-id="ficcao"]').click();
+        const ficcaoIds = [...document.querySelectorAll('#main .note')].map(x => x.dataset.lid);
+        document.querySelector('[data-a="rd-tag"][data-id=""]').click();
+
+        document.querySelector('[data-a="rd-plan-today"][data-id="b1"]').click();
+        const plannedTask = S.tasks.find(t => t.t === 'Ler: Duna' && t.hd === T);
+
+        const qf = document.querySelector('[data-rd-quote="b1"]');
+        qf.elements.text.value = 'O medo mata a mente.';
+        qf.elements.ref.value = 'pág. 12';
+        qf.requestSubmit();
+        document.querySelector('[data-lid="rd:b1"] [data-a="rd-note-create"]').click();
+        const createdNote = S.notes[0];
+
+        document.querySelector('[data-lid="rd:s1"] [data-a="rd-step"][data-d="1"]').click();
+        const s1Ep9 = { p: S.reads.find(x => x.id === 's1').p, st: S.reads.find(x => x.id === 's1').st };
+        document.querySelector('[data-lid="rd:s1"] [data-a="rd-step"][data-d="1"]').click();
+        const s1Ep10 = S.reads.find(x => x.id === 's1');
+
+        document.querySelector('[data-lid="rd:f1"] [data-a="rd-reread"]').click();
+        const f1Rereads = S.reads.find(x => x.id === 'f1').rereads;
+
+        const yearChartPresent = !!document.querySelector('[role="img"][aria-label*="Conclusões por mês"]');
+        document.querySelector('[data-a="rd-yr"][data-id="-1"]').click();
+        const prevYearText = document.querySelector('#main .panel').innerText;
+        document.querySelector('[data-a="rd-yr"][data-id="all"]').click();
+        const allYearText = document.querySelector('#main .panel').innerText;
+
+        document.querySelector('[data-a="rd-tab"][data-id="shelf"]').click();
+        const nowTitles = [...document.querySelectorAll('.now-card')].map(x => x.innerText);
+
+        S.view = 'etiquetas'; S.tgsel = 'scifi'; render();
+        const tagsPageText = document.querySelector('#main').innerText;
+
+        return {
+          thumbSrc, b1Text, sortedByRating, fav5Ids, ficcaoIds, plannedTask, rdLinks: lkOf('rd:b1'),
+          createdNote, s1Ep9, s1Ep10, f1Rereads, yearChartPresent,
+          prevYearText, allYearText, nowTitles, tagsPageText,
+          prevY, curY, valid: validBackup(pick())
+        };
+      })()`);
+      assert.match(r.thumbSrc, /covers\.openlibrary\.org\/b\/id\/12345-S\.jpg/);
+      assert.match(r.b1Text, /Faltam 300 pág\./);
+      assert.match(r.b1Text, /~10 pág\.\/dia/);
+      assert.strictEqual(r.sortedByRating[0], 'rd:f2');
+      assert.deepStrictEqual(r.fav5Ids, ['rd:f2', 'rd:f1']);
+      assert.deepStrictEqual(r.ficcaoIds, ['rd:b1']);
+      assert.ok(r.plannedTask && r.rdLinks.includes('tk:' + r.plannedTask.id));
+      assert.match(r.createdNote.b, /O medo mata a mente\./);
+      assert.match(r.createdNote.b, /pág\. 12/);
+      assert.strictEqual(r.s1Ep9.p, 90);
+      assert.strictEqual(r.s1Ep9.st, 'a');
+      assert.strictEqual(r.s1Ep10.p, 100);
+      assert.strictEqual(r.s1Ep10.st, 'f');
+      assert.strictEqual(r.f1Rereads, 1);
+      assert.ok(r.yearChartPresent);
+      assert.match(r.prevYearText, /Clássico Antigo/);
+      assert.match(r.allYearText, /Frank Herbert \(2\)/);
+      assert.ok(r.nowTitles.every(t => !/Livro Pausado/.test(t)), 'Item Pausado não deve ocupar Na cabeceira agora');
+      assert.match(r.tagsPageText, /Duna/);
+      assert.ok(r.valid);
+    }],
   ];
 
   let failed = 0;
