@@ -139,8 +139,16 @@ const CLICK_EARLY={
  'rd-cover-find':(b,id,e)=>{e.preventDefault();findCover(id)},
  'rd-cover-use':(b,id,e)=>{
   e.preventDefault();
-  const r=(S.reads||[]).find(x=>x.id===id),cover=+b.dataset.cover,allowed=RD.lookup&&RD.lookup.id===id&&RD.lookup.results.some(x=>x.cover===cover);
-  if(r&&isBook(r)&&allowed&&Number.isSafeInteger(cover)&&cover>0){r.cover=cover;delete r.coverColor;RD.lookup=null;renderKeepDraft();coverPalette(id,cover)}
+  const r=(S.reads||[]).find(x=>x.id===id);if(!r||!RD.lookup||RD.lookup.id!==id)return;
+  const cover=+b.dataset.cover,poster=b.dataset.poster||'';
+  const hit=RD.lookup.results.find(x=>(cover&&x.cover===cover)||(poster&&x.poster===poster));
+  if(!hit)return;
+  if(hit.cover&&Number.isSafeInteger(hit.cover)&&hit.cover>0){r.cover=hit.cover;delete r.coverUrl}
+  else if(hit.poster&&/^https:\/\//i.test(hit.poster)){r.coverUrl=hit.poster;delete r.cover}
+  else return;
+  if(hit.year&&!r.year&&Number.isInteger(+hit.year))r.year=+hit.year;
+  if(hit.mins&&!r.mins&&Number.isInteger(+hit.mins))r.mins=+hit.mins;
+  delete r.coverColor;RD.lookup=null;renderKeepDraft();coverPalette(id,r.cover,r.coverUrl);
  },
  syncnow:(b,id,e,a)=>{e.preventDefault();syncAct(a)},
  bkexp:(b,id,e)=>{e.preventDefault();exportBk()},
@@ -306,10 +314,20 @@ const CLICK_ACTIONS={
  delhb:(id)=>{S.habits=S.habits.filter(x=>x.id!==id)},
  rdr:(id,b)=>{const r=S.reads.find(x=>x.id===id);if(r)r.r=r.r===+b.dataset.n?0:+b.dataset.n},
  'rd-tab':(id)=>{if(['collection','shelf'].includes(id)){RD.tab=id;RD.lookup=null}},
+ 'rd-shelf-kind':(id)=>{if(['all','books','movies','series'].includes(id)){RD.shelfKind=id;RD.selected=''}},
+ 'rd-shelf-year':(id)=>{RD.shelfYear=RD.shelfYear===id?'':id},
+ 'rd-shelf-fav':(id)=>{RD.shelfFav=RD.shelfFav===id?'':id},
+ 'rd-movie-mode':(id)=>{if(['poster','spine'].includes(id))RD.movieMode=id},
+ 'rd-pick-random':()=>{const fk=RD.tab==='shelf'?({books:'livro',movies:'filme',series:'série'}[RD.shelfKind]||''):(S.rk||'');const pool=(S.reads||[]).filter(r=>r.st==='q'&&(!fk?(RD.tab==='shelf'?isShelfItem(r):true):(fk==='livro'?isBook(r):r.k===fk)));if(!pool.length){toast('Nenhum item na fila "Quero" para sortear');return}const others=pool.length>1?pool.filter(r=>r.id!==RD.picked):pool;RD.picked=others[Math.floor(Math.random()*others.length)].id},
+ 'rd-pick-close':()=>{RD.picked=''},
+ 'rd-start':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){r.st='a';RD.picked='';toast('Movido para Em andamento')}},
+ 'rd-finish':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){r.st='f';r.df=r.df||T;r.p=100;if(r.pages)r.page=r.pages;toast((RK[r.k]||RK.livro)[0]+' concluído!')}},
+ 'rd-step':(id,b)=>{const r=(S.reads||[]).find(x=>x.id===id);if(!r)return;const d=Math.max(1,+b.dataset.d||1);if(isBook(r)&&r.pages){r.page=Math.min(r.pages,(r.page||0)+d);r.p=Math.round(r.page/r.pages*100);if(r.page>=r.pages){r.st='f';r.df=r.df||T;toast('Livro concluído!')}}else if(r.k==='série'){r.season=r.season||1;r.episode=(r.episode||0)+d;toast('Episódio '+r.episode+' registrado')}},
+ 'rd-note-create':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(!r)return;const nid=uid(),kind=(RK[r.k]||RK.livro)[0],body=[r.a?`<p><strong>${isVisualMedia(r)?'Direção':'Autoria'}:</strong> ${esc(r.a)}</p>`:'',r.n?`<p><em>“${esc(r.n)}”</em></p>`:'<p></p>'].filter(Boolean).join('');noteReset();S.notes.unshift({id:nid,t:`Notas: ${r.t}`,b:body,f:kind,g:kind.toLowerCase(),c:COL[S.notes.length%4],updatedAt:Date.now()});lkSet('rd:'+r.id,'nt:'+nid,true);toast('Nota criada e vinculada a "'+esc(r.t)+'"')},
  'rd-open':(id)=>{RD.selected=id;RD.lookup=null},
  'rd-close':()=>{RD.selected='';RD.lookup=null},
  'rd-edit':(id)=>{lkGo('rd:'+id)},
- 'rd-cover-remove':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){delete r.cover;delete r.coverColor;RD.lookup=null;toast('Capa removida')}},
+ 'rd-cover-remove':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){delete r.cover;delete r.coverUrl;delete r.coverColor;RD.lookup=null;toast('Capa removida')}},
  delrd:(id)=>{S.reads=S.reads.filter(x=>x.id!==id)},
  rfk:(id)=>{S.rk=id},
  rfs:(id)=>{S.rs=id},
@@ -380,7 +398,7 @@ function validBackup(d){
  if(d.history&&d.history.some(x=>!str(x.id)||!x.id||!Object.hasOwn(AUDIT_LABELS,x.type)||!Number.isFinite(x.at)||Math.abs(x.at)>8640000000000000))return false;
  if(d.projects&&d.projects.some(p=>!str(p.id)||!str(p.t)||!['active','done'].includes(p.status)||!optional(p,'archived',v=>typeof v==='boolean')||!optional(p,'nextTask',str)||!optional(p,'start',v=>v===''||date(v))||!optional(p,'end',v=>v===''||date(v))||!list(p.refs)||p.refs.some(r=>!str(r.id)||!/^(tk|mt|nt|tx):[^:]+$/.test(r.id))))return false;
  if(d.metas&&d.metas.some(x=>!Array.isArray(x.kr)||!optional(x,'archived',v=>typeof v==='boolean')||!optional(x,'reviewDate',v=>v===''||date(v))||!optional(x,'pausedTaskIds',v=>Array.isArray(v)&&v.every(str))))return false;
- if(d.reads&&d.reads.some(r=>!optional(r,'cover',x=>Number.isSafeInteger(x)&&x>0)||!optional(r,'coverColor',x=>typeof x==='string'&&/^#[0-9a-f]{6}$/i.test(x))||!optional(r,'pages',x=>Number.isInteger(x)&&x>=0)||!optional(r,'page',x=>Number.isInteger(x)&&x>=0)||!optional(r,'df',x=>x===''||date(x))))return false;
+ if(d.reads&&d.reads.some(r=>!optional(r,'cover',x=>Number.isSafeInteger(x)&&x>0)||!optional(r,'coverUrl',x=>typeof x==='string'&&(x===''||/^https:\/\/[^\s"'<>]+$/i.test(x)))||!optional(r,'coverColor',x=>typeof x==='string'&&/^#[0-9a-f]{6}$/i.test(x))||!optional(r,'pages',x=>Number.isInteger(x)&&x>=0)||!optional(r,'page',x=>Number.isInteger(x)&&x>=0)||!optional(r,'year',x=>Number.isInteger(x)&&x>=1800&&x<=2100)||!optional(r,'mins',x=>Number.isInteger(x)&&x>=1&&x<=10000)||!optional(r,'season',x=>Number.isInteger(x)&&x>=1&&x<=999)||!optional(r,'episode',x=>Number.isInteger(x)&&x>=0&&x<=9999)||!optional(r,'df',x=>x===''||date(x))))return false;
  if(d.fin){if(!optional(d.fin,'primary',str))return false;for(const k of ['tx','acc','rec','rules','goals','prules','split','bills'])if(d.fin[k]!=null&&!list(d.fin[k]))return false;if(d.fin.bud!=null&&!obj(d.fin.bud))return false;if(d.fin.budHist!=null&&(!obj(d.fin.budHist)||Object.values(d.fin.budHist).some(c=>!obj(c)||Object.entries(c).some(([m,v])=>!/^\d{4}-(0[1-9]|1[0-2])$/.test(m)||(v!==null&&(typeof v!=='number'||!Number.isFinite(v)||v<=0))))))return false;if(d.fin.tx&&d.fin.tx.some(x=>!optional(x,'shoppingReviewed',str)||!date(x.d)||x.v===null||x.v===''||!Number.isFinite(+x.v)))return false}
  return true}
 document.addEventListener('change',e=>{

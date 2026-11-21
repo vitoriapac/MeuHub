@@ -156,3 +156,7 @@ Em **Hoje**, os próximos passos de projetos ativos aparecem com ações para ab
 Em **Lembretes → Conferência financeira**, vincule contas de pagamento a contas fixas e compare compras da mesma lista com data, conta e valor iguais. Cada lançamento pode ser aberto individualmente. Confirmar compras distintas registra a conferência sem alterar os valores. Se o grupo mudar, ele volta à fila.
 
 O roteiro de recuperação entre aparelhos usa uma conta exclusiva de teste e dados fictícios. Consulte o [ensaio de recuperação](tasks/ensaio-recuperacao.md).
+
+### Leituras e filmes (Estante)
+
+Em **Leituras e mídia → Estante**, livros concluídos aparecem em lombadas com largura proporcional às páginas (`r.pages`) e destaque para notas máximas (`★ 5`), e filmes e séries concluídos contam com **Prateleira de filmes e séries** alternável entre modo Pôster (`2:3`) e Lombadas, além da faixa superior **"Na cabeceira agora"** para acompanhar e concluir itens em andamento (`+10 pág.` / `+1 ep.` / `Concluir`). É possível buscar capas na Open Library (livros) e pôsteres na iTunes Search API pública com fallback na Wikipédia PT/EN (filmes e séries), ajustar manualmente a cor ou URL da imagem, filtrar por tipo (`Livros`, `Filmes`, `Séries`), ano ou nota, sortear o próximo título da fila **Quero** direto na coleção ou na estante e criar notas já vinculadas do painel de detalhes.

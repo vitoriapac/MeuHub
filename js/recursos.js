@@ -334,37 +334,212 @@ document.addEventListener('input',e=>{if(e.target.id==='lkq'&&LKP){LKP.q=e.targe
 function lkGo(ref){
  const r=lkItem(ref);if(!r)return;LKP=null;if((r.ty==='tk'&&taskPaused(r.it))||(r.ty==='mt'&&r.it.archived)||(r.ty==='prj'&&r.it.archived)){archiveQuery='';S.view='arquivados';Q='';ED=null;$('#q').value='';return}S.view=LKV[r.ty];Q='';ED=null;$('#q').value='';FLASH=ref;
  if(r.ty==='ev'){S.mode='day';S.dy=mDays(r.it.d)}else if(r.ty==='nt'){noteReset();if(r.it.archived)NSTATUS='archived';PG={nt:Math.max(30,S.notes.length)};PGV='notas'}else if(r.ty==='tk'){S.filter='all';S.pf='';if(PGV!=='tarefas'){PG={};PGV='tarefas'}const index=taskList().findIndex(t=>t.id===r.id);if(index>=pgN('tk',60))PG.tk=Math.ceil((index+1)/60)*60}else if(r.ty==='lk')S.lc='';else if(r.ty==='rd'){S.rk='';S.rs='';RD.tab='collection';RD.q=''}}
-/* leituras */
+/* leituras e filmes */
 const RK={livro:['Livro','y',['Quero ler','Lendo','Lido']],filme:['Filme','p',['Quero ver','Assistindo','Visto']],série:['Série','g',['Quero ver','Assistindo','Visto']],artigo:['Artigo','b',['Quero ler','Lendo','Lido']],podcast:['Podcast','b',['Quero ouvir','Ouvindo','Ouvido']]},RS=['q','a','f'];
 const rdLab=r=>(RK[r.k]||RK.livro)[2][RS.indexOf(r.st)];
-const isBook=r=>!r.k||r.k==='livro';
-let RD={tab:'collection',q:'',sort:'recent',selected:'',lookup:null,seq:0};
+const isBook=r=>!r||!r.k||r.k==='livro';
+const isVisualMedia=r=>!!(r&&(r.k==='filme'||r.k==='série'));
+const isShelfItem=r=>isBook(r)||isVisualMedia(r);
+let RD={tab:'collection',q:'',sort:'recent',selected:'',lookup:null,seq:0,shelfKind:'all',shelfYear:'',shelfFav:'',movieMode:'poster',picked:''};
 const coverUrl=(id,size='M')=>Number.isSafeInteger(id)&&id>0?`https://covers.openlibrary.org/b/id/${id}-${size}.jpg?default=false`:'';
+const validCoverUrl=u=>typeof u==='string'&&/^https:\/\/[^\s"'<>]+$/i.test(u.trim())?u.trim():'';
+const mediaImgUrl=(r,size='M')=>(r&&validCoverUrl(r.coverUrl))||(r&&coverUrl(r.cover,size))||'';
+const spineWidth=r=>r&&Number.isInteger(r.pages)&&r.pages>0?Math.max(34,Math.min(58,32+Math.round(r.pages/18))):42;
 function spineColor(hex){return /^#[0-9a-f]{6}$/i.test(hex||'')?hex:'#74667a'}
 function spineInk(hex){const rgb=spineColor(hex).slice(1).match(/../g).map(x=>parseInt(x,16)/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4),l=rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;return l>.179?'#161616':'#ffffff'}
 function coverDominant(data){const bins=new Map();for(let i=0;i<data.length;i+=4){if(data[i+3]<128)continue;const rgb=[data[i],data[i+1],data[i+2]],max=Math.max(...rgb),min=Math.min(...rgb);if(max>242&&min>225)continue;const key=rgb.map(x=>Math.floor(x/32)).join(',');const b=bins.get(key)||{n:0,sum:[0,0,0]};b.n++;rgb.forEach((x,j)=>b.sum[j]+=x);bins.set(key,b)}let best=null;for(const b of bins.values())if(!best||b.n>best.n)best=b;if(!best){const sum=[0,0,0];let n=0;for(let i=0;i<data.length;i+=4)if(data[i+3]>=128){for(let j=0;j<3;j++)sum[j]+=data[i+j];n++}if(n)best={sum,n}}return best?'#'+best.sum.map(x=>Math.round(x/best.n).toString(16).padStart(2,'0')).join(''):null}
-function coverPalette(id,cover){const img=new Image();img.crossOrigin='anonymous';img.onload=()=>{try{const canvas=document.createElement('canvas');canvas.width=24;canvas.height=24;const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,24,24);const color=coverDominant(ctx.getImageData(0,0,24,24).data),r=(S.reads||[]).find(x=>x.id===id);if(r&&r.cover===cover&&color){r.coverColor=color;save();const el=document.getElementById('spine-'+id);if(el){el.style.setProperty('--spine',color);el.style.setProperty('--spine-ink',spineInk(color))}}}catch(e){toast('Capa salva; não foi possível extrair a cor neste navegador')}};img.onerror=()=>toast('Capa salva, mas não foi possível carregar sua imagem agora');img.src=coverUrl(cover)}
-function coverResults(r){const state=RD.lookup;if(!state||state.id!==r.id)return '';if(state.loading)return '<p role="status">Buscando capas…</p>';if(state.error)return `<p role="status">${esc(state.error)}</p>`;return state.results.length?`<p>Escolha a edição correspondente:</p><div class="cover-results">${state.results.map(x=>`<button type="button" class="cover-result" data-a="rd-cover-use" data-id="${esc(r.id)}" data-cover="${x.cover}"><img src="${coverUrl(x.cover,'S')}" alt="" loading="lazy" crossorigin="anonymous" referrerpolicy="no-referrer"><span>${esc(x.title)}<small>${esc(x.author)}${x.year?' · '+esc(x.year):''}</small></span></button>`).join('')}</div>`:'<p role="status">Nenhuma capa encontrada. Tente outro título, autor ou ISBN.</p>'}
-function coverEditor(r){if(!isBook(r))return '';const query=RD.lookup&&RD.lookup.id===r.id?RD.lookup.q:[r.t,r.a].filter(Boolean).join(' ');return `<details><summary>${r.cover?'Trocar capa':'Buscar capa real'}</summary><p class="empty">A busca envia o texto à Open Library. Confira a edição antes de escolher.</p><div class="bar"><input class="in grow" id="cover-query-${esc(r.id)}" value="${esc(query)}" placeholder="Título, autor ou ISBN" aria-label="Buscar capa de ${esc(r.t)}"><button type="button" class="pill" data-a="rd-cover-find" data-id="${esc(r.id)}">Buscar capa</button></div><div id="cover-results-${esc(r.id)}">${coverResults(r)}</div>${r.cover?`<button type="button" class="pill" data-a="rd-cover-remove" data-id="${esc(r.id)}">Remover capa</button>`:''}<p class="empty">Capas: <a href="https://openlibrary.org/" target="_blank" rel="noopener">Open Library</a>.</p></details>`}
-async function findCover(id){const r=(S.reads||[]).find(x=>x.id===id),input=document.getElementById('cover-query-'+id);if(!r||!input)return;const q=input.value.trim();if(!q){toast('Informe um título, autor ou ISBN');return}const seq=++RD.seq;RD.lookup={id,q,seq,loading:true,results:[]};let el=document.getElementById('cover-results-'+id);if(el)el.innerHTML=coverResults(r);const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const p=new URLSearchParams({q,fields:'key,title,author_name,cover_i,first_publish_year',limit:'8'}),res=await fetch('https://openlibrary.org/search.json?'+p,{signal:controller.signal});if(!res.ok)throw Error('rede');const data=await res.json();if(!RD.lookup||RD.lookup.seq!==seq)return;RD.lookup.loading=false;RD.lookup.results=(Array.isArray(data.docs)?data.docs:[]).filter(x=>Number.isSafeInteger(x.cover_i)&&x.cover_i>0).slice(0,8).map(x=>({cover:x.cover_i,title:String(x.title||'Sem título'),author:Array.isArray(x.author_name)?x.author_name.slice(0,2).join(', '):'Autor não informado',year:x.first_publish_year||''}));}catch(e){if(!RD.lookup||RD.lookup.seq!==seq)return;RD.lookup.loading=false;RD.lookup.error='Não foi possível buscar agora. Confira a conexão e tente novamente.'}finally{clearTimeout(timer)}el=document.getElementById('cover-results-'+id);if(el)el.innerHTML=coverResults(r)}
-function readShelf(){const books=(S.reads||[]).filter(r=>isBook(r)&&r.st==='f').sort((a,b)=>(b.df||'').localeCompare(a.df||'')),selected=books.find(r=>r.id===RD.selected);return `<div class="shelf-intro"><h2>Sua estante</h2><p>${books.length?books.length+' '+(books.length===1?'livro concluído':'livros concluídos')+'. Toque em uma lombada para ver a capa e os detalhes.':'Quando você concluir um livro, ele aparecerá aqui.'}</p></div>${books.length?`<div class="bookshelf" aria-label="Livros concluídos">${books.map((r,i)=>{const color=spineColor(r.coverColor);return `<button type="button" class="book-spine" id="spine-${esc(r.id)}" data-a="rd-open" data-id="${esc(r.id)}" aria-pressed="${r.id===RD.selected}" aria-label="Ver ${esc(r.t)}${r.a?', de '+esc(r.a):''}" style="--spine:${color};--spine-ink:${spineInk(color)};--book-h:${150+(i%4)*7}px"><span>${esc(r.t)}</span><small>${esc(r.a||'')}</small></button>`}).join('')}</div>`:''}${selected?`<section class="panel book-detail" id="book-detail" tabindex="-1" aria-label="Detalhes de ${esc(selected.t)}"><div class="book-detail-head"><div>${selected.cover?`<img class="book-cover" data-book-cover src="${coverUrl(selected.cover)}" alt="Capa de ${esc(selected.t)}" crossorigin="anonymous" referrerpolicy="no-referrer"><p class="book-no-cover" data-cover-fallback hidden>Capa indisponível agora. Tente novamente com internet.</p><p class="empty">Capa: Open Library</p>`:'<div class="book-no-cover">Capa não selecionada</div>'}</div><div><h2>${esc(selected.t)}</h2><p>${esc(selected.a||'Autor não informado')}</p><p>${selected.df?'Concluído em '+fmt(selected.df)+' '+esc(selected.df.slice(0,4)):'Data de conclusão não informada'}${selected.r?' · Nota '+selected.r+'/5':''}</p>${selected.pages?`<p>${selected.pages} páginas</p>`:''}${selected.n?`<p>${esc(selected.n)}</p>`:''}<button class="pill" data-a="rd-edit" data-id="${esc(selected.id)}">Editar na coleção</button> <button class="pill" data-a="rd-close">Fechar detalhes</button></div></div>${coverEditor(selected)}</section>`:''}`}
+function coverPalette(id,cover,customUrl){
+ const src=validCoverUrl(customUrl)||coverUrl(cover);if(!src)return;
+ const img=new Image();img.crossOrigin='anonymous';
+ img.onload=()=>{
+  try{
+   const canvas=document.createElement('canvas');canvas.width=24;canvas.height=24;
+   const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(img,0,0,24,24);
+   const color=coverDominant(ctx.getImageData(0,0,24,24).data),r=(S.reads||[]).find(x=>x.id===id);
+   if(r&&(r.cover===cover||(customUrl&&r.coverUrl===customUrl))&&color){
+    r.coverColor=color;save();
+    const el=document.getElementById('spine-'+id);
+    if(el){el.style.setProperty('--spine',color);el.style.setProperty('--spine-ink',spineInk(color))}
+   }
+  }catch(e){toast('Capa salva; não foi possível extrair a cor neste navegador')}
+ };
+ img.onerror=()=>toast('Capa salva, mas não foi possível carregar sua imagem agora');
+ img.src=src;
+}
+function coverResults(r){
+ const state=RD.lookup;if(!state||state.id!==r.id)return '';
+ if(state.loading)return '<p role="status">Buscando imagens…</p>';
+ if(state.error)return `<p role="status">${esc(state.error)}</p>`;
+ if(!state.results.length)return '<p role="status">Nenhum resultado encontrado. Tente outro termo ou cole uma URL.</p>';
+ return `<p>Escolha a edição correspondente:</p><div class="cover-results">${state.results.map(x=>{
+  const thumb=x.posterThumb||coverUrl(x.cover,'S');
+  const attrs=`${x.cover?` data-cover="${x.cover}"`:''}${x.poster?` data-poster="${esc(x.poster)}"`:''}${x.year?` data-year="${esc(String(x.year))}"`:''}${x.mins?` data-mins="${esc(String(x.mins))}"`:''}`;
+  return `<button type="button" class="cover-result" data-a="rd-cover-use" data-id="${esc(r.id)}"${attrs}><img src="${esc(thumb)}" alt="" loading="lazy" crossorigin="anonymous" referrerpolicy="no-referrer"><span>${esc(x.title)}<small>${esc(x.author)}${x.year?' · '+esc(String(x.year)):''}${x.mins?' · '+esc(String(x.mins))+' min':''}</small></span></button>`;
+ }).join('')}</div>`;
+}
+function coverEditor(r){
+ if(!isShelfItem(r))return '';
+ const label=isVisualMedia(r)?'pôster':'capa',hasImg=!!mediaImgUrl(r);
+ const query=RD.lookup&&RD.lookup.id===r.id?RD.lookup.q:[r.t,r.a].filter(Boolean).join(' ');
+ const srcNote=isVisualMedia(r)?'Pôsteres: catálogo público iTunes / Apple Media.':'Capas: <a href="https://openlibrary.org/" target="_blank" rel="noopener">Open Library</a>.';
+ return `<details><summary>${hasImg?'Trocar '+label:'Buscar '+label+' ou cor'}</summary>
+  <p class="empty">${isVisualMedia(r)?'A busca consulta o catálogo público da Apple (iTunes) para encontrar pôster e ficha.':'A busca envia o texto à Open Library. Confira a edição antes de escolher.'}</p>
+  <div class="bar"><input class="in grow" id="cover-query-${esc(r.id)}" value="${esc(query)}" placeholder="${isVisualMedia(r)?'Título ou direção':'Título, autor ou ISBN'}" aria-label="Buscar ${label} de ${esc(r.t)}"><button type="button" class="pill" data-a="rd-cover-find" data-id="${esc(r.id)}">Buscar ${label}</button></div>
+  <div id="cover-results-${esc(r.id)}">${coverResults(r)}</div>
+  <div class="bar" style="margin-top:var(--space-2)">
+   <label class="lb" style="color:inherit">Cor na estante <input type="color" class="in" style="width:52px;height:40px;padding:2px" data-rd-color="${esc(r.id)}" value="${spineColor(r.coverColor)}" aria-label="Cor na estante de ${esc(r.t)}"></label>
+   <label class="lb grow" style="color:inherit">URL de imagem (opcional) <input class="in" type="url" data-rd-cover-url="${esc(r.id)}" value="${esc(r.coverUrl||'')}" placeholder="https://..." aria-label="URL da imagem de ${esc(r.t)}"></label>
+   ${hasImg?`<button type="button" class="pill" data-a="rd-cover-remove" data-id="${esc(r.id)}">Remover ${label}</button>`:''}
+  </div>
+  <p class="empty">${srcNote}</p>
+ </details>`;
+}
+async function wikiCoverSearch(q,lang,signal){
+ const p=new URLSearchParams({action:'query',generator:'search',gsrsearch:q,gsrlimit:'6',prop:'pageimages|description',piprop:'thumbnail',pithumbsize:'400',format:'json',origin:'*'});
+ const res=await fetch('https://'+lang+'.wikipedia.org/w/api.php?'+p,{signal});
+ if(!res.ok)return [];
+ const data=await res.json(),pages=Object.values((data&&data.query&&data.query.pages)||{});
+ return pages.filter(x=>x&&x.thumbnail&&typeof x.thumbnail.source==='string'&&/^https:\/\//i.test(x.thumbnail.source)).slice(0,6).map(x=>({
+  poster:x.thumbnail.source,
+  posterThumb:x.thumbnail.source,
+  title:String(x.title||'Sem título'),
+  author:String(x.description||'Wikipédia'),
+  year:'',
+  mins:''
+ }));
+}
+async function findCover(id){
+ const r=(S.reads||[]).find(x=>x.id===id),input=document.getElementById('cover-query-'+id);if(!r||!input)return;
+ const q=input.value.trim();if(!q){toast('Informe um título para buscar');return}
+ const seq=++RD.seq;RD.lookup={id,q,seq,loading:true,results:[]};
+ let el=document.getElementById('cover-results-'+id);if(el)el.innerHTML=coverResults(r);
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+ try{
+  if(isVisualMedia(r)){
+   const media=r.k==='série'?'tvShow':'movie',entity=r.k==='série'?'tvSeason':'movie';
+   const p=new URLSearchParams({term:q,country:'BR',media,entity,limit:'8'});
+   const res=await fetch('https://itunes.apple.com/search?'+p,{signal:controller.signal});
+   if(!res.ok)throw Error('rede');const data=await res.json();
+   if(!RD.lookup||RD.lookup.seq!==seq)return;
+   let results=(Array.isArray(data.results)?data.results:[]).filter(x=>typeof x.artworkUrl100==='string'&&/^https:\/\//i.test(x.artworkUrl100)).slice(0,8).map(x=>({
+    poster:x.artworkUrl100.replace(/\/100x100bb\.(jpg|png)$/i,'/300x450bb.$1'),
+    posterThumb:x.artworkUrl100,
+    title:String(x.trackName||x.collectionName||'Sem título'),
+    author:String(x.artistName||'Direção não informada'),
+    year:x.releaseDate?+String(x.releaseDate).slice(0,4)||'':'',
+    mins:x.trackTimeMillis?Math.max(1,Math.round(x.trackTimeMillis/60000)):''
+   }));
+   if(!results.length){
+    try{
+     results=await wikiCoverSearch(q,'pt',controller.signal);
+     if(!results.length)results=await wikiCoverSearch(q,'en',controller.signal);
+    }catch(x){}
+    if(!RD.lookup||RD.lookup.seq!==seq)return;
+   }
+   RD.lookup.loading=false;
+   RD.lookup.results=results;
+  }else{
+   const p=new URLSearchParams({q,fields:'key,title,author_name,cover_i,first_publish_year',limit:'8'});
+   const res=await fetch('https://openlibrary.org/search.json?'+p,{signal:controller.signal});
+   if(!res.ok)throw Error('rede');const data=await res.json();
+   if(!RD.lookup||RD.lookup.seq!==seq)return;
+   RD.lookup.loading=false;
+   RD.lookup.results=(Array.isArray(data.docs)?data.docs:[]).filter(x=>Number.isSafeInteger(x.cover_i)&&x.cover_i>0).slice(0,8).map(x=>({
+    cover:x.cover_i,
+    title:String(x.title||'Sem título'),
+    author:Array.isArray(x.author_name)?x.author_name.slice(0,2).join(', '):'Autor não informado',
+    year:x.first_publish_year||''
+   }));
+  }
+ }catch(e){
+  if(!RD.lookup||RD.lookup.seq!==seq)return;
+  RD.lookup.loading=false;RD.lookup.error='Não foi possível buscar agora. Confira a conexão e tente novamente.';
+ }finally{clearTimeout(timer)}
+ el=document.getElementById('cover-results-'+id);if(el)el.innerHTML=coverResults(r);
+}
+function renderBookSpine(r,i){
+ const color=spineColor(r.coverColor),w=spineWidth(r);
+ return `<button type="button" class="book-spine" id="spine-${esc(r.id)}" data-a="rd-open" data-id="${esc(r.id)}" data-fav="${r.r===5?'1':'0'}" aria-pressed="${r.id===RD.selected}" aria-label="Ver ${esc(r.t)}${r.a?', de '+esc(r.a):''}" style="--spine:${color};--spine-ink:${spineInk(color)};--book-h:${150+(i%4)*7}px;--book-w:${w}px"><span>${esc(r.t)}</span><small>${esc(r.a||'')}</small></button>`;
+}
+function renderMovieItem(r){
+ const color=spineColor(r.coverColor),ink=spineInk(color),img=mediaImgUrl(r),K=RK[r.k]||RK.filme;
+ const attrs=`id="spine-${esc(r.id)}" data-a="rd-open" data-id="${esc(r.id)}" data-fav="${r.r===5?'1':'0'}" aria-pressed="${r.id===RD.selected}" aria-label="Ver ${K[0].toLowerCase()} ${esc(r.t)}${r.a?', de '+esc(r.a):''}" style="--spine:${color};--spine-ink:${ink}"`;
+ if(RD.movieMode==='spine'){
+  return `<button type="button" class="movie-item movie-spine" ${attrs}><small class="movie-tag">${r.k==='série'?'SÉRIE':'FILME'}</small><span>${esc(r.t)}</span><small>${esc(r.a||String(r.year||''))}</small></button>`;
+ }
+ const art=img?`<img class="movie-poster-img" data-book-cover src="${esc(img)}" alt="" loading="lazy" crossorigin="anonymous" referrerpolicy="no-referrer"><span class="movie-poster-fallback" data-cover-fallback hidden>${esc(r.t)}</span>`:`<span class="movie-poster-fallback">${esc(r.t)}${r.a?`<small>${esc(r.a)}</small>`:''}</span>`;
+ return `<button type="button" class="movie-item movie-poster" ${attrs}>${art}<span class="movie-caption"><strong class="movie-title">${esc(r.t)}</strong><small class="movie-meta">${r.year?esc(String(r.year)):K[0]}${r.mins?' · '+r.mins+'m':''}${r.r?' · ★'+r.r:''}</small></span></button>`;
+}
+function groupByShelfYear(list,unitSing,unitPl,renderFn,wrapCls,ariaPrefix){
+ if(RD.shelfYear!=='by-year')return `<div class="${wrapCls}" aria-label="${ariaPrefix}">${list.map(renderFn).join('')}</div>`;
+ const groups=new Map();
+ list.forEach(r=>{const y=/^\d{4}/.test(r.df||'')?r.df.slice(0,4):'Sem ano';if(!groups.has(y))groups.set(y,[]);groups.get(y).push(r)});
+ return [...groups.entries()].map(([yr,items])=>`<div class="shelf-group"><div class="shelf-group-head"><span class="shelf-badge">${esc(yr)}</span><small>${items.length} ${items.length===1?unitSing:unitPl}</small></div><div class="${wrapCls}" aria-label="${ariaPrefix} em ${esc(yr)}">${items.map(renderFn).join('')}</div></div>`).join('');
+}
+function readShelf(){
+ const A=S.reads||[],inProg=A.filter(r=>isShelfItem(r)&&r.st==='a');
+ const allBooks=A.filter(r=>isBook(r)&&r.st==='f').sort((a,b)=>(b.df||'').localeCompare(a.df||''));
+ const allMovies=A.filter(r=>isVisualMedia(r)&&r.st==='f').sort((a,b)=>(b.df||'').localeCompare(a.df||''));
+ const allFilms=allMovies.filter(r=>r.k==='filme'),allSeries=allMovies.filter(r=>r.k==='série');
+ const years=[...new Set([...allBooks,...allMovies].map(r=>(r.df||'').slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort().reverse();
+ const matchShelf=r=>(!RD.shelfFav||(r.r||0)>=+RD.shelfFav)&&(!/^\d{4}$/.test(RD.shelfYear)||(r.df||'').startsWith(RD.shelfYear));
+ const books=(RD.shelfKind==='movies'||RD.shelfKind==='series')?[]:allBooks.filter(matchShelf);
+ const movieSource=RD.shelfKind==='movies'?allFilms:RD.shelfKind==='series'?allSeries:allMovies;
+ const movies=RD.shelfKind==='books'?[]:movieSource.filter(matchShelf);
+ const selected=[...allBooks,...allMovies,...inProg].find(r=>r.id===RD.selected);
+ const nowHtml=inProg.length?`<section class="panel shelf-now" aria-label="Em andamento agora"><h2>Na cabeceira agora</h2><div class="now-grid">${inProg.map(r=>{
+  const K=RK[r.k]||RK.livro,img=mediaImgUrl(r,'S'),col=spineColor(r.coverColor),pct=r.p||0;
+  const sub=isBook(r)&&r.pages?`${r.page||0} de ${r.pages} pág. (${pct}%)`:r.k==='série'&&(r.season||r.episode)?`T${r.season||1} · Ep. ${r.episode||0}`:`${pct}% concluído`;
+  const step=isBook(r)&&r.pages?`<button type="button" class="pill" data-a="rd-step" data-id="${esc(r.id)}" data-d="10">+10 pág.</button>`:r.k==='série'?`<button type="button" class="pill" data-a="rd-step" data-id="${esc(r.id)}" data-d="1">+1 ep.</button>`:'';
+  return `<article class="now-card"><div class="now-thumb" style="--spine:${col};--spine-ink:${spineInk(col)}">${img?`<img src="${esc(img)}" alt="" loading="lazy" crossorigin="anonymous" referrerpolicy="no-referrer">`:`<span>${esc((r.t||'').slice(0,2).toUpperCase())}</span>`}</div><div class="now-body"><span class="chip" style="margin:0">${K[0]}</span><strong>${esc(r.t)}</strong><small>${esc(sub)}</small><div class="prog" aria-hidden="true"><i style="width:${pct}%"></i></div><div class="bar" style="margin:var(--space-1) 0 0">${step}<button type="button" class="pill" data-a="rd-finish" data-id="${esc(r.id)}">Concluir</button><button type="button" class="pill" data-a="rd-open" data-id="${esc(r.id)}">Detalhes</button></div></div></article>`;
+ }).join('')}</div></section>`:'';
+ const pill=(a,id,l,on)=>`<button type="button" class="pill ${on?'on':''}" data-a="${a}" data-id="${esc(id)}" aria-pressed="${on}">${l}</button>`;
+ const hasAnyFinished=allBooks.length+allMovies.length>0;
+ const controls=hasAnyFinished?`<div class="shelf-controls"><div class="bar">${pill('rd-shelf-kind','all','Tudo',RD.shelfKind==='all')}${pill('rd-shelf-kind','books',`Livros (${allBooks.length})`,RD.shelfKind==='books')}${pill('rd-shelf-kind','movies',`Filmes (${allFilms.length})`,RD.shelfKind==='movies')}${pill('rd-shelf-kind','series',`Séries (${allSeries.length})`,RD.shelfKind==='series')}</div><div class="bar">${pill('rd-shelf-fav','','Todas as notas',!RD.shelfFav)}${pill('rd-shelf-fav','4','★ 4+',RD.shelfFav==='4')}${pill('rd-shelf-fav','5','★ 5 Favoritos',RD.shelfFav==='5')}${pill('rd-shelf-year','by-year','Agrupar por ano',RD.shelfYear==='by-year')}${years.map(y=>pill('rd-shelf-year',y,y,RD.shelfYear===y)).join('')}${RD.shelfKind!=='books'&&allMovies.length?`${pill('rd-movie-mode','poster','Pôsteres',RD.movieMode==='poster')}${pill('rd-movie-mode','spine','Lombadas',RD.movieMode==='spine')}`:''}</div></div>`:'';
+ const bookSec=(RD.shelfKind!=='movies'&&RD.shelfKind!=='series'&&(books.length||allBooks.length||RD.shelfKind==='books'))?`<section class="shelf-section"><h3>Estante de livros (${books.length})</h3>${books.length?groupByShelfYear(books,'livro','livros',renderBookSpine,'bookshelf','Livros concluídos'):'<p class="empty">Nenhum livro concluído corresponde a esses filtros.</p>'}</section>`:'';
+ const movieHeading=RD.shelfKind==='movies'?'Prateleira de filmes':RD.shelfKind==='series'?'Prateleira de séries':'Prateleira de filmes e séries';
+ const movieSec=(RD.shelfKind!=='books'&&(movies.length||movieSource.length||RD.shelfKind==='movies'||RD.shelfKind==='series'))?`<section class="shelf-section"><h3>${movieHeading} (${movies.length})</h3>${movies.length?groupByShelfYear(movies,'título','títulos',renderMovieItem,'movieshelf','Filmes e séries concluídos'):'<p class="empty">Nenhum filme ou série concluído corresponde a esses filtros.</p>'}</section>`:'';
+ const selImg=selected?mediaImgUrl(selected):'';
+ const srcCaption=selected&&selected.coverUrl?(isVisualMedia(selected)?'Pôster: '+(selected.coverUrl.includes('mzstatic.com')?'iTunes':selected.coverUrl.includes('wikimedia.org')?'Wikipédia':'URL'):'Capa personalizada'):'Capa: Open Library';
+ const detailHtml=selected?`<section class="panel book-detail" id="book-detail" tabindex="-1" aria-label="Detalhes de ${esc(selected.t)}"><div class="book-detail-head"><div>${selImg?`<img class="book-cover" data-book-cover src="${esc(selImg)}" alt="Capa de ${esc(selected.t)}" crossorigin="anonymous" referrerpolicy="no-referrer"><p class="book-no-cover" data-cover-fallback hidden>Capa indisponível agora. Tente novamente com internet.</p><p class="empty">${srcCaption}</p>`:'<div class="book-no-cover">Capa não selecionada</div>'}</div><div><h2>${esc(selected.t)}</h2><p>${esc(selected.a||(isVisualMedia(selected)?'Direção não informada':'Autor não informado'))}${selected.year?' · '+esc(String(selected.year)):''}</p><p>${selected.df?'Concluído em '+fmt(selected.df)+' '+esc(selected.df.slice(0,4)):rdLab(selected)}${selected.r?' · Nota '+selected.r+'/5':''}</p>${selected.pages?`<p>${selected.pages} páginas</p>`:''}${selected.mins?`<p>Duração: ${selected.mins} min</p>`:''}${(selected.season||selected.episode)?`<p>Temporada ${selected.season||1}${selected.episode?' · Episódio '+selected.episode:''}</p>`:''}${selected.n?`<blockquote class="book-quote" data-priv-text>${esc(selected.n)}</blockquote>`:''}<div class="bar"><button type="button" class="pill" data-a="rd-edit" data-id="${esc(selected.id)}">Editar na coleção</button><button type="button" class="pill" data-a="rd-note-create" data-id="${esc(selected.id)}">Criar nota vinculada</button>${lkBtn('rd',selected.id)}<button type="button" class="pill" data-a="rd-close">Fechar detalhes</button></div></div></div>${coverEditor(selected)}</section>`:'';
+ const introText=hasAnyFinished?`${allBooks.length} ${allBooks.length===1?'livro':'livros'} e ${allMovies.length} ${allMovies.length===1?'filme ou série':'filmes e séries'} concluídos. Toque em um título para ver capa, pôster e anotações.`:'Quando você concluir um livro, filme ou série, ele aparecerá aqui.';
+ return `<div class="shelf-intro"><h2>Sua estante</h2><p>${introText}</p></div>${nowHtml}${controls}${bookSec}${movieSec}${detailHtml}`;
+}
 document.addEventListener('error',e=>{const i=e.target;if(i&&i.matches&&i.matches('[data-book-cover]')){i.hidden=true;const p=i.parentElement.querySelector('[data-cover-fallback]');if(p)p.hidden=false}},true);
 function leituras(){
  const A=S.reads=S.reads||[],fk=S.rk||'',fs=S.rs||'',Y=String(today.getFullYear());
  const q=norm(RD.q.trim()),L=A.filter(r=>(!fk||(fk==='livro'?isBook(r):r.k===fk))&&(!fs||r.st===fs)&&(!q||norm([r.t,r.a,r.n].join(' ')).includes(q))).sort((a,b)=>RD.sort==='title'?String(a.t||'').localeCompare(String(b.t||''),'pt-BR'):RD.sort==='finished'?(b.df||'').localeCompare(a.df||''):(Number(b.st==='a')-Number(a.st==='a'))||(b.da||'').localeCompare(a.da||''));
  const fin=A.filter(r=>r.st==='f'&&(r.df||'').startsWith(Y)),rt=fin.filter(r=>r.r),av=rt.length?(rt.reduce((s,r)=>s+r.r,0)/rt.length).toFixed(1).replace('.',','):'–';
+ const pagesY=fin.filter(isBook).reduce((s,r)=>s+(+r.pages||0),0),minsY=fin.filter(r=>r.k==='filme').reduce((s,r)=>s+(+r.mins||0),0);
  const by=Object.keys(RK).map(k=>[k,fin.filter(r=>k==='livro'?isBook(r):r.k===k).length]).filter(x=>x[1]);
+ const readGoals=(S.metas||[]).filter(g=>!g.archived&&(/\b(livro|livros|página|páginas|leitura|leituras|filme|filmes)\b/i.test(g.t)||(g.kr||[]).some(k=>/\b(livro|livros|página|páginas|leitura|leituras|filme|filmes)\b/i.test(k.t+' '+(k.un||'')))||lkOf('mt:'+g.id).some(r=>r.startsWith('rd:')))).slice(0,2);
+ const durTxt=minsY>=60?Math.floor(minsY/60)+'h'+(minsY%60?' '+minsY%60+'min':''):minsY+' min';
  const chip=(a,id,l,on)=>`<button class="pill ${on?'on':''}" data-a="${a}" data-id="${id}" aria-pressed="${on}">${l}</button>`;
- const tabs=`<div class="bar" role="group" aria-label="Visualização de leituras"><button class="pill ${RD.tab==='collection'?'on':''}" data-a="rd-tab" data-id="collection" aria-pressed="${RD.tab==='collection'}">Minha coleção</button><button class="pill ${RD.tab==='shelf'?'on':''}" data-a="rd-tab" data-id="shelf" aria-pressed="${RD.tab==='shelf'}">Estante</button></div>`;
- if(RD.tab==='shelf')return `<div class="top"><h1>Leituras e mídia</h1></div>${tabs}${readShelf()}`;
- return `<div class="top"><h1>Leituras e mídia</h1></div>${tabs}
+ const tabs=`<div class="bar" role="group" aria-label="Visualização de leituras"><button class="pill ${RD.tab==='collection'?'on':''}" data-a="rd-tab" data-id="collection" aria-pressed="${RD.tab==='collection'}">Minha coleção</button><button class="pill ${RD.tab==='shelf'?'on':''}" data-a="rd-tab" data-id="shelf" aria-pressed="${RD.tab==='shelf'}">Estante</button>${A.some(r=>r.st==='q')?'<button type="button" class="pill" data-a="rd-pick-random">Sortear da fila</button>':''}</div>`;
+ const pickedItem=RD.picked&&A.find(r=>r.id===RD.picked&&r.st==='q');
+ const pickedBox=pickedItem?`<div class="panel" data-rd-picked style="margin-bottom:var(--space-3)"><h2>Sugestão da sua fila</h2><p><strong>${esc(pickedItem.t)}</strong> · ${(RK[pickedItem.k]||RK.livro)[0]}${pickedItem.a?' · '+esc(pickedItem.a):''}</p><div class="bar"><button type="button" class="pill dark" data-a="rd-start" data-id="${esc(pickedItem.id)}">Começar agora</button><button type="button" class="pill" data-a="rd-pick-random">Sortear outro</button><button type="button" class="pill" data-a="rd-pick-close">Fechar</button></div></div>`:'';
+ if(RD.tab==='shelf')return `<div class="top"><h1>Leituras e mídia</h1></div>${tabs}${pickedBox}${readShelf()}`;
+ const metaRow=readGoals.length?`<div style="margin-top:var(--space-2)">${readGoals.map(g=>{const pct=Math.round(metaProg(g)*100);return `<div style="margin-top:var(--space-1)"><small>Meta: <strong>${esc(g.t)}</strong> (${pct}%)</small><div class="prog" aria-hidden="true"><i style="width:${pct}%"></i></div></div>`}).join('')}</div>`:'';
+ return `<div class="top"><h1>Leituras e mídia</h1></div>${tabs}${pickedBox}
  <form class="bar" id="frd"><input class="in grow" name="t" placeholder="Título (livro, filme, artigo…)" required><input class="in" name="a" placeholder="Autor ou diretor" aria-label="Autor ou diretor"><select class="in" name="k" aria-label="Tipo">${Object.entries(RK).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join('')}</select><select class="in" name="st" aria-label="Situação"><option value="q">Quero</option><option value="a">Em andamento</option><option value="f">Concluído</option></select><input class="in" name="u" type="url" placeholder="Link (opcional)" aria-label="Link"><label class="lb">Data de conclusão (opcional)<input class="in" name="df" type="date"></label><button class="pill dark">Adicionar</button></form>
- <div class="panel" style="margin-bottom:var(--space-3)"><h2>Em ${Y}</h2><p style="margin:0">${fin.length?`<strong>${fin.length}</strong> ${fin.length===1?'concluído':'concluídos'}${by.length?' ('+by.map(x=>x[1]+' '+RK[x[0]][0].toLowerCase()+(x[1]>1&&x[0]!=='série'?'s':x[1]>1?'s':'')).join(', ')+')':''}. Nota média: <strong>${av}</strong>.`:'Nada concluído ainda neste ano.'} ${A.filter(r=>r.st==='a').length?'Em andamento: '+A.filter(r=>r.st==='a').length+'.':''}</p></div>
+ <div class="panel" style="margin-bottom:var(--space-3)"><h2>Em ${Y}</h2><p style="margin:0">${fin.length?`<strong>${fin.length}</strong> ${fin.length===1?'concluído':'concluídos'}${by.length?' ('+by.map(x=>x[1]+' '+RK[x[0]][0].toLowerCase()+(x[1]>1?'s':'')).join(', ')+')':''}. Nota média: <strong>${av}</strong>${pagesY?` · <strong>${pagesY}</strong> páginas`:''}${minsY?` · <strong>${durTxt}</strong> de filmes`:''}.`:'Nada concluído ainda neste ano.'} ${A.filter(r=>r.st==='a').length?'Em andamento: '+A.filter(r=>r.st==='a').length+'.':''}</p>${metaRow}</div>
  <div class="bar"><input class="in grow" id="rd-search" value="${esc(RD.q)}" placeholder="Buscar por título, autor ou anotações" aria-label="Buscar na coleção"><select class="in" id="rd-sort" aria-label="Ordenar coleção"><option value="recent" ${RD.sort==='recent'?'selected':''}>Em andamento primeiro</option><option value="title" ${RD.sort==='title'?'selected':''}>Título</option><option value="finished" ${RD.sort==='finished'?'selected':''}>Conclusão recente</option></select></div><div class="bar">${chip('rfk','','Todos',!fk)}${Object.entries(RK).map(([k,v])=>chip('rfk',k,v[0],fk===k)).join('')}</div><div class="bar">${chip('rfs','','Qualquer situação',!fs)}${chip('rfs','q','Quero',fs==='q')}${chip('rfs','a','Em andamento',fs==='a')}${chip('rfs','f','Concluídos',fs==='f')}</div>
- <div class="notes">${L.map(r=>{const K=RK[r.k]||RK.livro;return `<div class="note c-${K[1]}" data-lid="rd:${r.id}"><input data-rdf="t" data-id="${r.id}" value="${esc(r.t)}" placeholder="Título" aria-label="Título"><input data-rdf="a" data-id="${r.id}" value="${esc(r.a||'')}" placeholder="Autor ou diretor" aria-label="Autor ou diretor" style="font-size:var(--type-small);font-weight:400"><div class="bar" style="margin:0;align-items:center"><span class="chip" style="background:rgba(0,0,0,.12)">${K[0]}</span><select class="in" data-rds="${r.id}" aria-label="Situação de ${esc(r.t)}">${RS.map((s,i)=>`<option value="${s}" ${r.st===s?'selected':''}>${K[2][i]}</option>`).join('')}</select></div>${r.st==='a'?`<label class="lb" style="color:#161616">Progresso <span>${r.p||0}%</span><input type="range" min="0" max="100" step="5" value="${r.p||0}" data-rdp="${r.id}" aria-label="Progresso de ${esc(r.t)}" style="width:100%"></label>`:''}<div role="group" aria-label="Nota">${[1,2,3,4,5].map(n=>`<button class="x" data-a="rdr" data-id="${r.id}" data-n="${n}" aria-pressed="${(r.r||0)>=n}" aria-label="${n} de 5 estrelas">${(r.r||0)>=n?'★':'☆'}</button>`).join('')}</div><textarea data-rdf="n" data-id="${r.id}" placeholder="Anotações, citações, o que achou…" aria-label="Anotações" style="min-height:70px">${esc(r.n||'')}</textarea>${isBook(r)?`<details><summary>Progresso em páginas</summary><label class="lb" style="color:#161616">Total de páginas <input class="in" type="number" min="1" max="100000" data-rd-pages="${esc(r.id)}" value="${r.pages||''}"></label><label class="lb" style="color:#161616">Páginas lidas <input class="in" type="number" min="0" max="${r.pages||100000}" data-rd-page="${esc(r.id)}" value="${r.page||0}"></label></details>${coverEditor(r)}`:''}${r.st==='f'?`<label class="lb" style="color:#161616">Data de conclusão<input class="in" type="date" data-rd-date="${esc(r.id)}" value="${esc(r.df||'')}"></label>`:''}<footer><span>${r.st==='f'&&r.df?'Concluído em '+fmt(r.df):r.da?'Adicionado em '+fmt(r.da):''}</span><span>${r.u?`<a href="${esc(safeUrl(r.u))}" target="_blank" rel="noopener" class="x">abrir ↗</a>`:''}${lkBtn('rd',r.id)}<button class="x" data-a="delrd" data-id="${r.id}" aria-label="Excluir ${esc(r.t)}">Excluir</button></span></footer></div>`}).join('')||(q||fk||fs?'<p class="empty">Nenhum item corresponde à busca ou aos filtros.</p>':emp('rd','Sua lista está vazia. Registre o que quer ler ou assistir, acompanhe o que está em andamento e guarde suas notas.','Adicionar o primeiro','data-a="focusform" data-id="#frd"'))}</div>`}
+ <div class="notes">${L.map(r=>{const K=RK[r.k]||RK.livro;const details=isBook(r)?`<details><summary>Progresso em páginas</summary><label class="lb" style="color:#161616">Total de páginas <input class="in" type="number" min="1" max="100000" data-rd-pages="${esc(r.id)}" value="${r.pages||''}"></label><label class="lb" style="color:#161616">Páginas lidas <input class="in" type="number" min="0" max="${r.pages||100000}" data-rd-page="${esc(r.id)}" value="${r.page||0}"></label><label class="lb" style="color:#161616">Ano <input class="in" type="number" min="1800" max="2100" data-rd-year="${esc(r.id)}" value="${r.year||''}"></label></details>`:r.k==='filme'?`<details><summary>Ficha do filme</summary><label class="lb" style="color:#161616">Ano de lançamento <input class="in" type="number" min="1880" max="2100" data-rd-year="${esc(r.id)}" value="${r.year||''}"></label><label class="lb" style="color:#161616">Duração (min) <input class="in" type="number" min="1" max="10000" data-rd-mins="${esc(r.id)}" value="${r.mins||''}"></label></details>`:r.k==='série'?`<details><summary>Temporada e episódios</summary><label class="lb" style="color:#161616">Temporada atual <input class="in" type="number" min="1" max="999" data-rd-season="${esc(r.id)}" value="${r.season||''}"></label><label class="lb" style="color:#161616">Episódio atual <input class="in" type="number" min="0" max="9999" data-rd-episode="${esc(r.id)}" value="${r.episode??''}"></label><label class="lb" style="color:#161616">Ano <input class="in" type="number" min="1920" max="2100" data-rd-year="${esc(r.id)}" value="${r.year||''}"></label></details>`:'';return `<div class="note c-${K[1]}" data-lid="rd:${r.id}"><input data-rdf="t" data-id="${r.id}" value="${esc(r.t)}" placeholder="Título" aria-label="Título"><input data-rdf="a" data-id="${r.id}" value="${esc(r.a||'')}" placeholder="Autor ou diretor" aria-label="Autor ou diretor" style="font-size:var(--type-small);font-weight:400"><div class="bar" style="margin:0;align-items:center"><span class="chip" style="background:rgba(0,0,0,.12)">${K[0]}</span><select class="in" data-rds="${r.id}" aria-label="Situação de ${esc(r.t)}">${RS.map((s,i)=>`<option value="${s}" ${r.st===s?'selected':''}>${K[2][i]}</option>`).join('')}</select></div>${r.st==='a'?`<label class="lb" style="color:#161616">Progresso <span>${r.p||0}%</span><input type="range" min="0" max="100" step="5" value="${r.p||0}" data-rdp="${r.id}" aria-label="Progresso de ${esc(r.t)}" style="width:100%"></label>`:''}<div role="group" aria-label="Nota">${[1,2,3,4,5].map(n=>`<button class="x" data-a="rdr" data-id="${r.id}" data-n="${n}" aria-pressed="${(r.r||0)>=n}" aria-label="${n} de 5 estrelas">${(r.r||0)>=n?'★':'☆'}</button>`).join('')}</div><textarea data-rdf="n" data-id="${r.id}" placeholder="Anotações, citações, o que achou…" aria-label="Anotações" style="min-height:70px">${esc(r.n||'')}</textarea>${details}${coverEditor(r)}${r.st==='f'?`<label class="lb" style="color:#161616">Data de conclusão<input class="in" type="date" data-rd-date="${esc(r.id)}" value="${esc(r.df||'')}"></label>`:''}<footer><span>${r.st==='f'&&r.df?'Concluído em '+fmt(r.df):r.da?'Adicionado em '+fmt(r.da):''}</span><span>${r.u?`<a href="${esc(safeUrl(r.u))}" target="_blank" rel="noopener" class="x">abrir ↗</a>`:''}${lkBtn('rd',r.id)}<button class="x" data-a="delrd" data-id="${r.id}" aria-label="Excluir ${esc(r.t)}">Excluir</button></span></footer></div>`}).join('')||(q||fk||fs?'<p class="empty">Nenhum item corresponde à busca ou aos filtros.</p>':emp('rd','Sua lista está vazia. Registre o que quer ler ou assistir, acompanhe o que está em andamento e guarde suas notas.','Adicionar o primeiro','data-a="focusform" data-id="#frd"'))}</div>`}
 document.addEventListener('change',e=>{const i=e.target;if(!i||!i.dataset)return;
  if(i.id==='rd-sort'){RD.sort=i.value;renderKeepDraft();return}
  if(i.dataset.rdDate){const r=(S.reads||[]).find(x=>x.id===i.dataset.rdDate),v=i.value;if(r){r.df=v;renderKeepDraft()}return}
+ if(i.dataset.rdColor){const r=(S.reads||[]).find(x=>x.id===i.dataset.rdColor);if(r&&/^#[0-9a-f]{6}$/i.test(i.value)){r.coverColor=i.value.toLowerCase();renderKeepDraft()}return}
+ if(i.dataset.rdCoverUrl){const r=(S.reads||[]).find(x=>x.id===i.dataset.rdCoverUrl);if(!r)return;const u=i.value.trim();if(!u){delete r.coverUrl;renderKeepDraft();return}if(!validCoverUrl(u)){toast('Use um endereço https:// válido para a imagem');renderKeepDraft();return}r.coverUrl=u;delete r.cover;delete r.coverColor;renderKeepDraft();coverPalette(r.id,null,u);return}
+ if(i.dataset.rdYear||i.dataset.rdMins||i.dataset.rdSeason||i.dataset.rdEpisode){
+  const specs=[['rdYear','year',1800,2100],['rdMins','mins',1,10000],['rdSeason','season',1,999],['rdEpisode','episode',0,9999]];
+  for(const [dk,fk,lo,hi] of specs){
+   if(!i.dataset[dk])continue;
+   const r=(S.reads||[]).find(x=>x.id===i.dataset[dk]);if(!r)return;
+   const v=i.value.trim();if(!v){delete r[fk];renderKeepDraft();return}
+   const n=+v;if(!Number.isInteger(n)||n<lo||n>hi){toast('Informe um número inteiro válido');renderKeepDraft();return}
+   r[fk]=n;renderKeepDraft();return;
+  }
+ }
  if(i.dataset.rdPages||i.dataset.rdPage){const r=(S.reads||[]).find(x=>x.id===(i.dataset.rdPages||i.dataset.rdPage));if(!r)return;const v=i.value.trim(),n=+v;if(i.dataset.rdPages&&!v){delete r.pages;delete r.page;renderKeepDraft();return}if(!Number.isInteger(n)||n<0||n>100000||(i.dataset.rdPages&&n<1)||(i.dataset.rdPage&&(!r.pages||n>r.pages))||(i.dataset.rdPage&&r.st==='f'&&n!==r.pages)){toast('Confira o total e as páginas lidas; um livro concluído deve estar completo');renderKeepDraft();return}if(i.dataset.rdPages){r.pages=n;r.page=r.st==='f'?n:Math.min(r.page||0,n)}else r.page=n;r.p=r.pages?Math.round(r.page/r.pages*100):r.p;renderKeepDraft();return}
  if(i.dataset.rds){const r=(S.reads||[]).find(x=>x.id===i.dataset.rds);if(r&&RS.includes(i.value)){const was=r.st;r.st=i.value;if(r.st==='f'){r.df=r.df||T;r.p=100;if(r.pages)r.page=r.pages}else if(was==='f'&&r.p===100){r.p=0;if(r.pages)r.page=0}renderKeepDraft()}}});
 /* revisão anual do diário */

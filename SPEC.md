@@ -97,7 +97,7 @@ function acctSwap(from,to){
 Implementado em `tests/run.js` (T1):
 
 - `tests/run.js` (Node 24, sem dependências): sobe um servidor estático do próprio Node que entrega `index.html`, `css/` e `js/` com Firebase simulado (nuvem e sessão em `localStorage`) no arquivo que tiver `FB_CONFIG`, e dirige um Chrome headless via DevTools Protocol. Arquivo linkado que não existe faz o cenário falhar.
-- Cenários mínimos (complementados por cenários de regressão específicos — 241 cenários no total), cada um com `assert`:
+- Cenários mínimos (complementados por cenários de regressão específicos — 246 cenários no total), cada um com `assert`:
   1. Sem login: tela de login visível e hub bloqueado (`inert`).
   2. Login → mudança → documentos `hub-meta` e `hub-0` gravados.
   3. Mudança vinda de "outro aparelho" é mesclada.
@@ -140,7 +140,7 @@ Implementado em `tests/run.js` (T1):
 
 - [x] Site publicado carrega o Firebase sem erros no console e mostra "Entrar com o Google".
 - [x] Leitura e escrita no Firestore sem login retornam `PERMISSION_DENIED`.
-- [x] Os 12 cenários centrais e a suíte completa de regressão (241 cenários) passam com `node tests/run.js`.
+- [x] Os 12 cenários centrais e a suíte completa de regressão (246 cenários) passam com `node tests/run.js`.
 - [x] Uma tarefa criada no computador aparece no celular da mesma conta em até ~1 minuto.
 - [x] Tela de login e hub funcionam em 375 px de largura sem rolagem horizontal.
 

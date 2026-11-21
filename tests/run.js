@@ -1549,6 +1549,178 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       })()`);
       assert.deepStrictEqual(r, {finOffCalls:0,finOnCalls:1,contasYoy:0,contasTx:0,lancTx:1,saveHubV1Calls:0});
     }],
+    ['prateleira de filmes e séries exibe pôster ou lombada, busca iTunes e persiste ficha no backup', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(async()=>{
+        RD.tab='shelf';RD.shelfKind='all';RD.shelfYear='';RD.shelfFav='';RD.movieMode='poster';RD.selected='';
+        S.reads=[
+          {id:'b1',t:'Dom Casmurro',a:'Machado de Assis',k:'livro',st:'f',df:T,r:4},
+          {id:'m1',t:'Central do Brasil',a:'Walter Salles',k:'filme',st:'f',df:T,r:5,year:1998,mins:113,n:'Clássico nacional'},
+          {id:'s1',t:'Série Teste',a:'Criadora',k:'série',st:'f',df:T,season:2,episode:8}
+        ];
+        S.view='leituras';render();
+        const bookCount=document.querySelectorAll('.bookshelf .book-spine').length;
+        const posterCount=document.querySelectorAll('.movieshelf .movie-poster').length;
+        document.querySelector('[data-a="rd-movie-mode"][data-id="spine"]').click();
+        const spineCount=document.querySelectorAll('.movieshelf .movie-spine').length;
+        document.querySelector('[data-a="rd-open"][data-id="m1"]').click();
+        const detailText=document.querySelector('#book-detail').innerText;
+        const oldFetch=window.fetch,OldImage=window.Image,oldContext=HTMLCanvasElement.prototype.getContext;
+        window.fetch=async()=>({ok:true,json:async()=>({results:[{artworkUrl100:'https://is1-ssl.mzstatic.com/image/thumb/Video/v4/p/100x100bb.jpg',trackName:'Central do Brasil',artistName:'Walter Salles',releaseDate:'1998-04-03T00:00:00Z',trackTimeMillis:6780000}]})});
+        window.Image=class{set src(v){queueMicrotask(()=>this.onload())}};
+        HTMLCanvasElement.prototype.getContext=function(){return {drawImage(){},getImageData(){return {data:new Uint8ClampedArray([30,90,150,255,30,90,150,255])}}}};
+        await findCover('m1');
+        document.querySelector('[data-a="rd-cover-use"]').click();
+        await new Promise(x=>setTimeout(x,30));
+        window.fetch=oldFetch;window.Image=OldImage;HTMLCanvasElement.prototype.getContext=oldContext;
+        const m1={...S.reads.find(x=>x.id==='m1')},okBackup=validBackup(pick()),data=JSON.stringify(pick());
+        S.reads=[];S.view='backup';render();
+        const f=document.querySelector('#bkfile'),dt=new DataTransfer();
+        dt.items.add(new File([data],'backup.json',{type:'application/json'}));
+        f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));
+        await new Promise(x=>setTimeout(x,180));
+        return {bookCount,posterCount,spineCount,hasDuration:/113 min/.test(detailText),hasQuote:/Clássico nacional/.test(detailText),coverUrl:m1.coverUrl,color:m1.coverColor,okBackup,restoredSeason:S.reads.find(x=>x.id==='s1')?.season,restoredEp:S.reads.find(x=>x.id==='s1')?.episode};
+      })()`);
+      assert.strictEqual(r.bookCount, 1);
+      assert.strictEqual(r.posterCount, 2);
+      assert.strictEqual(r.spineCount, 2);
+      assert.ok(r.hasDuration && r.hasQuote && r.okBackup);
+      assert.match(r.coverUrl, /300x450bb\.jpg/);
+      assert.strictEqual(r.color, '#1e5a96');
+      assert.strictEqual(r.restoredSeason, 2);
+      assert.strictEqual(r.restoredEp, 8);
+    }],
+    ['estante ajusta largura por páginas, destaca favoritos, permite cor e URL manual e agrupa por ano', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        RD.tab='shelf';RD.shelfKind='books';RD.shelfYear='';RD.shelfFav='';RD.selected='';
+        S.reads=[
+          {id:'b_thin',t:'Contos',a:'Autor A',k:'livro',st:'f',df:'2026-06-01',r:5,pages:90},
+          {id:'b_thick',t:'Calhamaço',a:'Autor B',k:'livro',st:'f',df:'2025-05-01',r:3,pages:700}
+        ];
+        S.view='leituras';render();
+        const thinW=parseFloat(document.querySelector('#spine-b_thin').style.getPropertyValue('--book-w'));
+        const thickW=parseFloat(document.querySelector('#spine-b_thick').style.getPropertyValue('--book-w'));
+        const favAttr=document.querySelector('#spine-b_thin').dataset.fav;
+        document.querySelector('[data-a="rd-shelf-fav"][data-id="5"]').click();
+        const afterFavCount=document.querySelectorAll('.bookshelf .book-spine').length;
+        document.querySelector('[data-a="rd-shelf-fav"][data-id="5"]').click();
+        document.querySelector('[data-a="rd-shelf-year"][data-id="by-year"]').click();
+        const badges=[...document.querySelectorAll('.shelf-badge')].map(el=>el.textContent.trim());
+        document.querySelector('[data-a="rd-open"][data-id="b_thin"]').click();
+        let cIn=document.querySelector('[data-rd-color="b_thin"]');
+        cIn.value='#336699';cIn.dispatchEvent(new Event('change',{bubbles:true}));
+        const uIn=document.querySelector('[data-rd-cover-url="b_thin"]');
+        uIn.value='https://example.com/capa.jpg';uIn.dispatchEvent(new Event('change',{bubbles:true}));
+        cIn=document.querySelector('[data-rd-color="b_thin"]');
+        cIn.value='#336699';cIn.dispatchEvent(new Event('change',{bubbles:true}));
+        return {thinW,thickW,favAttr,afterFavCount,badges,item:S.reads[0]};
+      })()`);
+      assert.ok(r.thickW > r.thinW);
+      assert.strictEqual(r.favAttr, '1');
+      assert.strictEqual(r.afterFavCount, 1);
+      assert.deepStrictEqual(r.badges, ['2026', '2025']);
+      assert.strictEqual(r.item.coverUrl, 'https://example.com/capa.jpg');
+      assert.strictEqual(r.item.coverColor, '#336699');
+    }],
+    ['cabeceira em andamento, sorteador da fila, soma anual e nota vinculada', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        RD.tab='collection';RD.picked='';S.rk='';S.rs='';
+        S.notes=[];S.lnk=[];
+        S.reads=[
+          {id:'q1',t:'Filme na fila',a:'Dir.',k:'filme',st:'q'},
+          {id:'a1',t:'Livro atual',a:'Autora',k:'livro',st:'a',pages:100,page:95,p:95,n:'Trecho favorito'},
+          {id:'f1',t:'Livro ano',k:'livro',st:'f',df:T,pages:240,r:5},
+          {id:'m1',t:'Filme ano',k:'filme',st:'f',df:T,mins:130,r:4}
+        ];
+        S.view='leituras';render();
+        const summary=document.querySelector('#main .panel').innerText;
+        document.querySelector('[data-a="rd-pick-random"]').click();
+        const pickedOk=!!document.querySelector('[data-rd-picked]');
+        document.querySelector('[data-a="rd-start"][data-id="q1"]').click();
+        const startedSt=S.reads.find(x=>x.id==='q1').st;
+        document.querySelector('[data-a="rd-tab"][data-id="shelf"]').click();
+        const nowCount=document.querySelectorAll('.shelf-now .now-card').length;
+        document.querySelector('[data-a="rd-step"][data-id="a1"]').click();
+        const doneBook=S.reads.find(x=>x.id==='a1');
+        document.querySelector('[data-a="rd-open"][data-id="a1"]').click();
+        document.querySelector('[data-a="rd-note-create"][data-id="a1"]').click();
+        return {summary,pickedOk,startedSt,nowCount,doneSt:doneBook.st,doneP:doneBook.p,notes:S.notes.length,noteBody:S.notes[0]?.b,links:lkOf('rd:a1')};
+      })()`);
+      assert.match(r.summary, /240.*páginas/);
+      assert.match(r.summary, /2h 10min de filmes/);
+      assert.ok(r.pickedOk);
+      assert.strictEqual(r.startedSt, 'a');
+      assert.strictEqual(r.nowCount, 2);
+      assert.strictEqual(r.doneSt, 'f');
+      assert.strictEqual(r.doneP, 100);
+      assert.strictEqual(r.notes, 1);
+      assert.match(r.noteBody, /Trecho favorito/);
+      assert.strictEqual(r.links.length, 1);
+      assert.match(r.links[0], /^nt:/);
+    }],
+    ['service worker também guarda pôsteres do catálogo iTunes para uso offline', async () => {
+      const vm=require('vm'),handlers={},store=new Map();let online=true,network=0;
+      const cache={match:async req=>store.get(req.url),put:async(req,res)=>store.set(req.url,res),keys:async()=>[...store.keys()].map(url=>({url})),delete:async req=>store.delete(req.url)};
+      const context={URL,self:{location:{origin:'https://app.example'},addEventListener:(name,fn)=>handlers[name]=fn},caches:{open:async()=>cache},fetch:async()=>{network++;if(!online)throw Error('offline');return {ok:true,type:'cors',clone(){return this}}}};
+      vm.runInNewContext(fs.readFileSync(path.join(ROOT,'sw.js'),'utf8'),context);
+      const request={method:'GET',url:'https://is1-ssl.mzstatic.com/image/thumb/Video116/v4/poster/300x450bb.jpg'};
+      let response;const event={request,respondWith:p=>{response=p}};
+      handlers.fetch(event);assert.strictEqual((await response).ok,true);
+      online=false;handlers.fetch(event);assert.strictEqual((await response).ok,true);
+      assert.strictEqual(network,1);
+      const wReq={method:'GET',url:'https://upload.wikimedia.org/wikipedia/commons/a/ab/Poster.jpg'};
+      online=true;handlers.fetch({request:wReq,respondWith:p=>{response=p}});assert.strictEqual((await response).ok,true);
+      online=false;handlers.fetch({request:wReq,respondWith:p=>{response=p}});assert.strictEqual((await response).ok,true);
+      assert.strictEqual(network,2);
+    }],
+    ['filtros separados de filmes e séries, sorteio direto na Estante, concluir da cabeceira, fallback Wikipédia e barra de meta', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(async()=>{
+        RD.tab='shelf';RD.shelfKind='all';RD.shelfYear='';RD.shelfFav='';RD.picked='';RD.selected='';
+        S.metas=[{id:'g1',t:'Ler 10 livros neste ano',ini:T,kr:[{id:'k1',ty:'man',ref:'',t:'Livros',tg:10,un:'livros',cur:4}]}];
+        S.reads=[
+          {id:'fq',t:'Filme na fila',a:'Dir',k:'filme',st:'q'},
+          {id:'sq',t:'Série na fila',k:'série',st:'q'},
+          {id:'ma',t:'Filme em andamento',k:'filme',st:'a',p:40},
+          {id:'mf',t:'Filme visto',k:'filme',st:'f',df:T,r:5},
+          {id:'sf',t:'Série vista',k:'série',st:'f',df:T,r:4}
+        ];
+        S.view='leituras';render();
+        document.querySelector('[data-a="rd-shelf-kind"][data-id="movies"]').click();
+        const onlyFilms=document.querySelectorAll('.movieshelf .movie-item').length;
+        document.querySelector('[data-a="rd-pick-random"]').click();
+        const pickedOnShelf=document.querySelector('[data-rd-picked]')?.textContent||'';
+        document.querySelector('[data-a="rd-shelf-kind"][data-id="series"]').click();
+        const onlySeries=document.querySelectorAll('.movieshelf .movie-item').length;
+        document.querySelector('[data-a="rd-finish"][data-id="ma"]').click();
+        const maDone=S.reads.find(x=>x.id==='ma');
+        document.querySelector('[data-a="rd-shelf-kind"][data-id="movies"]').click();
+        document.querySelector('[data-a="rd-open"][data-id="mf"]').click();
+        const oldFetch=window.fetch;
+        window.fetch=async u=>{
+          if(String(u).includes('itunes.apple.com'))return {ok:true,json:async()=>({results:[]})};
+          if(String(u).includes('pt.wikipedia.org'))return {ok:true,json:async()=>({query:{pages:{'1':{title:'Filme Wiki',description:'filme brasileiro',thumbnail:{source:'https://upload.wikimedia.org/wikipedia/commons/p/poster.jpg'}}}}})};
+          return {ok:true,json:async()=>({})};
+        };
+        await findCover('mf');
+        window.fetch=oldFetch;
+        const wikiCount=document.querySelectorAll('#cover-results-mf .cover-result').length;
+        const wikiText=document.querySelector('#cover-results-mf')?.textContent||'';
+        document.querySelector('[data-a="rd-tab"][data-id="collection"]').click();
+        const hasGoalBar=!!document.querySelector('#main .panel .prog');
+        return {onlyFilms,pickedOnShelf,onlySeries,maSt:maDone.st,maP:maDone.p,wikiCount,wikiText,hasGoalBar};
+      })()`);
+      assert.strictEqual(r.onlyFilms, 1);
+      assert.match(r.pickedOnShelf, /Filme na fila/);
+      assert.strictEqual(r.onlySeries, 1);
+      assert.strictEqual(r.maSt, 'f');
+      assert.strictEqual(r.maP, 100);
+      assert.strictEqual(r.wikiCount, 1);
+      assert.match(r.wikiText, /Filme Wiki/);
+      assert.ok(r.hasGoalBar);
+    }],
   ];
 
   let failed = 0;

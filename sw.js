@@ -1,5 +1,5 @@
 // Service Worker do Meu Hub: guarda a casca do app e a fonte para abrir sem internet; Firebase e APIs vão direto à rede
-const VER='20261120',CACHE='meuhub-v'+VER,COVERS='meuhub-covers-v1';
+const VER='20261121',CACHE='meuhub-v'+VER,COVERS='meuhub-covers-v1';
 const ASSETS=[
  './',
  './index.html',
@@ -27,8 +27,11 @@ self.addEventListener('fetch',e=>{
  const req=e.request;if(req.method!=='GET')return;
  const u=new URL(req.url);
  if(u.origin!==self.location.origin){
-  if(u.protocol==='https:'&&u.hostname==='covers.openlibrary.org'&&/^\/b\/id\/\d+-(S|M)\.jpg$/.test(u.pathname)){
-   e.respondWith(caches.open(COVERS).then(async c=>{const hit=await c.match(req);if(hit)return hit;const res=await fetch(req);if(res.ok&&res.type==='cors'){try{await c.put(req,res.clone());const keys=await c.keys();if(keys.length>100)await c.delete(keys[0])}catch(x){}}return res}));return;
+  const isOpenLib=u.protocol==='https:'&&u.hostname==='covers.openlibrary.org'&&/^\/b\/id\/\d+-(S|M)\.jpg$/.test(u.pathname);
+  const isItunes=u.protocol==='https:'&&/^is[1-5]-ssl\.mzstatic\.com$/i.test(u.hostname)&&/\.(jpg|jpeg|png|webp)$/i.test(u.pathname);
+  const isWiki=u.protocol==='https:'&&u.hostname==='upload.wikimedia.org'&&/\.(jpg|jpeg|png|webp)$/i.test(u.pathname);
+  if(isOpenLib||isItunes||isWiki){
+   e.respondWith(caches.open(COVERS).then(async c=>{const hit=await c.match(req);if(hit)return hit;const res=await fetch(req);if(res.ok&&res.type==='cors'){try{await c.put(req,res.clone());const keys=await c.keys();if(keys.length>120)await c.delete(keys[0])}catch(x){}}return res}));return;
   }
   if(u.hostname==='fonts.googleapis.com'||u.hostname==='fonts.gstatic.com'){
    e.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(res=>{const cl=res.clone();caches.open(CACHE).then(c=>c.put(req,cl));return res})));
