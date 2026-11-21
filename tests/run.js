@@ -1721,6 +1721,82 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       assert.match(r.wikiText, /Filme Wiki/);
       assert.ok(r.hasGoalBar);
     }],
+    ['tema escuro mantém contraste legível em controles de notas, listas, chips, eventos e destaques', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(async()=>{
+        const tick=()=>new Promise(x=>setTimeout(x,0));
+        const parse=c=>{const m=String(c||'').match(/[\\d.]+/g);if(!m)return [0,0,0,0];return [Number(m[0]),Number(m[1]),Number(m[2]),m.length>3?Number(m[3]):1]};
+        const over=(fg,bg)=>{const a=fg[3];return [fg[0]*a+bg[0]*(1-a),fg[1]*a+bg[1]*(1-a),fg[2]*a+bg[2]*(1-a)]};
+        const lum=rgb=>rgb.slice(0,3).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4}).reduce((a,v,i)=>a+v*[.2126,.7152,.0722][i],0);
+        const effBg=el=>{const layers=[];for(let p=el;p&&p.nodeType===1;p=p.parentElement){const bg=parse(getComputedStyle(p).backgroundColor);if(bg[3]>0)layers.unshift(bg)}return layers.reduce((acc,cur)=>over(cur,acc),[31,27,36])};
+        const contrast=(el,useAlphaFg)=>{const bg=effBg(el),cs=getComputedStyle(el),c0=parse(cs.color),op=Number(cs.opacity===''?1:cs.opacity),fg=useAlphaFg?over([c0[0],c0[1],c0[2],c0[3]*op],bg):c0.slice(0,3),l1=lum(bg),l2=lum(fg);return (Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05)};
+        const bad=[],chk=(label,el,min=4.5)=>{if(!el){bad.push({label,missing:true});return}const c=contrast(el,true);if(c<min)bad.push({label,ratio:+c.toFixed(2),fg:getComputedStyle(el).color,bg:effBg(el).map(Math.round)})};
+
+        S.themeMode='dark';S.acc='';S.nav='suave';
+        S.tasks=[{id:'t1',t:'Tarefa sem hora',done:false,hd:T,p:'m'},{id:'t2',t:'Bloqueio',done:false,dur:60,bk:{d:T,h:'10:00'}}];
+        S.events=[{id:'e1',t:'Reunião',d:T,h:'09:00',e:'10:00',c:'b'}];
+        S.notes=[
+          {id:'n1',t:'Nota normal',b:'Corpo',f:'Trab',g:'tag',c:'p',reviewDate:T},
+          {id:'s1',kind:'shopping',t:'Mercado',f:'',g:'',c:'g',items:[{id:'i1',t:'Café',q:'1 pct',done:false}],budget:50}
+        ];
+        S.projects=[{id:'p1',t:'Projeto X',status:'active',archived:false,refs:[]}];
+        S.fin.prules=[{id:'r1',k:'save',pc:20}];
+        S.reads=[{id:'b1',t:'Livro Ativo',a:'Autor',k:'livro',st:'a',pages:100,page:20,p:20}];
+
+        for(const pal of Object.keys(PAL)){
+          S.pal=pal;applyTheme();
+          S.view='dash';render();await tick();
+          chk(pal+':dash-tl-ev',document.querySelector('.tl:not(.blk)'));
+          chk(pal+':dash-tl-blk',document.querySelector('.tl.blk'));
+          chk(pal+':dash-tlf-chip',document.querySelector('.tlf .chip'));
+          chk(pal+':dash-focus-in',document.querySelector('.hero2 .focus input'));
+
+          S.view='notas';render();await tick();
+          chk(pal+':note-select-color',document.querySelector('[data-note-color=n1]'));
+          chk(pal+':note-review-dtt',document.querySelector('.note .dtt'));
+          chk(pal+':note-review-btn',document.querySelector('.note .dtw .dtb'));
+          chk(pal+':note-lb',document.querySelector('.note .lb'));
+          chk(pal+':note-empty-p',document.querySelector('#main .note .empty'));
+          chk(pal+':shop-item',document.querySelector('.note .item'));
+          chk(pal+':shop-input',document.querySelector('[data-shopping-form] .in'));
+          chk(pal+':shop-pill',document.querySelector('[data-a="shopping-share"]'));
+          chk(pal+':shop-pill-dark',document.querySelector('[data-shopping-form] .pill.dark'));
+
+          RD.tab='shelf';RD.selected='b1';S.view='leituras';render();await tick();
+          chk(pal+':now-card-chip',document.querySelector('.now-card .chip'));
+          chk(pal+':book-detail-link',document.querySelector('#book-detail a'));
+          RD.tab='collection';render();await tick();
+          chk(pal+':read-select-st',document.querySelector('[data-rds=b1]'));
+          chk(pal+':read-search-cover',document.querySelector('[data-a="rd-cover-find"]'));
+          chk(pal+':read-cover-link',document.querySelector('.note a'));
+
+          S.view='projetos';render();await tick();
+          chk(pal+':project-chip',document.querySelector('[data-project=p1] .chip'));
+
+          S.view='agenda';S.mode='week';render();await tick();
+          chk(pal+':agenda-today-h3',document.querySelector('.day.today h3'));
+          chk(pal+':agenda-today-small',document.querySelector('.day.today h3 small'));
+          chk(pal+':agenda-blk-x',document.querySelector('.ev.blk .x'));
+          S.mode='month';render();await tick();
+          chk(pal+':agenda-month-ev',document.querySelector('.mev'));
+
+          S.view='financas';S.fvw='mes';S.ftab='orc';S.fin.tx=[];render();await tick();
+          chk(pal+':fin-prule-empty-chip',document.querySelector('.item .chip'));
+        }
+        S.pal='ceu';applyTheme();
+
+        S.view='aparencia';render();await tick();
+        const defSwc=getComputedStyle(document.querySelector('[data-a="acc"][data-id=""]')).backgroundColor;
+        const accVal=document.querySelector('#acc').value;
+        S.acc='#1f3a5f';applyTheme();render();await tick();
+        chk('side-nav-on-custom',document.querySelector('.side .nav.on'));
+        S.acc='';applyTheme();
+        return {bad,defSwc,accVal};
+      })()`);
+      assert.deepStrictEqual(r.bad, [], JSON.stringify(r.bad));
+      assert.notStrictEqual(r.defSwc, 'rgb(18, 18, 18)');
+      assert.notStrictEqual(r.accVal, '#121212');
+    }],
   ];
 
   let failed = 0;
