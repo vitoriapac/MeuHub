@@ -150,3 +150,9 @@ Na aba **Projetos**, crie agrupamentos com identidade própria, situação e dat
 ### Conferência de backup e revisão
 
 Em **Backup → Conferir backup**, escolha um arquivo JSON para validar sua estrutura e ver quantidades sem importar ou modificar dados. A conferência não substitui um teste de restauração. Em Projetos, selecione uma tarefa vinculada e ativa como próximo passo; a revisão semanal avisa se ela deixar de estar disponível. Notas e metas aceitam uma data opcional de revisão, mostrada na revisão semanal até o fim da próxima semana. As ações são manuais e as informações acompanham o backup e a sincronização.
+
+Em **Hoje**, os próximos passos de projetos ativos aparecem com ações para abrir a tarefa ou incluí-la no dia. Se a tarefa já aparecer entre as atrasadas ou planejadas, o nome do projeto fica junto dela.
+
+Em **Lembretes → Conferência financeira**, vincule contas de pagamento a contas fixas e compare compras da mesma lista com data, conta e valor iguais. Cada lançamento pode ser aberto individualmente. Confirmar compras distintas registra a conferência sem alterar os valores. Se o grupo mudar, ele volta à fila.
+
+O roteiro de recuperação entre aparelhos usa uma conta exclusiva de teste e dados fictícios. Consulte o [ensaio de recuperação](tasks/ensaio-recuperacao.md).

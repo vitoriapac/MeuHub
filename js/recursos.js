@@ -196,13 +196,36 @@ function attention(){
  return o.map(x=>{if(x.id&&(x.k==='tk'||x.k==='conflict'))x.dismissKey=[x.k,x.id,x.d||'',x.sig||x.s].join('|');return x}).filter(x=>!x.dismissKey||!R.dismiss||R.dismiss[x.dismissKey]!==T).sort((a,b)=>a.u-b.u)}
 const attRow=x=>`<div class="item"><span class="chip c-${x.u===0?'p':x.u===1?'y':'b'}">${{tk:'Tarefa',card:'Fatura',bill:'Conta',hb:'Hábitos',sal:'Saldo',conflict:'Agenda',sub:'Assinatura'}[x.k]}</span><div class="t">${esc(x.t)}<small class="${x.u===0?'late':''}">${esc(x.s)}</small></div>${((x.k==='tk'||x.k==='conflict'||x.k==='bill'||x.k==='sub')&&x.id)||(x.k==='sal'&&x.t!=='Dívidas a receber há mais de 30 dias')?`<button class="pill" data-a="att-open" data-id="${esc(x.id)}" data-kind="${x.k}" data-day="${esc(x.d||'')}">Abrir</button>${x.dismissKey?`<button class="pill" data-a="att-dismiss" data-key="${esc(x.dismissKey)}" aria-label="Ocultar ${esc(x.t)} até amanhã">Ocultar até amanhã</button>`:''}`:x.card?`<button class="pill" data-a="payfat" data-id="${x.card.id}" data-o="${x.card.o}">Pagar</button>`:`<button class="pill" data-v="${x.v}">Abrir</button>`}</div>`;
 function attBox(){
- if(S.onb||!remCfg().on)return '';const L=attention();if(!L.length)return '';
- return `<div class="panel" id="attb" role="region" aria-label="Precisa de atenção"><h2>Precisa de atenção</h2>${L.slice(0,4).map(attRow).join('')}${L.length>4?`<button class="pill" data-v="avisos">Ver todos (${L.length})</button>`:''}</div>`}
+ if(S.onb||!remCfg().on)return '';const L=attention(),finance=shoppingReviewGroups().length;if(!L.length&&!finance)return '';
+ return `<div class="panel" id="attb" role="region" aria-label="Precisa de atenção"><h2>Precisa de atenção</h2>${L.slice(0,4).map(attRow).join('')}${finance?'<button class="pill" data-v="avisos">Conferir possíveis compras duplicadas</button>':''}${L.length>4?`<button class="pill" data-v="avisos">Ver todos (${L.length})</button>`:''}</div>`}
+function shoppingReviewGroups(){
+ const groups=new Map();
+ for(const t of finInit().tx){
+  if(t.k!=='out'||!t.shopping||!t.ac||!t.id||!(+t.v>0))continue;
+  const key=JSON.stringify([t.shopping,t.d,t.ac,Math.round(t.v*100)]);
+  if(!groups.has(key))groups.set(key,[]);
+  groups.get(key).push(t);
+ }
+ return [...groups].filter(([,tx])=>tx.length>1).map(([key,tx])=>({tx,key:JSON.stringify([key,tx.map(t=>t.id).sort()])}))
+  .filter(({tx,key})=>tx.some(t=>t.shoppingReviewed!==key)).sort((a,b)=>b.tx[0].d.localeCompare(a.tx[0].d));
+}
+function financeReviewPanel(){
+ const F=finInit(),accounts=new Set(F.acc.filter(a=>a.ty!=='card').map(a=>a.id));
+ const bills=F.bills.filter(b=>!accounts.has(b.ac)&&(!b.rec||!F.rec.some(r=>r.id===b.rec)));
+ const groups=shoppingReviewGroups();
+ if(!bills.length&&!groups.length)return '';
+ const billRows=bills.slice(0,pgN('frb',15)).map(b=>`<div class="item"><div class="t">${esc(b.n)}<small>Conta fixa sem conta de pagamento vinculada</small></div><button class="pill" data-a="att-open" data-kind="bill" data-id="${esc(b.id)}">Vincular conta</button></div>`).join('');
+ const groupRows=groups.slice(0,pgN('frs',10)).map(({key,tx})=>`<details><summary>Possível compra duplicada em ${fmt(tx[0].d)} · ${BRL(tx[0].v)} (${tx.length} lançamentos)</summary>
+ ${tx.map(t=>`<div class="item"><div class="t">${esc(t.t)}<small>${esc(accName(t.ac))} · ${esc(t.cat||'Sem categoria')} · ${BRL(t.v)}</small></div><button class="pill" data-a="finance-review-open" data-id="${esc(t.id)}" aria-label="Conferir ${esc(t.t)}">Conferir</button></div>`).join('')}
+ <button class="pill" data-a="finance-distinct" data-key="${esc(key)}">Confirmar compras distintas</button></details>`).join('');
+ return `<section class="panel" id="finance-review"><h2>Conferência financeira</h2>${billRows}${pgMore('frb',bills.length,15)}${groupRows}${pgMore('frs',groups.length,10)}</section>`;
+}
 function avisos(){
  const R=remCfg(),L=R.on?attention():[],np=('Notification' in window)?Notification.permission:'unsupported';
  const sw=(k,l,d)=>`<label class="item"><input type="checkbox" class="chk" data-rem="${k}" ${R[k]?'checked':''}><div class="t">${l}<small>${d}</small></div></label>`;
  return `<div class="top"><h1>Lembretes</h1></div>
  <div class="panel"><h2>Precisa de atenção agora</h2>${L.slice(0,pgN('av',40)).map(attRow).join('')}${pgMore('av',L.length,40)}${L.length?'':`<p class="empty">${R.on?'Nada pendente por enquanto.':'Os lembretes estão desligados.'}</p>`}</div>
+ ${financeReviewPanel()}
  <div class="panel" style="margin-top:var(--space-3)"><h2>Configurar avisos</h2>
  ${sw('on','Avisos ligados','Mostra o painel no Início e envia um resumo diário.')}
  ${sw('tk','Tarefas atrasadas e com prazo próximo','Atrasadas, de hoje e de amanhã.')}
@@ -313,7 +336,7 @@ function flashEl(){if(!FLASH)return;const el=document.querySelector('[data-lid="
 document.addEventListener('input',e=>{if(e.target.id==='lkq'&&LKP){LKP.q=e.target.value;const r=$('#lkres');if(r)r.innerHTML=lkResHtml()}});
 function lkGo(ref){
  const r=lkItem(ref);if(!r)return;LKP=null;if((r.ty==='tk'&&taskPaused(r.it))||(r.ty==='mt'&&r.it.archived)){archiveQuery='';S.view='arquivados';Q='';ED=null;$('#q').value='';return}S.view=LKV[r.ty];Q='';ED=null;$('#q').value='';FLASH=ref;
- if(r.ty==='ev'){S.mode='day';S.dy=mDays(r.it.d)}else if(r.ty==='nt'){noteReset();if(r.it.archived)NSTATUS='archived';PG={nt:Math.max(30,S.notes.length)};PGV='notas'}else if(r.ty==='tk'){S.filter='all';S.pf=''}else if(r.ty==='lk')S.lc='';else if(r.ty==='rd'){S.rk='';S.rs='';RD.tab='collection';RD.q=''}}
+ if(r.ty==='ev'){S.mode='day';S.dy=mDays(r.it.d)}else if(r.ty==='nt'){noteReset();if(r.it.archived)NSTATUS='archived';PG={nt:Math.max(30,S.notes.length)};PGV='notas'}else if(r.ty==='tk'){S.filter='all';S.pf='';if(PGV!=='tarefas'){PG={};PGV='tarefas'}const index=taskList().findIndex(t=>t.id===r.id);if(index>=pgN('tk',60))PG.tk=Math.ceil((index+1)/60)*60}else if(r.ty==='lk')S.lc='';else if(r.ty==='rd'){S.rk='';S.rs='';RD.tab='collection';RD.q=''}}
 /* leituras */
 const RK={livro:['Livro','y',['Quero ler','Lendo','Lido']],filme:['Filme','p',['Quero ver','Assistindo','Visto']],série:['Série','g',['Quero ver','Assistindo','Visto']],artigo:['Artigo','b',['Quero ler','Lendo','Lido']],podcast:['Podcast','b',['Quero ouvir','Ouvindo','Ouvido']]},RS=['q','a','f'];
 const rdLab=r=>(RK[r.k]||RK.livro)[2][RS.indexOf(r.st)];
