@@ -2170,6 +2170,181 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       assert.strictEqual(r.curBud.Moradia, 100);
       assert.ok(r.valid);
     }],
+    ['finanças avançadas: reconciliação de saldo, parcelas futuras na importação, alerta de preço e fechamento mensal', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        S.fin={
+          tx:[{id:'old',k:'out',t:'Compra antiga',v:50,cat:'Outros',d:T,ac:'main'}],
+          acc:[{id:'main',n:'Conta principal',ty:'cc',ini:100},{id:'card1',n:'Cartão',ty:'card',ini:0,lim:3000,close:28,due:10}],
+          rec:[{id:'r1',k:'out',t:'Spotify',v:21.9,cat:'Assinaturas',ac:'main',day:+T.slice(8),ini:T,skip:['r_r1_'+T.slice(0,7)]}],
+          recDismiss:[],rules:[],bud:{Alimentação:1000},budHist:{},
+          goals:[{id:'res1',n:'Reserva de emergência',target:6000,saved:1000,res:1,rm:6}],
+          prules:[],split:[],bills:[]
+        };
+        S.view='financas';S.fvw='mes';S.ftab='regras';S.fmo=0;S.fac='';render();
+
+        const dmy=T.slice(8,10)+'-'+T.slice(5,7)+'-'+T.slice(0,4);
+        const csvBank=[
+          'RELEASE_DATE;TRANSACTION_TYPE;REFERENCE_ID;TRANSACTION_NET_AMOUNT;PARTIAL_BALANCE',
+          dmy+';Spotify;sp1;-27,90;700,00',
+          dmy+';Salário;sal1;5000,00;727,94'
+        ].join('\\n');
+        let pf=document.querySelector('#fcsvpaste');
+        pf.elements.csv.value=csvBank;
+        pf.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const metaBank={...IMP.meta};
+        const hasRecOpt=!!document.querySelector('[data-imp="reconcile"]');
+        document.querySelector('[data-a="impgo"]').click();
+
+        S.ftab='contas';render();
+        const hasAccRecBtn=!!document.querySelector('[data-a="reconcile-acc"][data-id="main"]');
+        const balBeforeRec=r2(bal(S.fin.acc[0]));
+        document.querySelector('[data-a="reconcile-acc"][data-id="main"]').click();
+        const balAfterRec=r2(bal(S.fin.acc[0]));
+
+        const subAtt=attention().find(x=>x.k==='sub'&&x.id==='r1');
+        const subTextBefore=document.querySelector('#main').innerText;
+        document.querySelector('[data-a="rec-upd-val"][data-id="r1"]').click();
+        const updatedRecVal=S.fin.rec[0].v;
+
+        S.ftab='regras';S.fac='card1';render();
+        const csvCard=[
+          'Data;Descrição;Valor',
+          dmy+';Kabum Parcela 02/04;-250,00'
+        ].join('\\n');
+        pf=document.querySelector('#fcsvpaste');
+        pf.elements.csv.value=csvCard;
+        pf.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const instPrev=impRows();
+        document.querySelector('[data-a="impgo"]').click();
+        const kabumInst=S.fin.tx.filter(t=>t.t.includes('Kabum')).sort((a,b)=>a.d.localeCompare(b.d));
+
+        S.fac='';S.ftab='orc';render();
+        const cf=document.querySelector('#fclosemonth');
+        const suggestedSurplus=cf&&cf.elements.v.value;
+        cf.requestSubmit();
+        const resSaved=S.fin.goals[0].saved;
+
+        return {
+          metaBank,hasRecOpt,hasAccRecBtn,balBeforeRec,balAfterRec,
+          subAttTitle:subAtt&&subAtt.t,subHadChip:subTextBefore.includes('subiu +'),updatedRecVal,
+          instCount:instPrev.instCount,instRem:instPrev.instRem,
+          kabumCount:kabumInst.length,
+          kabumNums:kabumInst.map(x=>x.pc.i+'/'+x.pc.n),
+          kabumSameGroup:new Set(kabumInst.map(x=>x.pc.g)).size===1,
+          kabumDatesOk:kabumInst[1]?.d===addM(T,1)&&kabumInst[2]?.d===addM(T,2),
+          suggestedSurplus,resSaved,valid:validBackup(pick())
+        };
+      })()`);
+      assert.strictEqual(r.metaBank.fin, 727.94);
+      assert.ok(r.hasRecOpt);
+      assert.ok(r.hasAccRecBtn);
+      assert.notStrictEqual(r.balBeforeRec, 727.94);
+      assert.strictEqual(r.balAfterRec, 727.94);
+      assert.strictEqual(r.subAttTitle, 'Subiu: Spotify');
+      assert.ok(r.subHadChip);
+      assert.strictEqual(r.updatedRecVal, 27.9);
+      assert.strictEqual(r.instCount, 1);
+      assert.strictEqual(r.instRem, 2);
+      assert.strictEqual(r.kabumCount, 3);
+      assert.deepStrictEqual(r.kabumNums, ['2/4', '3/4', '4/4']);
+      assert.ok(r.kabumSameGroup);
+      assert.ok(r.kabumDatesOk);
+      assert.ok(+String(r.suggestedSurplus).replace(',','.') > 0);
+      assert.ok(r.resSaved > 1000);
+      assert.ok(r.valid);
+    }],
+    ['compras com histórico de preços, orçamento em projetos, autocomplete em leituras e pomodoro na agenda', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(async ()=>{
+        S.notes=[
+          {id:'l1',kind:'shopping',t:'Compra passada',b:'',c:'g',updatedAt:100,items:[{id:'i1',t:'Arroz',q:'1 pct',qty:2,unit:'kg',estimatedCents:1700,actualCents:1800,done:true}]},
+          {id:'l2',kind:'shopping',t:'Compra nova',b:'',c:'g',updatedAt:200,items:[]}
+        ];
+        S.view='notas';render();
+        const sf=document.querySelector('[data-shopping-edit],[data-lid="nt:l2"] [data-shopping-form]');
+        sf.elements.t.value='Arroz';
+        sf.elements.t.dispatchEvent(new Event('change',{bubbles:true}));
+        const prefillEst=sf.elements.estimated.value;
+        sf.elements.actual.value='19,80';
+        sf.requestSubmit();
+        const newItem=S.notes.find(n=>n.id==='l2').items[0];
+        const shopCardText=document.querySelector('[data-lid="nt:l2"]').innerText;
+
+        S.projects=[];S.fin.tx=[
+          {id:'txp1',k:'out',t:'Tinta',v:600,cat:'Moradia',d:T,ac:'main'},
+          {id:'txp2',k:'out',t:'Pincel',v:300,cat:'Moradia',d:T,ac:'main',pj:'Reforma'}
+        ];
+        S.tasks=[{id:'tkp1',t:'Pintar sala',done:true,dd:T,p:'m'}];
+        S.view='projetos';render();
+        const pf=document.querySelector('#project-create');
+        pf.elements.t.value='Reforma';
+        pf.elements.budget.value='1.500,00';
+        pf.requestSubmit();
+        const prj=S.projects[0];
+        let lf=document.querySelector('[data-project-link="'+prj.id+'"]');
+        lf.elements.ref.value='tx:txp1';lf.requestSubmit();
+        lf=document.querySelector('[data-project-link="'+prj.id+'"]');
+        lf.elements.ref.value='tk:tkp1';lf.requestSubmit();
+        const prjText=document.querySelector('[data-project="'+prj.id+'"]').innerText;
+
+        S.tasks.push({id:'tkfoco',t:'Escolher piso',done:false,p:'m'});render();
+        const lkf=document.querySelector('[data-project-link="'+prj.id+'"]');
+        lkf.elements.ref.value='tk:tkfoco';lkf.requestSubmit();
+        S.fk={id:'tkfoco',mode:'foco',run:true,end:Date.now(),left:0};
+        pdone();
+        const focusedTask=S.tasks.find(x=>x.id==='tkfoco');
+        const focoProjectMin=(S.fpj['Reforma']||{})[T]||0;
+        const timelineBlocks=blocksOn(T).map(b=>b.t);
+        S.cards=[{id:'linha',on:true}];S.view='dash';render();
+        const dashDayText=document.querySelector('[data-card="linha"]').innerText;
+
+        const origFetch=window.fetch;
+        window.fetch=async (u)=>({ok:true,json:async()=>({docs:[{title:'Dom Casmurro',author_name:['Machado de Assis'],first_publish_year:1899,number_of_pages_median:256,cover_i:98765}]})});
+        let bookItem=null,lookupText='';
+        try{
+          S.reads=[];S.view='leituras';render();
+          const rf=document.querySelector('#frd');
+          rf.elements.t.value='Dom Casmurro';
+          await findNewReadMeta();
+          lookupText=document.querySelector('#frd-lookup').innerText;
+          document.querySelector('[data-a="rd-autofill-use"]').click();
+          rf.requestSubmit();
+          bookItem=S.reads[0];
+        }finally{window.fetch=origFetch}
+
+        return {
+          prefillEst,newItem,
+          hasTrend:shopCardText.includes('+10%'),
+          prjBudget:prj.budget,
+          prjText,
+          hasTaskBk:!!(focusedTask.bk&&focusedTask.bk.d===T&&focusedTask.dur===25),
+          focoProjectMin,timelineBlocks,dashDayText,
+          lookupText,bookItem,
+          valid:validBackup(pick())
+        };
+      })()`);
+      assert.strictEqual(r.prefillEst, '18,00');
+      assert.strictEqual(r.newItem.estimatedCents, 1800);
+      assert.strictEqual(r.newItem.actualCents, 1980);
+      assert.strictEqual(r.newItem.qty, 2);
+      assert.strictEqual(r.newItem.unit, 'kg');
+      assert.ok(r.hasTrend);
+      assert.strictEqual(r.prjBudget, 1500);
+      assert.match(r.prjText, /900,00 de R\$\s*1\.500,00 \(60%\)/);
+      assert.match(r.prjText, /1\/2 concluídas|1\/1 concluídas/);
+      assert.ok(r.hasTaskBk);
+      assert.strictEqual(r.focoProjectMin, 25);
+      assert.ok(r.timelineBlocks.includes('Escolher piso'));
+      assert.match(r.dashDayText, /Escolher piso/);
+      assert.match(r.lookupText, /Machado de Assis/);
+      assert.strictEqual(r.bookItem.t, 'Dom Casmurro');
+      assert.strictEqual(r.bookItem.a, 'Machado de Assis');
+      assert.strictEqual(r.bookItem.year, 1899);
+      assert.strictEqual(r.bookItem.pages, 256);
+      assert.strictEqual(r.bookItem.cover, 98765);
+      assert.ok(r.valid);
+    }],
   ];
 
   let failed = 0;

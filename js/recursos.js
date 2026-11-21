@@ -188,6 +188,7 @@ function attention(){
  if(R.fat){dues(+R.fd).filter(x=>x.k==='card'||x.k==='bill').forEach(x=>{const dd=mDays(x.d);o.push({k:x.k,u:dd<=0?1:2,t:(x.k==='card'?'':'Conta: ')+x.t,id:x.id,s:(dd===0?'Vence hoje':dd===1?'Vence amanhã':'Vence em '+dd+' dias')+' · '+BRL(x.v)+' previsto · '+(x.account||'Conta de pagamento não informada'),card:x.k==='card'?x:null,v:'financas'})})}
  if(R.fat){const old=finInit().split.filter(e=>!e.st&&e.dir==='recv'&&e.d<=ds(add(today,-30)));if(old.length)o.push({k:'sal',u:2,t:'Dívidas a receber há mais de 30 dias',s:[...new Set(old.map(e=>e.p))].slice(0,3).join(', ')+' · '+BRL(old.reduce((t,e)=>t+e.v,0)),v:'financas'})}
  if(R.fat){finInit().rec.filter(r=>r.review&&r.k==='out'&&r.cat==='Assinaturas').forEach(r=>o.push({k:'sub',u:3,t:'Revisar assinatura: '+r.t,id:r.id,s:'Marcada por você para revisão.',v:'financas'}))}
+ if(R.fat){finInit().rec.forEach(r=>{const al=recPriceAlert(r);if(al&&al.diff>0)o.push({k:'sub',u:2,t:'Subiu: '+r.t,id:r.id,s:'Subiu +'+BRL(al.diff)+' (de '+BRL(r.v)+' para '+BRL(al.last.v)+').',v:'financas'})})}
  if(R.hab&&nowH()>=R.hh){const p=S.habits.filter(h=>!h.perWeek&&!h.log[T]);if(p.length)o.push({k:'hb',u:3,t:p.length+(p.length===1?' hábito de hoje pendente':' hábitos de hoje pendentes'),s:p.slice(0,3).map(h=>h.n).join(', ')+(p.length>3?'…':''),v:'habitos'})}
  return o.map(x=>{if(x.id&&(x.k==='tk'||x.k==='conflict'))x.dismissKey=[x.k,x.id,x.d||'',x.sig||x.s].join('|');return x}).filter(x=>!x.dismissKey||!R.dismiss||R.dismiss[x.dismissKey]!==T).sort((a,b)=>a.u-b.u)}
 const attRow=x=>`<div class="item"><span class="chip c-${x.u===0?'p':x.u===1?'y':'b'}">${{tk:'Tarefa',card:'Fatura',bill:'Conta',hb:'Hábitos',sal:'Saldo',conflict:'Agenda',sub:'Assinatura'}[x.k]}</span><div class="t">${esc(x.t)}<small class="${x.u===0?'late':''}">${esc(x.s)}</small></div>${((x.k==='tk'||x.k==='conflict'||x.k==='bill'||x.k==='sub')&&x.id)||(x.k==='sal'&&x.t!=='Dívidas a receber há mais de 30 dias')?`<button class="pill" data-a="att-open" data-id="${esc(x.id)}" data-kind="${x.k}" data-day="${esc(x.d||'')}">Abrir</button>${x.dismissKey?`<button class="pill" data-a="att-dismiss" data-key="${esc(x.dismissKey)}" aria-label="Ocultar ${esc(x.t)} até amanhã">Ocultar até amanhã</button>`:''}`:x.card?`<button class="pill" data-a="payfat" data-id="${x.card.id}" data-o="${x.card.o}">Pagar</button>`:`<button class="pill" data-v="${x.v}">Abrir</button>`}</div>`;
@@ -340,7 +341,7 @@ const rdLab=r=>(RK[r.k]||RK.livro)[2][RS.indexOf(r.st)];
 const isBook=r=>!r||!r.k||r.k==='livro';
 const isVisualMedia=r=>!!(r&&(r.k==='filme'||r.k==='série'));
 const isShelfItem=r=>isBook(r)||isVisualMedia(r);
-let RD={tab:'collection',q:'',sort:'recent',selected:'',lookup:null,seq:0,shelfKind:'all',shelfYear:'',shelfFav:'',movieMode:'poster',picked:''};
+let RD={tab:'collection',q:'',sort:'recent',selected:'',lookup:null,newLookup:null,draftMeta:null,seq:0,shelfKind:'all',shelfYear:'',shelfFav:'',movieMode:'poster',picked:''};
 const coverUrl=(id,size='M')=>Number.isSafeInteger(id)&&id>0?`https://covers.openlibrary.org/b/id/${id}-${size}.jpg?default=false`:'';
 const validCoverUrl=u=>typeof u==='string'&&/^https:\/\/[^\s"'<>]+$/i.test(u.trim())?u.trim():'';
 const mediaImgUrl=(r,size='M')=>(r&&validCoverUrl(r.coverUrl))||(r&&coverUrl(r.cover,size))||'';
@@ -408,6 +409,36 @@ async function wikiCoverSearch(q,lang,signal){
   mins:''
  }));
 }
+async function lookupMediaMeta(kind,q,signal,requireCover){
+ if(kind==='filme'||kind==='série'){
+  const media=kind==='série'?'tvShow':'movie',entity=kind==='série'?'tvSeason':'movie';
+  const p=new URLSearchParams({term:q,country:'BR',media,entity,limit:'8'});
+  const res=await fetch('https://itunes.apple.com/search?'+p,{signal});
+  if(!res.ok)throw Error('rede');const data=await res.json();
+  let results=(Array.isArray(data.results)?data.results:[]).filter(x=>typeof x.artworkUrl100==='string'&&/^https:\/\//i.test(x.artworkUrl100)).slice(0,8).map(x=>({
+   poster:x.artworkUrl100.replace(/\/100x100bb\.(jpg|png)$/i,'/300x450bb.$1'),
+   posterThumb:x.artworkUrl100,
+   title:String(x.trackName||x.collectionName||'Sem título'),
+   author:String(x.artistName||'Direção não informada'),
+   year:x.releaseDate?+String(x.releaseDate).slice(0,4)||'':'',
+   mins:x.trackTimeMillis?Math.max(1,Math.round(x.trackTimeMillis/60000)):''
+  }));
+  if(!results.length){
+   try{results=await wikiCoverSearch(q,'pt',signal);if(!results.length)results=await wikiCoverSearch(q,'en',signal)}catch(x){}
+  }
+  return results;
+ }
+ const p=new URLSearchParams({q,fields:'key,title,author_name,cover_i,first_publish_year,number_of_pages_median',limit:'8'});
+ const res=await fetch('https://openlibrary.org/search.json?'+p,{signal});
+ if(!res.ok)throw Error('rede');const data=await res.json();
+ return (Array.isArray(data.docs)?data.docs:[]).filter(x=>!requireCover||(Number.isSafeInteger(x.cover_i)&&x.cover_i>0)).slice(0,8).map(x=>({
+  cover:Number.isSafeInteger(x.cover_i)&&x.cover_i>0?x.cover_i:0,
+  title:String(x.title||'Sem título'),
+  author:Array.isArray(x.author_name)?x.author_name.slice(0,2).join(', '):'Autor não informado',
+  year:x.first_publish_year||'',
+  pages:Number.isInteger(x.number_of_pages_median)&&x.number_of_pages_median>0?x.number_of_pages_median:''
+ }));
+}
 async function findCover(id){
  const r=(S.reads||[]).find(x=>x.id===id),input=document.getElementById('cover-query-'+id);if(!r||!input)return;
  const q=input.value.trim();if(!q){toast('Informe um título para buscar');return}
@@ -415,47 +446,48 @@ async function findCover(id){
  let el=document.getElementById('cover-results-'+id);if(el)el.innerHTML=coverResults(r);
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
  try{
-  if(isVisualMedia(r)){
-   const media=r.k==='série'?'tvShow':'movie',entity=r.k==='série'?'tvSeason':'movie';
-   const p=new URLSearchParams({term:q,country:'BR',media,entity,limit:'8'});
-   const res=await fetch('https://itunes.apple.com/search?'+p,{signal:controller.signal});
-   if(!res.ok)throw Error('rede');const data=await res.json();
-   if(!RD.lookup||RD.lookup.seq!==seq)return;
-   let results=(Array.isArray(data.results)?data.results:[]).filter(x=>typeof x.artworkUrl100==='string'&&/^https:\/\//i.test(x.artworkUrl100)).slice(0,8).map(x=>({
-    poster:x.artworkUrl100.replace(/\/100x100bb\.(jpg|png)$/i,'/300x450bb.$1'),
-    posterThumb:x.artworkUrl100,
-    title:String(x.trackName||x.collectionName||'Sem título'),
-    author:String(x.artistName||'Direção não informada'),
-    year:x.releaseDate?+String(x.releaseDate).slice(0,4)||'':'',
-    mins:x.trackTimeMillis?Math.max(1,Math.round(x.trackTimeMillis/60000)):''
-   }));
-   if(!results.length){
-    try{
-     results=await wikiCoverSearch(q,'pt',controller.signal);
-     if(!results.length)results=await wikiCoverSearch(q,'en',controller.signal);
-    }catch(x){}
-    if(!RD.lookup||RD.lookup.seq!==seq)return;
-   }
-   RD.lookup.loading=false;
-   RD.lookup.results=results;
-  }else{
-   const p=new URLSearchParams({q,fields:'key,title,author_name,cover_i,first_publish_year',limit:'8'});
-   const res=await fetch('https://openlibrary.org/search.json?'+p,{signal:controller.signal});
-   if(!res.ok)throw Error('rede');const data=await res.json();
-   if(!RD.lookup||RD.lookup.seq!==seq)return;
-   RD.lookup.loading=false;
-   RD.lookup.results=(Array.isArray(data.docs)?data.docs:[]).filter(x=>Number.isSafeInteger(x.cover_i)&&x.cover_i>0).slice(0,8).map(x=>({
-    cover:x.cover_i,
-    title:String(x.title||'Sem título'),
-    author:Array.isArray(x.author_name)?x.author_name.slice(0,2).join(', '):'Autor não informado',
-    year:x.first_publish_year||''
-   }));
-  }
+  const results=await lookupMediaMeta(r.k||'livro',q,controller.signal,true);
+  if(!RD.lookup||RD.lookup.seq!==seq)return;
+  RD.lookup.loading=false;RD.lookup.results=results;
  }catch(e){
   if(!RD.lookup||RD.lookup.seq!==seq)return;
   RD.lookup.loading=false;RD.lookup.error='Não foi possível buscar agora. Confira a conexão e tente novamente.';
  }finally{clearTimeout(timer)}
  el=document.getElementById('cover-results-'+id);if(el)el.innerHTML=coverResults(r);
+}
+function renderNewReadLookup(){
+ const s=RD.newLookup,m=RD.draftMeta;
+ if(!s){
+  if(m){
+   const info=[m.year,m.pages?m.pages+' pág.':'',m.mins?m.mins+' min':''].filter(Boolean).join(' · ')||'Capa vinculada';
+   return `<p class="empty" id="frd-lookup" aria-live="polite">Ficha preenchida: ${esc(info)}.</p>`;
+  }
+  return '<div id="frd-lookup" aria-live="polite"></div>';
+ }
+ if(s.loading)return '<div id="frd-lookup" class="panel" aria-live="polite"><p role="status">Buscando dados…</p></div>';
+ if(s.error)return `<div id="frd-lookup" class="panel" aria-live="polite"><p role="status">${esc(s.error)}</p></div>`;
+ if(!s.results.length)return '<div id="frd-lookup" class="panel" aria-live="polite"><p role="status">Nenhum resultado encontrado para preencher.</p></div>';
+ return `<div id="frd-lookup" class="panel" aria-live="polite" style="margin-bottom:var(--space-3)"><p style="margin:0 0 var(--space-2)">Escolha um resultado para preencher a ficha:</p><div class="cover-results">${s.results.map((x,i)=>{
+  const thumb=x.posterThumb||coverUrl(x.cover,'S');
+  return `<button type="button" class="cover-result" data-a="rd-autofill-use" data-id="${i}">${thumb?`<img src="${esc(thumb)}" alt="" loading="lazy" crossorigin="anonymous" referrerpolicy="no-referrer">`:''}<span>${esc(x.title)}<small>${esc(x.author)}${x.year?' · '+esc(String(x.year)):''}${x.pages?' · '+x.pages+' pág.':''}${x.mins?' · '+x.mins+' min':''}</small></span></button>`;
+ }).join('')}</div></div>`;
+}
+async function findNewReadMeta(){
+ const f=document.getElementById('frd'),q=(f?.elements.t.value||'').trim(),kind=f?.elements.k.value||'livro';
+ if(!q){toast('Informe o título para buscar');return}
+ if(kind==='artigo'||kind==='podcast'){toast('Busca automática disponível para livros, filmes e séries');return}
+ const seq=++RD.seq;RD.newLookup={q,kind,seq,loading:true,results:[]};RD.draftMeta=null;
+ let el=document.getElementById('frd-lookup');if(el)el.outerHTML=renderNewReadLookup();
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+ try{
+  const results=await lookupMediaMeta(kind,q,controller.signal,false);
+  if(!RD.newLookup||RD.newLookup.seq!==seq)return;
+  RD.newLookup.loading=false;RD.newLookup.results=results;
+ }catch(e){
+  if(!RD.newLookup||RD.newLookup.seq!==seq)return;
+  RD.newLookup.loading=false;RD.newLookup.error='Não foi possível buscar dados agora. Confira a conexão e tente novamente.';
+ }finally{clearTimeout(timer)}
+ el=document.getElementById('frd-lookup');if(el)el.outerHTML=renderNewReadLookup();
 }
 function renderBookSpine(r,i){
  const color=spineColor(r.coverColor),w=spineWidth(r);
@@ -521,7 +553,7 @@ function leituras(){
  if(RD.tab==='shelf')return `<div class="top"><h1>Leituras e mídia</h1></div>${tabs}${pickedBox}${readShelf()}`;
  const metaRow=readGoals.length?`<div style="margin-top:var(--space-2)">${readGoals.map(g=>{const pct=Math.round(metaProg(g)*100);return `<div style="margin-top:var(--space-1)"><small>Meta: <strong>${esc(g.t)}</strong> (${pct}%)</small><div class="prog" aria-hidden="true"><i style="width:${pct}%"></i></div></div>`}).join('')}</div>`:'';
  return `<div class="top"><h1>Leituras e mídia</h1></div>${tabs}${pickedBox}
- <form class="bar" id="frd"><input class="in grow" name="t" placeholder="Título (livro, filme, artigo…)" required><input class="in" name="a" placeholder="Autor ou diretor" aria-label="Autor ou diretor"><select class="in" name="k" aria-label="Tipo">${Object.entries(RK).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join('')}</select><select class="in" name="st" aria-label="Situação"><option value="q">Quero</option><option value="a">Em andamento</option><option value="f">Concluído</option></select><input class="in" name="u" type="url" placeholder="Link (opcional)" aria-label="Link"><label class="lb">Data de conclusão (opcional)<input class="in" name="df" type="date"></label><button class="pill dark">Adicionar</button></form>
+ <form class="bar" id="frd"><input class="in grow" name="t" placeholder="Título (livro, filme, artigo…)" required><input class="in" name="a" placeholder="Autor ou diretor" aria-label="Autor ou diretor"><select class="in" name="k" aria-label="Tipo">${Object.entries(RK).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join('')}</select><select class="in" name="st" aria-label="Situação"><option value="q">Quero</option><option value="a">Em andamento</option><option value="f">Concluído</option></select><input class="in" name="u" type="url" placeholder="Link (opcional)" aria-label="Link"><label class="lb">Data de conclusão (opcional)<input class="in" name="df" type="date"></label><button type="button" class="pill" data-a="rd-autofill">Buscar dados</button><button class="pill dark">Adicionar</button></form>${renderNewReadLookup()}
  <div class="panel" style="margin-bottom:var(--space-3)"><h2>Em ${Y}</h2><p style="margin:0">${fin.length?`<strong>${fin.length}</strong> ${fin.length===1?'concluído':'concluídos'}${by.length?' ('+by.map(x=>x[1]+' '+RK[x[0]][0].toLowerCase()+(x[1]>1?'s':'')).join(', ')+')':''}. Nota média: <strong>${av}</strong>${pagesY?` · <strong>${pagesY}</strong> páginas`:''}${minsY?` · <strong>${durTxt}</strong> de filmes`:''}.`:'Nada concluído ainda neste ano.'} ${A.filter(r=>r.st==='a').length?'Em andamento: '+A.filter(r=>r.st==='a').length+'.':''}</p>${metaRow}</div>
  <div class="bar"><input class="in grow" id="rd-search" value="${esc(RD.q)}" placeholder="Buscar por título, autor ou anotações" aria-label="Buscar na coleção"><select class="in" id="rd-sort" aria-label="Ordenar coleção"><option value="recent" ${RD.sort==='recent'?'selected':''}>Em andamento primeiro</option><option value="title" ${RD.sort==='title'?'selected':''}>Título</option><option value="finished" ${RD.sort==='finished'?'selected':''}>Conclusão recente</option></select></div><div class="bar">${chip('rfk','','Todos',!fk)}${Object.entries(RK).map(([k,v])=>chip('rfk',k,v[0],fk===k)).join('')}</div><div class="bar">${chip('rfs','','Qualquer situação',!fs)}${chip('rfs','q','Quero',fs==='q')}${chip('rfs','a','Em andamento',fs==='a')}${chip('rfs','f','Concluídos',fs==='f')}</div>
  <div class="notes">${L.map(r=>{const K=RK[r.k]||RK.livro;const details=isBook(r)?`<details><summary>Progresso em páginas</summary><label class="lb">Total de páginas <input class="in" type="number" min="1" max="100000" data-rd-pages="${esc(r.id)}" value="${r.pages||''}"></label><label class="lb">Páginas lidas <input class="in" type="number" min="0" max="${r.pages||100000}" data-rd-page="${esc(r.id)}" value="${r.page||0}"></label><label class="lb">Ano <input class="in" type="number" min="1800" max="2100" data-rd-year="${esc(r.id)}" value="${r.year||''}"></label></details>`:r.k==='filme'?`<details><summary>Ficha do filme</summary><label class="lb">Ano de lançamento <input class="in" type="number" min="1880" max="2100" data-rd-year="${esc(r.id)}" value="${r.year||''}"></label><label class="lb">Duração (min) <input class="in" type="number" min="1" max="10000" data-rd-mins="${esc(r.id)}" value="${r.mins||''}"></label></details>`:r.k==='série'?`<details><summary>Temporada e episódios</summary><label class="lb">Temporada atual <input class="in" type="number" min="1" max="999" data-rd-season="${esc(r.id)}" value="${r.season||''}"></label><label class="lb">Episódio atual <input class="in" type="number" min="0" max="9999" data-rd-episode="${esc(r.id)}" value="${r.episode??''}"></label><label class="lb">Ano <input class="in" type="number" min="1920" max="2100" data-rd-year="${esc(r.id)}" value="${r.year||''}"></label></details>`:'';return `<div class="note c-${K[1]}" data-lid="rd:${r.id}"><input data-rdf="t" data-id="${r.id}" value="${esc(r.t)}" placeholder="Título" aria-label="Título"><input data-rdf="a" data-id="${r.id}" value="${esc(r.a||'')}" placeholder="Autor ou diretor" aria-label="Autor ou diretor" style="font-size:var(--type-small);font-weight:400"><div class="bar" style="margin:0;align-items:center"><span class="chip" style="background:rgba(0,0,0,.12)">${K[0]}</span><select class="in" data-rds="${r.id}" aria-label="Situação de ${esc(r.t)}">${RS.map((s,i)=>`<option value="${s}" ${r.st===s?'selected':''}>${K[2][i]}</option>`).join('')}</select></div>${r.st==='a'?`<label class="lb">Progresso <span>${r.p||0}%</span><input type="range" min="0" max="100" step="5" value="${r.p||0}" data-rdp="${r.id}" aria-label="Progresso de ${esc(r.t)}" style="width:100%"></label>`:''}<div role="group" aria-label="Nota">${[1,2,3,4,5].map(n=>`<button class="x" data-a="rdr" data-id="${r.id}" data-n="${n}" aria-pressed="${(r.r||0)>=n}" aria-label="${n} de 5 estrelas">${(r.r||0)>=n?'★':'☆'}</button>`).join('')}</div><textarea data-rdf="n" data-id="${r.id}" placeholder="Anotações, citações, o que achou…" aria-label="Anotações" style="min-height:70px">${esc(r.n||'')}</textarea>${details}${coverEditor(r)}${r.st==='f'?`<label class="lb">Data de conclusão<input class="in" type="date" data-rd-date="${esc(r.id)}" value="${esc(r.df||'')}"></label>`:''}<footer><span>${r.st==='f'&&r.df?'Concluído em '+fmt(r.df):r.da?'Adicionado em '+fmt(r.da):''}</span><span>${r.u?`<a href="${esc(safeUrl(r.u))}" target="_blank" rel="noopener" class="x">abrir ↗</a>`:''}${lkBtn('rd',r.id)}<button class="x" data-a="delrd" data-id="${r.id}" aria-label="Excluir ${esc(r.t)}">Excluir</button></span></footer></div>`}).join('')||(q||fk||fs?'<p class="empty">Nenhum item corresponde à busca ou aos filtros.</p>':emp('rd','Sua lista está vazia. Registre o que quer ler ou assistir, acompanhe o que está em andamento e guarde suas notas.','Adicionar o primeiro','data-a="focusform" data-id="#frd"'))}</div>`}
