@@ -27,7 +27,8 @@ function render(opts){
  gateR();spSync();if(S.view==='dash'&&document.querySelector('[data-card=clima]'))wxEnsure();
  if(!opts||opts.save!==false)save();
 }
-const PAUSE_GUARD=new Set(['plan','review-plan','snooze','focus','fit','fitday','fit-propose','fit-confirm','rtplan','rtdeadline']);
+const PAUSE_GUARD=new Set(['plan','review-plan','snooze','focus','fit','fitday','fit-propose','fit-confirm','rtplan','rtdeadline','dash-done']);
+function completeTask(t,done){t.done=done;t.dd=done?T:'';if(t.done&&t.rc&&!t.sp){t.sp=true;const nd=nextDue(t);S.tasks.splice(S.tasks.indexOf(t),0,{...t,id:uid(),seriesId:t.seriesId||t.id,bk:null,done:false,dd:'',sp:false,pm:0,due:nd,sub:(t.sub||[]).map(s=>({...s,id:uid(),done:false}))});toast('Próxima ocorrência criada para '+fmt(nd))}}
 const TRASH_SNAP=new Set(['delev','delnote','deltk','dellk','clear','deltx','deltxg']);
 const FULL_RENDER_ACTIONS=new Set(['ed','edtx','edrec','edbill','fcancel','reccancel','billcancel','cancel']);
 function handleBulkClick(a,b,e){
@@ -281,6 +282,14 @@ const CLICK_ACTIONS={
  cust:()=>{S.cust=!S.cust},
  comp:()=>{const L2=cfg(),on=!['spotify','clima'].every(k=>{const x=L2.find(y=>y.id===k);return x&&x.on}),sp=L2.find(x=>x.id==='spotify'),wx=L2.find(x=>x.id==='clima');sp.on=wx.on=on;if(on){const rest=L2.filter(x=>x.id!=='spotify'&&x.id!=='clima'),li=rest.findIndex(x=>x.id==='linha');rest.splice(li>=0?li+1:0,0,sp,wx);S.cards=rest}else S.cards=L2},
  cmv:(id,b)=>{const L2=cfg(),i=L2.findIndex(y=>y.id===id),j=i+ +b.dataset.n;if(j>=0&&j<L2.length)[L2[i],L2[j]]=[L2[j],L2[i]];S.cards=L2},
+ cwide:(id)=>{const L2=cfg(),x=L2.find(y=>y.id===id);if(x){x.wide=!isCardWide(x);S.cards=L2}},
+ chide:(id)=>{const L2=cfg(),x=L2.find(y=>y.id===id);if(x){x.on=false;S.cards=L2}},
+ 'dash-preset':(id)=>{const p=DASH_PRESETS[id];if(!p)return;const set=new Set(p.c),rest=Object.keys(CARDS).filter(k=>!set.has(k));S.cards=[...p.c.map(k=>({id:k,on:true})),...rest.map(k=>({id:k,on:false}))]},
+ 'clear-old-focus':()=>{S.focus=''},
+ 'dash-done':(id)=>{const t=S.tasks.find(x=>x.id===id);if(!t||taskPaused(t))return 'stop';completeTask(t,true)},
+ 'rd-ep-inc':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){r.episode=(r.episode||0)+1;toast('Episódio '+r.episode+' registrado')}},
+ 'rd-prog-inc':(id)=>{const r=(S.reads||[]).find(x=>x.id===id);if(r){r.p=Math.min(100,(r.p||0)+10);if(r.pages)r.page=Math.round(r.pages*r.p/100);if(r.p>=100){r.st='f';r.df=r.df||T;toast('Concluído: '+esc(r.t))}else toast('Progresso: '+r.p+'%')}},
+ 'dash-rd-pick':()=>{const q=(S.reads||[]).filter(r=>r.st==='q');if(q.length){RD.picked=q[Math.floor(Math.random()*q.length)].id;S.view='leituras'}},
  pal:(id)=>{S.pal=id;applyTheme()},
  navstyle:(id)=>{S.nav=id;applyTheme()},
  dens:(id)=>{S.dens=id;applyTheme()},
@@ -447,7 +456,7 @@ function validBackup(d){
  if(!optional(d,'availability',x=>obj(x)&&Object.entries(x).every(([k,ws])=>/^[0-6]$/.test(k)&&list(ws)&&ws.every(w=>str(w.id)&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(w.start)&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(w.end)&&w.start<w.end))))return false;
  if(!optional(d,'menu',x=>x===null||obj(x)))return false;
  if(!optional(d,'cards',x=>x===null||list(x)))return false;
- if(d.cards&&d.cards.some(x=>!str(x.id)))return false;
+ if(d.cards&&d.cards.some(x=>!str(x.id)||!optional(x,'wide',v=>typeof v==='boolean')))return false;
  if(d.menu&&(!optional(d.menu,'groups',list)||!optional(d.menu,'bar',Array.isArray)||!optional(d.menu,'hidden',Array.isArray)||(d.menu.groups&&d.menu.groups.some(g=>!Array.isArray(g.items)))))return false;
  if(d.dia&&Object.values(d.dia).some(x=>!obj(x)))return false;
  for(const k of ['focus','profileName','themeMode','pal','acc','frase','nav','dens','spsel'])if(!optional(d,k,x=>typeof x==='string'))return false;
@@ -512,7 +521,7 @@ document.addEventListener('change',e=>{
  }
  const cg=e.target.closest('[data-a="ctog"]');if(cg){const L2=cfg();L2.find(y=>y.id===cg.dataset.id).on=cg.checked;S.cards=L2;render();return}
  const c=e.target.closest('[data-a="tog"]');
- if(c){const t=S.tasks.find(x=>x.id===c.dataset.id);if(!t||taskPaused(t)){toast('Restaure a tarefa ou a meta antes de concluí-la.');renderKeepDraft();return}t.done=c.checked;t.dd=c.checked?T:'';if(t.done&&t.rc&&!t.sp){t.sp=true;const nd=nextDue(t);S.tasks.splice(S.tasks.indexOf(t),0,{...t,id:uid(),seriesId:t.seriesId||t.id,bk:null,done:false,dd:'',sp:false,pm:0,due:nd,sub:(t.sub||[]).map(s=>({...s,id:uid(),done:false}))});toast('Próxima ocorrência criada para '+fmt(nd))}renderKeepDraft()}
+ if(c){const t=S.tasks.find(x=>x.id===c.dataset.id);if(!t||taskPaused(t)){toast('Restaure a tarefa ou a meta antes de concluí-la.');renderKeepDraft();return}completeTask(t,c.checked);renderKeepDraft()}
 });
 document.addEventListener('paste',e=>{
  const ed=e.target.closest&&e.target.closest('.rt[contenteditable="true"]');
@@ -683,6 +692,7 @@ const SUBMIT_BY_ID={
  },
  finbox:(f,v)=>{const t=v.t.trim();if(t)(S.inbox||(S.inbox=[])).unshift({id:uid(),t})},
  fhj:(f,v)=>{S.tasks.unshift({id:uid(),t:v.t.trim(),done:false,p:'m',hd:T,due:''})},
+ ftodo:(f,v)=>{const t=(v.t||'').trim();if(!t)return 'stop';const n=parseNL(t,{time:false});S.tasks.unshift({id:uid(),t:n.t,done:false,p:'m',due:n.d||'',hd:T});toast('Tarefa adicionada')},
  frtag:(f,v)=>{const nw=normTags(v.nw).split(', ')[0]||'';renameTag(v.old,nw);S.tgsel=nw;toast(nw?'Etiqueta renomeada em tudo':'Etiqueta removida de tudo')},
  fmeta:(f,v)=>{
   const t=(v.t||'').trim(),n=+v.tg;

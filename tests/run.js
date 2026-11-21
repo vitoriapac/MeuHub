@@ -2345,6 +2345,124 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       assert.strictEqual(r.bookItem.cover, 98765);
       assert.ok(r.valid);
     }],
+    ['início interativo: remove foco anterior e integra ações rápidas, cards de leituras/projetos e personalização', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        S.focus = 'Foco antigo';
+        S.dia = { [T]: { focus: 'Dia produtivo' } };
+        const tmr = ds(add(today, 1));
+        S.tasks = [
+          { id: 'tk1', t: 'Tarefa topo', done: false, p: 'a', hd: T },
+          { id: 'tk2', t: 'Sem horario', done: false, p: 'm', hd: T },
+          { id: 'tkp', t: 'Etapa projeto', done: false, p: 'm' }
+        ];
+        S.events = [];
+        S.notes = [
+          { id: 'n1', t: 'Nota direta', b: 'Conteúdo', c: 'p', updatedAt: Date.now() },
+          { id: 'shop1', kind: 'shopping', t: 'Feira', c: 'g', items: [{ id: 'it1', t: 'Maçã', q: '1 kg', done: false }], updatedAt: Date.now() }
+        ];
+        S.projects = [
+          { id: 'pr1', t: 'App', status: 'active', archived: false, budget: 500, nextTask: 'tkp', refs: [{ id: 'tk:tkp' }] }
+        ];
+        S.reads = [
+          { id: 'sr1', t: 'Série Top', k: 'série', st: 'a', season: 2, episode: 3, p: 40 },
+          { id: 'bk1', t: 'Livro Base', k: 'livro', st: 'a', pages: 100, page: 20, p: 20 }
+        ];
+        S.fin.bills = [{ id: 'b1', n: 'Internet', v: 120, day: +tmr.slice(8), ac: S.fin.acc[0]?.id || 'main' }];
+        S.fin.tx = [{ id: 'tx1', k: 'out', t: 'Domínio', v: 100, cat: 'Assinaturas', d: T, ac: S.fin.acc[0]?.id || 'main', pj: 'App' }];
+        S.cards = null;
+        S.view = 'dash';
+        render();
+
+        const dashHasOldFocus = /Foco anterior/i.test(document.querySelector('.hero2 .focus').innerText);
+        S.view = 'hoje'; render();
+        const hojeHasOldFocus = /Foco anterior/i.test(document.querySelector('.focus').innerText);
+        document.querySelector('[data-a="clear-old-focus"]').click();
+        const clearedFocus = S.focus;
+
+        S.view = 'dash'; render();
+        document.querySelector('[data-a="cust"]').click();
+        document.querySelector('[data-a="dash-preset"][data-id="completo"]').click();
+
+        const heroDoneBtn = document.querySelector('.hero2 [data-a="dash-done"][data-id="tk1"]');
+        const heroFocusBtn = document.querySelector('.hero2 [data-a="focus"][data-id="tk1"]');
+        if (heroFocusBtn) heroFocusBtn.click();
+        const pomoStarted = !!(S.fk && S.fk.id === 'tk1');
+        S.fk = null;
+        if (document.querySelector('.hero2 [data-a="dash-done"][data-id="tk1"]')) {
+          document.querySelector('.hero2 [data-a="dash-done"][data-id="tk1"]').click();
+        }
+        const tk1Done = !!S.tasks.find(x => x.id === 'tk1').done;
+
+        const prevAutoSlot = autoSlot;
+        autoSlot = () => '14:00';
+        const fitBtn = document.querySelector('[data-card="linha"] .tlf [data-a="fitday"][data-id="tk2"]');
+        if (fitBtn) fitBtn.click();
+        autoSlot = prevAutoSlot;
+        const tk2Bk = S.tasks.find(x => x.id === 'tk2').bk;
+
+        const ft = document.querySelector('#ftodo');
+        ft.elements.t.value = 'Comprar filtro amanhã';
+        ft.requestSubmit();
+        const addedTodo = S.tasks.find(x => x.t === 'Comprar filtro');
+
+        const shopChk = document.querySelector('[data-card="compras"] [data-shopping-check="shop1"]');
+        shopChk.checked = true;
+        shopChk.dispatchEvent(new Event('change', { bubbles: true }));
+        const sf = document.querySelector('[data-card="compras"] [data-shopping-form="shop1"]');
+        sf.elements.t.value = 'Banana';
+        sf.elements.q.value = '6 un';
+        sf.requestSubmit();
+
+        document.querySelector('[data-card="leituras"] [data-a="rd-ep-inc"][data-id="sr1"]').click();
+        document.querySelector('[data-card="leituras"] [data-a="rd-prog-inc"][data-id="bk1"]').click();
+
+        const projText = document.querySelector('[data-card="projetos"]').innerText;
+        const finText = document.querySelector('[data-card="fin"]').innerText;
+        const finHasQuickBtns = !!document.querySelector('[data-card="fin"] [data-a="qat"][data-id="dp"]');
+
+        document.querySelector('[data-card="todo"] [data-card-tools="todo"] [data-a="cwide"]').click();
+        const todoWideAfter = document.querySelector('[data-card="todo"]').classList.contains('wide');
+        document.querySelector('[data-card="prod"] [data-card-tools="prod"] [data-a="chide"]').click();
+        const prodHidden = !document.querySelector('[data-card="prod"]');
+
+        document.querySelector('[data-a="dash-preset"][data-id="foco"]').click();
+        const focoPresetCards = [...document.querySelectorAll('#main [data-card]')].map(x => x.dataset.card);
+
+        document.querySelector('[data-a="dash-preset"][data-id="completo"]').click();
+        document.querySelector('[data-card="notas"] .ntile[data-id="nt:n1"]').click();
+        const openedNoteView = S.view;
+
+        return {
+          dashHasOldFocus, hojeHasOldFocus, clearedFocus,
+          pomoStarted, tk1Done, tk2Bk, addedTodo, tmr,
+          shopItems: S.notes.find(x => x.id === 'shop1').items,
+          ep: S.reads.find(x => x.id === 'sr1').episode,
+          bk: S.reads.find(x => x.id === 'bk1'),
+          projText, finText, finHasQuickBtns,
+          todoWideAfter, prodHidden, focoPresetCards, openedNoteView,
+          valid: validBackup(pick())
+        };
+      })()`);
+      assert.strictEqual(r.dashHasOldFocus, false, 'Início não deve mostrar Foco anterior');
+      assert.strictEqual(r.hojeHasOldFocus, true, 'Hoje continua podendo mostrar Foco anterior');
+      assert.strictEqual(r.clearedFocus, '', 'Botão limpa Foco anterior');
+      assert.ok(r.pomoStarted && r.tk1Done, 'Ações diretas da próxima tarefa funcionam no topo do Início');
+      assert.strictEqual(r.tk2Bk && r.tk2Bk.h, '14:00', 'Chip sem horário em Seu dia permite encaixar na agenda');
+      assert.ok(r.addedTodo && r.addedTodo.due === r.tmr, 'Para fazer cria tarefa rápida com data reconhecida');
+      assert.strictEqual(r.shopItems.find(x => x.id === 'it1').done, true, 'Lista de compras marca item no Início');
+      assert.ok(r.shopItems.some(x => x.t === 'Banana' && x.q === '6 un'), 'Lista de compras adiciona item no Início');
+      assert.strictEqual(r.ep, 4, 'Card Leituras incrementa episódio de série');
+      assert.strictEqual(r.bk.p, 30);
+      assert.strictEqual(r.bk.page, 30);
+      assert.match(r.projText, /100,00 \/ R\$\s*500,00 \(20%\)/);
+      assert.match(r.finText, /Vencimentos \(7 dias\)/);
+      assert.ok(r.finHasQuickBtns);
+      assert.ok(r.todoWideAfter && r.prodHidden);
+      assert.deepStrictEqual(r.focoPresetCards, ['linha', 'todo', 'projetos', 'metas', 'prod']);
+      assert.strictEqual(r.openedNoteView, 'notas');
+      assert.ok(r.valid);
+    }],
   ];
 
   let failed = 0;
