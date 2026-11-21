@@ -38,7 +38,7 @@ function lineCard(){
  return `<div class="panel wide" data-card="linha"><h2>Seu dia</h2>${L0.length||free.length?`<div class="tlw"><div class="tlc"><div class="tll" style="height:${rows*34-4}px">${ticks.join('')}${blocks}${now}</div></div></div>${fr}`:emp('ev','Nada marcado para hoje. Aproveite o dia livre ou planeje algo.','Novo evento','data-a="qat" data-id="ev"')}</div>`}
 /* Spotify: o player vive fora do #main para não reiniciar a música a cada atualização da tela */
 const spParse=u=>{u=String(u||'').trim();const m=/open\.spotify\.com\/(?:intl-[a-z]+\/)?(playlist|album|track|artist|show|episode)\/([A-Za-z0-9]+)/.exec(u)||/^spotify:(playlist|album|track|artist|show|episode):([A-Za-z0-9]+)$/.exec(u);return m?{t:m[1],id:m[2]}:null};
-let SPED=false,SPBIG=false,SPON=false,SPCUR='';
+let SPED=false,SPBIG=false,SPON=false,SPCUR='',SPMIN=false,SPRO=null,SPRO_SLOT=null,SPRAF=0;
 function spCard(){
  const L=S.sp=S.sp||[],cur=L.find(x=>x.id===S.spsel)||L[0],p=cur&&spParse(cur.u);
  const chips=L.length?`<div class="bar" style="margin:0 0 var(--space-2)">${L.map(x=>`<button class="pill${cur&&x.id===cur.id?' on':''}" data-a="sppick" data-id="${x.id}">${esc(x.n)}</button>`).join('')}<button class="pill" data-a="spadd" aria-label="Adicionar playlist">+</button></div>`:'';
@@ -53,15 +53,35 @@ function spCard(){
  return `<div class="panel" data-card="spotify"><h2>Playlist</h2>${chips}${form}${body}${acts}</div>`}
 function spSync(){
  const slot=document.querySelector('.spslot');let w=document.getElementById('spwrap');
- if(!SPON){if(w){w.remove();SPCUR=''}return}
+ if(!SPON){if(w){w.remove();SPCUR=''}SPMIN=false;if(SPRO){SPRO.disconnect();SPRO_SLOT=null}return}
  const want=slot?slot.dataset.src:SPCUR;
- if(!want){if(w){w.remove();SPCUR=''}return}
- if(!w){w=document.createElement('div');w.id='spwrap';document.body.prepend(w)}
- if(want!==SPCUR){SPCUR=want;w.innerHTML='<iframe title="Player do Spotify" src="'+want+'" width="100%" height="152" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>'}
- const fr=w.firstElementChild;
- if(slot){const r=slot.getBoundingClientRect();w.style.cssText='position:absolute;left:'+(r.left+scrollX)+'px;top:'+(r.top+scrollY)+'px;width:'+r.width+'px;height:'+r.height+'px';if(fr)fr.height=String(r.height)}
- else w.style.cssText='position:fixed;left:-9999px;top:0;width:320px;height:152px'}
-setInterval(()=>{if(SPCUR)spSync()},500);window.addEventListener('resize',()=>spSync());
+ if(!want){if(w){w.remove();SPCUR=''}SPMIN=false;if(SPRO){SPRO.disconnect();SPRO_SLOT=null}return}
+ if(!w){
+  w=document.createElement('div');w.id='spwrap';
+  w.innerHTML='<div class="sp-bar" hidden><span>Spotify</span><button type="button" class="pill" data-a="spmin">Minimizar</button><button type="button" class="pill" data-a="spstop">Parar</button></div><div class="sp-frame"></div>';
+  document.body.prepend(w);
+ }
+ const frameBox=w.querySelector('.sp-frame'),bar=w.querySelector('.sp-bar'),minBtn=w.querySelector('[data-a="spmin"]');
+ if(want!==SPCUR){SPCUR=want;frameBox.innerHTML='<iframe title="Player do Spotify" src="'+want+'" width="100%" height="152" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>'}
+ const fr=frameBox.firstElementChild;
+ if(typeof ResizeObserver==='function'){
+  if(!SPRO)SPRO=new ResizeObserver(()=>{if(SPRAF)return;SPRAF=requestAnimationFrame(()=>{SPRAF=0;if(SPCUR)spSync()})});
+  if(SPRO_SLOT!==slot){SPRO.disconnect();const mn=document.getElementById('main');if(mn)SPRO.observe(mn);if(slot)SPRO.observe(slot);SPRO_SLOT=slot}
+ }
+ if(slot){
+  const r=slot.getBoundingClientRect();
+  w.className='';bar.hidden=true;
+  w.style.cssText='position:absolute;left:'+(r.left+scrollX)+'px;top:'+(r.top+scrollY)+'px;width:'+r.width+'px;height:'+r.height+'px';
+  if(fr)fr.height=String(r.height);
+ }else{
+  w.style.cssText='';
+  w.className='sp-float'+(SPMIN?' sp-min':'');
+  bar.hidden=false;
+  if(minBtn)minBtn.textContent=SPMIN?'Mostrar':'Minimizar';
+  if(fr)fr.height='152';
+ }
+}
+window.addEventListener('resize',()=>spSync());
 /* Clima (Open-Meteo, sem chave) */
 const WXI={sun:'<circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>',moon:'<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',part:'<circle cx="8.5" cy="8.5" r="3"/><path d="M8.5 2.5v1.5M2.5 8.5H4M4.3 4.3l1 1M12.7 4.3l-1 1"/><path d="M8 19h9a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.5 1.2A3 3 0 0 0 8 19z"/>',cloud:'<path d="M7 19h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.4A3.4 3.4 0 0 0 7 19z"/>',fog:'<path d="M4 9h16M3 13h18M5 17h14"/>',rain:'<path d="M7 14h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.4A3.4 3.4 0 0 0 7 14z"/><path d="M8 17.5l-1 2.5M12 17.5l-1 2.5M16 17.5l-1 2.5"/>',snow:'<path d="M7 14h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.4A3.4 3.4 0 0 0 7 14z"/><path d="M8 18v.01M12 19.5v.01M16 18v.01"/>',storm:'<path d="M7 14h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.4A3.4 3.4 0 0 0 7 14z"/><path d="M12 14l-2 3.5h3l-2 3.5"/>'};
 const wxK=(c,day)=>c===0?(day?'sun':'moon'):c<=2?(day?'part':'cloud'):c===3?'cloud':c<=48?'fog':c<=67?'rain':c<=77?'snow':c<=82?'rain':c<=86?'snow':'storm';
@@ -94,8 +114,9 @@ document.addEventListener('click',e=>{
  else if(a==='reload'){done();location.reload()}
  else if(a==='fbout'){done();fbLogout()}
  else if(a==='sppick'){done();S.spsel=id;render()}
- else if(a==='spload'){done();SPON=true;render()}
- else if(a==='spstop'){done();SPON=false;render()}
+ else if(a==='spload'){done();SPON=true;SPMIN=false;render()}
+ else if(a==='spstop'){done();SPON=false;SPMIN=false;render()}
+ else if(a==='spmin'){done();SPMIN=!SPMIN;spSync()}
  else if(a==='spbig'){done();SPBIG=!SPBIG;render()}
  else if(a==='spadd'){done();SPED=true;render()}
  else if(a==='spcancel'){done();SPED=false;render()}

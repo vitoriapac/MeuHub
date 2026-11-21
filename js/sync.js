@@ -1,5 +1,5 @@
 // sincronização entre aparelhos: mescla, envio/recebimento, Firebase, tela de login e troca de conta
-const SK=['events','notes','tasks','links','inbox','habits','fin','dia','metas','projects','history','revm','rev','revprefs','fm','fpj','goal','focus','cards','frase','frasen','menu','pal','acc','themeMode','profileName','nav','dens','trash','rem','rot','rotPrefs','cap','availability','lnk','reads','sp','spsel','wx','seeded'];let CH=300000;
+const SK=['events','notes','tasks','links','inbox','habits','fin','dia','metas','projects','history','revm','rev','revprefs','fm','fpj','goal','focus','cards','frase','frasen','menu','pal','acc','themeMode','profileName','nav','dens','trash','rem','rot','rotPrefs','cap','availability','lnk','reads','sp','spsel','wx','keys','hc','rmo','seeded'];let CH=300000;
 const pick=()=>{const o={};SK.forEach(k=>{o[k]=S[k]});return o},pickJSON=()=>JSON.stringify(pick());
 let FRESH=false;try{FRESH=!localStorage.getItem('hub-v1')}catch(e){}
 let SY={};try{SY=JSON.parse(localStorage.getItem('hub-sync')||'{}')}catch(e){}
@@ -8,10 +8,22 @@ const saveSY=()=>{try{localStorage.setItem('hub-sync',JSON.stringify(SY))}catch(
 let DBr=null,metaRef=null,P='',DEAD=false,pushing=false,again=false,ST=0,ARM=null,chain=Promise.resolve();
 let SYS={s:'local',d:'',at:''};
 function synText(){return {local:'Somente neste aparelho'+(SYS.d?' ('+SYS.d+')':''),sync:'Sincronizando…',ok:'Sincronizado'+(SYS.at?' às '+SYS.at:''),err:'Falha ao sincronizar'+(SYS.d?' ('+SYS.d+')':'')+'. Tentando de novo.'}[SYS.s]}
-function setSt(s,d){SYS.s=s;SYS.d=d||'';if(s==='ok'){SYS.at=nowH();SY.lastAt=new Date().toISOString();saveSY()}const a=$('#syn'),p=$('#synp');if(a){a.dataset.st=s;a.innerHTML='<b>'+({local:'☁',sync:'↻',ok:'☁',err:'⚠'}[s])+'</b>'+esc(synText().split('.')[0])}if(p)p.textContent=synText();const summary=document.querySelector('[data-safety-summary]');if(summary)summary.querySelector('p').innerHTML=safetyText()}
+function setSt(s,d){
+ SYS.s=s;SYS.d=d||'';
+ if(s==='ok'){SYS.at=nowH();SY.lastAt=new Date().toISOString();saveSY()}
+ const a=$('#syn'),p=$('#synp'),ma=$('#mobile-sync-alert');
+ if(a){a.dataset.st=s;a.innerHTML='<b>'+({local:'☁',sync:'↻',ok:'☁',err:'⚠'}[s])+'</b>'+esc(synText().split('.')[0])}
+ if(p)p.textContent=synText();
+ if(ma){
+  const show=s==='err'||(s==='local'&&FB.err&&!!SY.uid);
+  ma.hidden=!show;
+  ma.innerHTML=show?`<span>${esc(synText())}</span><button class="pill" data-v="backup">Abrir Backup</button>`:'';
+ }
+ const summary=document.querySelector('[data-safety-summary]');if(summary)summary.querySelector('p').innerHTML=safetyText();
+}
 const syncPanel=()=>{
  const last=SY.lastAt?new Date(SY.lastAt).toLocaleString('pt-BR'):'ainda não confirmada',pending=LOCAL_CORRUPT?'indisponíveis até recuperar os dados':!SY.last||pickJSON()!==SY.last?'há alterações locais pendentes':'nenhuma alteração pendente';
- const head=`<div class="panel" style="margin-top:var(--space-4)"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 var(--space-2)">${synText()}</p><p class="empty">Última sincronização: ${esc(last)}. Estado das alterações: ${pending}.</p>`;
+ const head=`<div class="panel" style="margin-top:var(--space-4)"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 var(--space-2)">${esc(synText())}</p><p class="empty">Última sincronização: ${esc(last)}. Estado das alterações: ${pending}.</p>`;
  const btns=`<div class="bar"><button class="pill dark" data-a="syncnow">Sincronizar agora</button><button class="pill" data-a="syncup">Enviar este aparelho para a nuvem</button><button class="pill" data-a="syncdown">Trazer os dados da nuvem</button><button class="pill" data-a="fbout">Sair da conta</button></div>`;
  if(!FB_CONFIG)return head+'<p class="empty" style="padding:0">A sincronização ainda não foi configurada (veja o README do projeto). Os dados ficam só neste navegador.</p></div>';
  if(FB.err)return head+'<p class="empty" style="padding:0">Sem conexão com o servidor. Suas mudanças ficam neste aparelho e são sincronizadas quando você abrir o site de novo com internet.</p></div>';
@@ -33,7 +45,7 @@ function merge3(b,l,r,conflicts){
    if(!(k in r)){if(!(bi!==undefined&&jeq(bi,li)))o[k]=li}else if(!(k in l)){if(!(bi!==undefined&&jeq(bi,ri)))o[k]=ri}else if(k==='updatedAt'&&l.id===r.id&&typeof l.b==='string'&&typeof r.b==='string'&&Number.isFinite(li)&&Number.isFinite(ri))o[k]=Math.max(li,ri);else o[k]=merge3(bi,li,ri,conflicts)});
   return o}
  if(conflicts)conflicts.push(true);return l}
-const applyState=o=>{SK.forEach(k=>{if(k in o)S[k]=o[k]});S.history=auditClean(S.history);applyTheme()};
+const applyState=o=>{SK.forEach(k=>{if(k in o)S[k]=o[k]});S.history=auditClean(S.history);applyTheme();if(typeof applyA11y==='function')applyA11y()};
 let remoteRenderPending=false;
 function remoteFormDirty(){return [...document.querySelectorAll('#main form')].some(f=>[...f.elements].some(x=>{if(x.tagName==='SELECT'){const d=[...x.options].find(o=>o.defaultSelected)||x.options[0];return !!d&&x.value!==d.value}if(/^(checkbox|radio)$/.test(x.type))return x.checked!==x.defaultChecked;return /^(text|search|number|date|time|url|textarea)$/i.test(x.type||'')&&x.value!==x.defaultValue}))}
 function remoteEditing(){const a=document.activeElement;return !!(a.closest&&a.closest('#main')&&(/INPUT|TEXTAREA|SELECT/.test(a.tagName)||a.isContentEditable))}
@@ -101,10 +113,25 @@ function fbInit(){
  }).catch(()=>{FB.ready=true;FB.err=true;if(SY.uid)setSt('local','sem conexão');render()})}
 window.addEventListener('online',()=>{if(FB.err){FB.err=false;fbInit()}else if(DBr)syncSoon()});
 function fbLogin(){if(!FB.auth)return;FB.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>{if(e&&e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast('Não foi possível entrar. Se a janela de login não abriu, permita pop-ups para este site e tente de novo.')})}
-/* outra conta no mesmo aparelho: guarda à parte os dados locais da anterior e traz os da nova, para nenhuma ver nem sobrescrever os da outra */
-function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK,AUDIT_KEY,PROFILE_KEY];
- try{ls.setItem('hub-acct-'+from,JSON.stringify(ks.map(k=>ls.getItem(k))))}catch(e){FB.auth.signOut();toast('Não há espaço neste navegador para trocar de conta. Faça um Backup e tente de novo.');return}
- const b=JSON.parse(ls.getItem('hub-acct-'+to)||'null');ks.forEach((k,i)=>b&&b[i]!=null?ls.setItem(k,b[i]):ls.removeItem(k));ls.removeItem('hub-acct-'+to);location.reload()}
+/* outra conta no mesmo aparelho: guarda à parte os dados locais da anterior (sem os snapshots locais) e traz os da nova, para nenhuma ver nem sobrescrever os da outra */
+function acctSwap(from,to){
+ const ls=localStorage,ks=['hub-v1','hub-sync',AUDIT_KEY,PROFILE_KEY];
+ const oldSnaps=ls.getItem(SNK),pack={};
+ ks.forEach(k=>{const v=ls.getItem(k);if(v!==null)pack[k]=v});
+ ls.removeItem(SNK);
+ try{ls.setItem('hub-acct-'+from,JSON.stringify(pack))}
+ catch(e){if(oldSnaps!==null)try{ls.setItem(SNK,oldSnaps)}catch(x){}FB.auth.signOut();toast('Não há espaço neste navegador para trocar de conta. Faça um Backup e tente de novo.');return}
+ let b=null;try{b=JSON.parse(ls.getItem('hub-acct-'+to)||'null')}catch(e){}
+ if(Array.isArray(b)){
+  const legacy=['hub-v1','hub-sync',SNK,AUDIT_KEY,PROFILE_KEY];
+  legacy.forEach((k,i)=>{if(k===SNK)return;if(b[i]!=null)ls.setItem(k,b[i]);else ls.removeItem(k)});
+ }else if(b&&typeof b==='object'){
+  ks.forEach(k=>{if(b[k]!=null)ls.setItem(k,b[k]);else ls.removeItem(k)});
+ }else{
+  ks.forEach(k=>ls.removeItem(k));
+ }
+ ls.removeItem(SNK);ls.removeItem('hub-acct-'+to);location.reload();
+}
 async function fbLogout(){if(!FB.auth)return;if(!(await push())){toast('Não foi possível sincronizar. Você continua na conta; tente novamente.');return}try{await FB.auth.signOut();toast('Você saiu da conta. Os dados continuam salvos na nuvem.')}catch(e){toast('Não foi possível sair da conta. Tente novamente.')}}
 /* tela de login: o site só abre depois de entrar (sem FB_CONFIG não há login possível, então abre direto) */
 // sem internet, quem já entrou neste aparelho usa os dados locais; a sincronização volta no próximo carregamento com conexão

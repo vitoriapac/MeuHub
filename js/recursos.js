@@ -1,16 +1,11 @@
 // recursos: abas das finanças, busca, desfazer, menu lateral, acessibilidade, lixeira, lembretes, rotina, leituras, paleta de comandos, privacidade, versões, datas
 /* ===== Abas das Finanças, despesa na captura rápida, busca ampliada, vencimentos e desfazer geral ===== */
 const FTABS=[['geral','Visão geral'],['analise','Análises'],['lanc','Lançamentos'],['orc','Orçamentos e metas'],['contas','Contas e recorrentes'],['regras','Regras e importação']];
-const FTMAP=[['Até o próximo recebimento','geral'],['Fluxo de caixa','geral'],['Comparação com','analise'],['Resumo de','geral'],['Despesas por categoria','geral'],['Resultado acumulado','geral'],['Saldo acumulado','geral'],['Receitas e despesas mês a mês','geral'],['Cascata de','geral'],['Mapa de calor','analise'],['Evolução por categoria','analise'],['Calendário financeiro','analise'],['Subcategorias','analise'],['Projetos:','analise'],['Orçamentos','orc'],['Metas de economia','orc'],['Contas fixas','contas'],['Contas e cartões','contas'],['Lançamentos recorrentes','contas'],['Regras de categorização','regras'],['Importar extrato','regras'],['Reserva de emergência','orc'],['Metas por percentual','orc'],['Parcelas futuras','lanc'],['Divisão de despesas','lanc'],['Lançamentos','lanc']];
-function financasTabs(html){
- const t=document.createElement('template');t.innerHTML=html;const cards=t.content.querySelector('.cards');if(!cards)return html;
+function financas(){
+ if(S.fvw==='ano')return relAnual();
  const tab=FTABS.some(x=>x[0]===S.ftab)?S.ftab:'geral';
- [...cards.children].forEach(p=>{const h=p.querySelector('h2'),tx=h?h.textContent.trim():'',m=FTMAP.find(x=>tx.startsWith(x[0]));if(!m||m[1]!==tab)p.remove()});
- if(!cards.children.length)cards.innerHTML='<div class="panel wide"><p class="empty">Nada para mostrar nesta aba.</p></div>';
- const bar=document.createElement('div');bar.className='bar ftabs';bar.setAttribute('role','group');bar.setAttribute('aria-label','Seções das Finanças');
- bar.innerHTML=FTABS.map(x=>`<button class="pill ${x[0]===tab?'on':''}" aria-pressed="${x[0]===tab}" data-a="ftab" data-id="${x[0]}">${x[1]}</button>`).join('');
- cards.before(bar);return t.innerHTML}
-function financas(){return (S.fvw==='ano'?relAnual():financasTabs(financasMes()))+simulationPanel()}
+ return financasMes(tab)+(tab==='geral'||tab==='analise'?simulationPanel():'');
+}
 /* captura rápida com despesa e receita */
 function qa(t){
  const old=$('#fqa input[name=t]'),same=old&&old.form.dataset.qi===(QI||'')&&old.form.dataset.qshop===(QSHOP||''),draft=same?old.value:'';if(same)QD[QT]=Object.fromEntries(new FormData(old.form));else QD={};if(t)QT=t;const el=$('#qa'),F=finInit();el.classList.remove('hide');
@@ -18,7 +13,7 @@ function qa(t){
  el.innerHTML=`<form class="panel bar" id="fqa"><div class="bar" style="width:100%;margin:0">${QI?'':pb('ib','Guardar para depois')}${pb('tk','Tarefa')}${pb('nt','Nota')}${pb('ev','Evento')}${pb('dp','Despesa')}${pb('rc','Receita')}<button type="button" class="x" data-a="qax" aria-label="Fechar" style="margin-left:auto">×</button></div><input class="in grow" name="t" placeholder="${{ib:'O que você quer lembrar?',tk:'Nova tarefa',nt:'Título da nota',ev:'Novo evento',dp:'Descrição (ex.: mercado 85,90 ontem)',rc:'Descrição (ex.: freela 500 hoje)'}[QT]}" required>${money?`<input class="in" name="v" type="text" inputmode="decimal" autocomplete="off" placeholder="Valor (ou na descrição)" aria-label="Valor" style="width:140px"><input class="in" type="date" name="d" value="${T}" required aria-label="Data">${QT==='dp'?`<select class="in" name="cat" aria-label="Categoria">${catOpts('')}</select>`:''}${F.acc.length>1?`<select class="in" name="ac" aria-label="Conta ou cartão">${accOpts('')}</select>`:''}`:''}${QT==='ev'?`<input class="in" type="date" name="d" value="${T}" required aria-label="Data"><input class="in" type="time" name="h" value="09:00" required aria-label="Hora">`:''}${QT==='tk'?'<label class="lb">Prazo (opcional) <input class="in" type="date" name="due" aria-label="Prazo"></label>':''}<button class="pill dark">Adicionar</button></form>`;
  if(QT==='tk'){const f=el.querySelector('form'),submit=f.querySelector('button.pill.dark');submit.insertAdjacentHTML('beforebegin','<label class="lb">Planejar para <select class="in" name="dest"><option value="later">Sem data planejada</option><option value="today">Hoje</option><option value="scheduled">Outra data</option></select></label><label class="lb" data-qa-planned hidden>Data planejada <input class="in" type="date" name="planned" disabled></label>')}
  const input=el.querySelector('input[name=t]'),item=(S.inbox||[]).find(x=>x.id===QI),f=input.form;f.dataset.qi=QI||'';f.dataset.qshop=QSHOP||'';Object.entries(QD[QT]||{}).forEach(([k,v])=>{if(k!=='t'&&f.elements[k])f.elements[k].value=v});if(f.elements.dest)f.elements.dest.dispatchEvent(new Event('change',{bubbles:true}));if(QD[QT]&&QD[QT].planned)f.elements.planned.value=QD[QT].planned;input.value=same?draft:item?item.t:'';input.focus()}
-document.addEventListener('change',e=>{const i=e.target;if(i.name!=='dest'||!i.form||i.form.id!=='fqa')return;const on=i.value==='scheduled',f=i.form;f.querySelector('[data-qa-planned]').hidden=!on;f.elements.planned.disabled=!on;f.elements.planned.required=on});
+document.addEventListener('change',e=>{const i=e.target;if(i.name!=='dest'||!i.form||i.form.id!=='fqa')return;const on=i.value==='scheduled',f=i.form,pl=f.elements.planned;if(pl._dtText){pl.disabled=!on;pl.dataset.req=on?'1':'0';pl.required=false;pl._dtSync()}else{pl.disabled=!on;pl.required=on}f.querySelector('[data-qa-planned]').hidden=!on});
 function inboxPanel(){const L=S.inbox||[];return `<div class="panel" style="margin-top:var(--space-3)"><h2>Caixa de entrada</h2><p class="empty" style="padding:0 0 var(--space-2)">Guarde uma ideia agora e escolha depois o que fazer com ela.</p><form class="bar" id="finbox"><input class="in grow" name="t" aria-label="Captura para a caixa de entrada" placeholder="O que você quer lembrar?" required><button class="pill dark">Capturar</button></form>${L.map(x=>`<div class="item"><div class="t">${esc(x.t)}</div><button class="pill" data-a="inboxconvert" data-id="${esc(x.id)}">Organizar</button><button class="x" data-a="inboxdel" data-id="${esc(x.id)}" aria-label="Excluir ${esc(x.t)}">×</button></div>`).join('')||'<p class="empty">Nenhuma captura pendente.</p>'}</div>`}
 function shoppingSessionItems(form){const n=S.notes.find(x=>x.id===form.dataset.qshop&&x.kind==='shopping');if(!n||!form.dataset.shoppingSnapshot)return null;let snapshot;try{snapshot=JSON.parse(form.dataset.shoppingSnapshot)}catch(e){return null}const selected=[...form.querySelectorAll('[name=shoppingItem]:checked')].map(x=>x.value),items=selected.map(id=>(n.items||[]).find(x=>x.id===id));if(new Set(selected).size!==selected.length||items.some((x,i)=>!x||!snapshot.some(s=>s.id===selected[i]&&s.value===JSON.stringify(x))))return null;return items}
 function shoppingSessionUpdate(form,updatePrice=true){const items=shoppingSessionItems(form);if(!items)return;const total=shoppingTotals(items,'actualCents'),value=items.length&&!total.missing?total.value.toFixed(2).replace('.',','):'';if(updatePrice&&(!form.elements.v.value||form.elements.v.value===form.dataset.autoPrice))form.elements.v.value=value;if(updatePrice)form.dataset.autoPrice=value;const ids=new Set(items.map(x=>x.id)),repeated=(S.fin.tx||[]).filter(t=>t.shopping===form.dataset.qshop&&(t.shoppingItems||[]).some(id=>ids.has(id)));const ac=form.elements.ac?.value||S.fin.acc[0]?.id,amount=num(form.elements.v.value),date=form.elements.d.value,similar=(S.fin.tx||[]).filter(t=>t.k==='out'&&!t.shopping&&t.d===date&&(t.ac||S.fin.acc[0]?.id)===ac&&amount>0&&Math.abs((+t.v||0)-amount)<.005),warning=form.querySelector('[data-shopping-repeat]');if(warning){const key=JSON.stringify([repeated.map(x=>x.id).sort(),similar.map(x=>x.id).sort(),items.map(x=>x.id).sort(),amount,date,ac]);if(warning.dataset.key!==key)warning.querySelector('input').checked=false;warning.dataset.key=key;warning.hidden=!(repeated.length||similar.length);warning.querySelector('span').textContent=(repeated.length?'Há itens já associados a '+repeated.length+' compra(s). ':'')+(similar.length?'Há '+similar.length+' despesa(s) sem associação com mesmo valor, data e conta; você pode associar uma delas. ':'')+'Confirmo que esta é uma compra diferente.'}return repeated.length+similar.length}
@@ -40,7 +35,7 @@ function duesPanel(){
  const row=x=>{const dd=mDays(x.d),when=dd===0?'hoje':dd===1?'amanhã':DIA[new Date(x.d+'T00:00').getDay()]+', '+fmt(x.d);
   return `<div class="item"><span class="chip c-${x.k==='card'?'b':x.k==='bill'?'y':x.k==='in'?'g':'p'}">${when}</span><div class="t">${esc(x.t)}<small>${x.subscription?'Assinatura':{card:'Vencimento de fatura',bill:'Conta fixa',sched:'Despesa agendada',in:'Receita prevista'}[x.k]}${x.installment?' · Parcela '+esc(x.installment):''} · ${esc(x.account||'Conta não vinculada')}</small></div><strong class="${x.k==='in'?'pos':''}">${x.k==='in'?'+ ':''}${BRL(x.v)}</strong>${x.k==='card'?`<button class="pill" data-a="payfat" data-id="${x.id}" data-o="${x.o}">Pagar</button>`:''}</div>`};
  return `<div class="panel"><h2>Contas e vencimentos</h2>${L.length?`<p class="empty" style="padding:0 0 var(--space-2)">${td.length?'Hoje: <strong>'+BRL(tot(td))+'</strong> a pagar. ':'Nada vence hoje. '}Próximos 7 dias: <strong>${BRL(tot(wk))}</strong>.</p>${L.map(row).join('')}`:'<p class="empty">Nada a pagar ou receber nos próximos 7 dias. Cadastre contas fixas, recorrentes e cartões em Finanças.</p>'}<p class="empty">Próximos 30 dias: <strong>${BRL(tot(month))}</strong> em valores previstos. Uma conta fixa e uma recorrente podem representar a mesma despesa; confira antes de somar. Lançamentos comuns de hoje não entram nesta previsão.</p>${month.length?`<details><summary>Ver valores previstos</summary>${month.map(row).join('')}</details>`:''}</div>`}
-function payInv(id,o){const a=S.fin.acc.find(x=>x.id===id),f=$('#ffin');if(!a||!f)return;const iv=invoice(a,o);if(!iv.left){toast('Esta fatura já foi paga ou agendada');return}f.className='bar ktr advo';const s=(n,v)=>{f.querySelector('[name='+n+']').value=v};s('k','tr');s('t','Pagamento da fatura: '+a.n);s('v',iv.left.toFixed(2));s('d',iv.due);s('to',a.id);let marker=f.querySelector('[name=invoice]');if(!marker){marker=document.createElement('input');marker.type='hidden';marker.name='invoice';f.appendChild(marker)}marker.value=iv.end;const x=S.fin.acc.find(y=>y.id!==a.id&&y.ty!=='card');if(x)s('ac',x.id);trValid(f);f.querySelector('[name=t]').focus();window.scrollTo({top:0,behavior:SMOOTH()});toast(iv.legacy?'Há transferência antiga para este cartão; confira antes de lançar.':'Confira a conta e o valor antes de lançar')}
+function payInv(id,o){if(!$('#ffin')){S.fvw='mes';S.ftab='lanc';render()}const a=S.fin.acc.find(x=>x.id===id),f=$('#ffin');if(!a||!f)return;const iv=invoice(a,o);if(!iv.left){toast('Esta fatura já foi paga ou agendada');return}f.className='bar ktr advo';const s=(n,v)=>{const el=f.querySelector('[name='+n+']');if(n==='d')dtSet(el,v);else if(el)el.value=v};s('k','tr');s('t','Pagamento da fatura: '+a.n);s('v',iv.left.toFixed(2));s('d',iv.due);s('to',a.id);let marker=f.querySelector('[name=invoice]');if(!marker){marker=document.createElement('input');marker.type='hidden';marker.name='invoice';f.appendChild(marker)}marker.value=iv.end;const x=S.fin.acc.find(y=>y.id!==a.id&&y.ty!=='card');if(x)s('ac',x.id);trValid(f);f.querySelector('[name=t]').focus();window.scrollTo({top:0,behavior:SMOOTH()});toast(iv.legacy?'Há transferência antiga para este cartão; confira antes de lançar.':'Confira a conta e o valor antes de lançar')}
 /* busca global ampliada */
 function busca(){
  const q=norm(Q),h=x=>norm(x).includes(q),F=finInit(),v=n=>`data-v="${n}"`;
@@ -49,13 +44,14 @@ function busca(){
  const out=sec('Caixa de entrada',(S.inbox||[]).filter(x=>h(x.t)),x=>esc(x.t),()=>v('hoje'))
  +sec('Tarefas',S.tasks.filter(t=>!taskPaused(t)&&(h(t.t)||h(t.tg)||h(t.pj))),t=>`${esc(t.t)}<small>${t.done?'Concluída':'Pendente'}${t.due?', prazo '+fmt(t.due):''}</small>`,()=>v('tarefas'))
  +sec('Eventos',S.events.filter(e=>h(e.t)||h(e.d)||h(e.tg)),e=>`${esc(e.t)}<small>${fmt(e.d)} às ${e.h}</small>`,()=>v('agenda'))
- +sec('Notas',S.notes.filter(n=>h(n.t)||h(plain(n.b))||h(n.f)||h(n.g)||(n.items||[]).some(x=>h(x.t))),n=>`${esc(n.t||'Sem título')}<small>${esc(plain(n.b).slice(0,90))}</small>`,n=>`data-a="lkgo" data-id="nt:${esc(n.id)}"`)
+ +sec('Notas',S.notes.filter(n=>h(n.t)||h(plain(n.b))||h(n.f)||h(n.g)||(n.items||[]).some(x=>h(x.t))),n=>`${esc(n.t||'Sem título')}<small data-priv-text>${esc(plain(n.b).slice(0,90))}</small>`,n=>`data-a="lkgo" data-id="nt:${esc(n.id)}"`)
  +sec('Links',S.links.filter(l=>h(l.n)||h(l.u)||h(l.tg)||h(l.cat)),l=>`${esc(l.n)}<small>${esc(l.u)}</small>`,()=>v('links'))
  +sec('Lançamentos',F.tx.filter(t=>h(t.t)||h(t.cat)||h(t.sub)||h(t.tg)||h(t.pj)||h(t.d)||h(String(t.v))||h(String(t.v).replace('.',','))).sort((a,b)=>b.d.localeCompare(a.d)),t=>`${esc(t.t)}<small>${fmt(t.d)} · ${t.k==='tr'?'Transferência':esc(t.cat)+(t.sub?' › '+esc(t.sub):'')} · ${t.k==='in'?'+':t.k==='tr'?'':'−'} ${BRL(t.v)}</small>`,t=>`data-a="sgo" data-view="financas" data-tab="lanc" data-fmo="${fm(t)}"`)
  +sec('Metas',S.metas.filter(g=>!g.archived&&(h(g.t)||g.kr.some(k=>h(k.t)))),g=>`${esc(g.t)}<small>${Math.round(metaProg(g)*100)}% concluída</small>`,()=>v('metas'))
+ +sec('Projetos',(S.projects||[]).filter(p=>!p.archived&&h(p.t)),p=>`${esc(p.t)}<small>${p.status==='done'?'Concluído':'Em andamento'}</small>`,p=>`data-a="lkgo" data-id="prj:${esc(p.id)}"`)
  +sec('Leituras',(S.reads||[]).filter(r=>h(r.t)||h(r.a)||h(r.n)),r=>`${esc(r.t)}<small>${esc(RK[r.k]?RK[r.k][0]:'')}${r.a?' · '+esc(r.a):''}</small>`,r=>`data-a="lkgo" data-id="rd:${esc(r.id)}"`)
  +sec('Hábitos',S.habits.filter(x=>h(x.n)),x=>`${esc(x.n)}<small>${habitInfo(x)}</small>`,()=>v('habitos'))
- +sec('Diário',Object.keys(S.dia).filter(d=>{const e=S.dia[d];return h(e.a)||h(e.b)||h(e.c)||h(d)}).sort().reverse(),d=>`${fmt(d)}<small>${esc(plain(S.dia[d].a||S.dia[d].b||S.dia[d].c||'').slice(0,90))}</small>`,d=>`data-a="sgo" data-view="diario" data-ddo="${mDays(d)}"`);
+ +sec('Diário',Object.keys(S.dia).filter(d=>{const e=S.dia[d];return h(e.a)||h(e.b)||h(e.c)||h(d)}).sort().reverse(),d=>`${fmt(d)}<small data-priv-text>${esc(plain(S.dia[d].a||S.dia[d].b||S.dia[d].c||'').slice(0,90))}</small>`,d=>`data-a="sgo" data-view="diario" data-ddo="${mDays(d)}"`);
  return `<div class="top"><h1>Resultados</h1></div><p class="vh" role="status">${(n=>n+(n===1?' resultado exibido':' resultados exibidos'))((out.match(/class="item"/g)||[]).length)}</p><div class="res">${out||`<div class="empty">Nada encontrado para “${esc(Q)}”.</div>`}</div>`}
 /* desfazer e refazer gerais */
 let UH=[],UR=[],ULast=null,UTime=0;
@@ -305,15 +301,16 @@ function rotina(){
  const pos=steps.indexOf(i),last=pos===steps.length-1,fin=done[md],sk=rtStreak();
  return `<div class="top"><h1>Rotina ${md==='m'?'da manhã':'da noite'}</h1><div style="display:flex;gap:var(--space-2);flex-wrap:wrap"><button class="pill ${md==='m'?'on':''}" data-a="rtm" data-id="m" aria-pressed="${md==='m'}">Manhã</button><button class="pill ${md==='n'?'on':''}" data-a="rtm" data-id="n" aria-pressed="${md==='n'}">Noite</button></div></div>
  <p class="empty" style="padding:0 0 var(--space-2)">Cerca de 2 minutos.${sk?` Pelo menos uma rotina concluída em ${sk} ${sk===1?'dia seguido':'dias seguidos'}.`:''}${fin?' Hoje já concluída.':''}</p>
- ${rtHistory()}<button class="pill" data-a="rtrestart">Recomeçar esta rotina</button><ol class="rts" aria-label="Etapas">${steps.map((j,n)=>`<li class="${j===i?'on':''}" ${j===i?'aria-current="step"':''}>${n+1}. ${st[j]}</li>`).join('')}</ol>
+ <ol class="rts" aria-label="Etapas">${steps.map((j,n)=>`<li class="${j===i?'on':''}" ${j===i?'aria-current="step"':''}>${n+1}. ${st[j]}</li>`).join('')}</ol>
  <div class="panel" style="margin-top:var(--space-2)">${body}</div>
- <div class="bar" style="margin-top:var(--space-3)">${pos>0?'<button class="pill" data-a="rtn" data-id="-1">‹ Voltar</button>':''}${last?`<button class="pill dark" data-a="rtd">Concluir rotina</button>`:'<button class="pill dark" data-a="rtn" data-id="1">Próximo ›</button>'}</div>${rtPrefs(md)}`}
+ <div class="bar" style="margin-top:var(--space-3)">${pos>0?'<button class="pill" data-a="rtn" data-id="-1">‹ Voltar</button>':''}${last?`<button class="pill dark" data-a="rtd">Concluir rotina</button>`:'<button class="pill dark" data-a="rtn" data-id="1">Próximo ›</button>'}</div>
+ <section class="panel" data-rotina-tools style="margin-top:var(--space-4)"><h2>Configurações e histórico</h2><div class="bar"><button class="pill" data-a="rtrestart">Recomeçar esta rotina</button></div>${rtPrefs(md)}${rtHistory()}</section>`}
 function routBox(){
  if(S.onb)return '';const h=today.getHours(),r=(S.rot||{})[T]||{};
  const m=h<12&&!r.m,n=h>=18&&!r.n;if(!m&&!n)return '';
  return `<div class="panel" id="rtb" role="region" aria-label="Rotina"><h2>${m?'Bom dia! Comece pela rotina da manhã':'Feche o dia com a rotina da noite'}</h2><p class="empty" style="padding:0 0 var(--space-2)">${m?'Humor, foco e as tarefas de hoje, em 2 minutos.':'Revise o dia, marque os hábitos e prepare amanhã.'}</p><button class="pill dark" data-a="rtgo" data-id="${m?'m':'n'}">Começar</button></div>`}
 /* ===== Pacote C: ligações, leituras e revisão anual ===== */
-const LKT=['tk','nt','ev','mt','rd','lk'],LKV={tk:'tarefas',nt:'notas',ev:'agenda',mt:'metas',rd:'leituras',lk:'links'};
+const LKT=['tk','nt','ev','mt','rd','lk'],LKV={tk:'tarefas',nt:'notas',ev:'agenda',mt:'metas',rd:'leituras',lk:'links',prj:'projetos'};
 const lkAll=()=>(S.lnk=Array.isArray(S.lnk)?S.lnk:[]);
 const lkOf=ref=>lkAll().filter(l=>l.a===ref||l.b===ref).map(l=>l.a===ref?l.b:l.a);
 const lkLabel=(ty,it)=>ty==='ev'?it.t+' · '+fmt(it.d):String(TRC[ty].l(it)||'');
@@ -335,7 +332,7 @@ function lkDraw(){
 function flashEl(){if(!FLASH)return;const el=document.querySelector('[data-lid="'+FLASH+'"]');FLASH=null;if(el){el.scrollIntoView({block:'center'});el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),2400)}}
 document.addEventListener('input',e=>{if(e.target.id==='lkq'&&LKP){LKP.q=e.target.value;const r=$('#lkres');if(r)r.innerHTML=lkResHtml()}});
 function lkGo(ref){
- const r=lkItem(ref);if(!r)return;LKP=null;if((r.ty==='tk'&&taskPaused(r.it))||(r.ty==='mt'&&r.it.archived)){archiveQuery='';S.view='arquivados';Q='';ED=null;$('#q').value='';return}S.view=LKV[r.ty];Q='';ED=null;$('#q').value='';FLASH=ref;
+ const r=lkItem(ref);if(!r)return;LKP=null;if((r.ty==='tk'&&taskPaused(r.it))||(r.ty==='mt'&&r.it.archived)||(r.ty==='prj'&&r.it.archived)){archiveQuery='';S.view='arquivados';Q='';ED=null;$('#q').value='';return}S.view=LKV[r.ty];Q='';ED=null;$('#q').value='';FLASH=ref;
  if(r.ty==='ev'){S.mode='day';S.dy=mDays(r.it.d)}else if(r.ty==='nt'){noteReset();if(r.it.archived)NSTATUS='archived';PG={nt:Math.max(30,S.notes.length)};PGV='notas'}else if(r.ty==='tk'){S.filter='all';S.pf='';if(PGV!=='tarefas'){PG={};PGV='tarefas'}const index=taskList().findIndex(t=>t.id===r.id);if(index>=pgN('tk',60))PG.tk=Math.ceil((index+1)/60)*60}else if(r.ty==='lk')S.lc='';else if(r.ty==='rd'){S.rk='';S.rs='';RD.tab='collection';RD.q=''}}
 /* leituras */
 const RK={livro:['Livro','y',['Quero ler','Lendo','Lido']],filme:['Filme','p',['Quero ver','Assistindo','Visto']],série:['Série','g',['Quero ver','Assistindo','Visto']],artigo:['Artigo','b',['Quero ler','Lendo','Lido']],podcast:['Podcast','b',['Quero ouvir','Ouvindo','Ouvido']]},RS=['q','a','f'];
@@ -395,8 +392,8 @@ function diarioAno(){
  <div class="panel wide"><h2>O ano em cores</h2>${heat}</div>
  <div class="panel"><h2>Humor médio por mês</h2>${bars}</div><div class="panel"><h2>Humor por dia da semana</h2>${wdr}<p class="empty" style="padding:var(--space-2) 0 0">Média de 1 a 5, nos dias com humor registrado.</p></div>
  <div class="panel"><h2>Hábitos mais constantes</h2>${hab.map(x=>`<div class="cat" style="grid-template-columns:1fr 1fr auto"><span>${esc(x.h.n)}</span>${x.h.perWeek?`<span></span><small>${x.c} ${x.c===1?'dia registrado':'dias registrados'} · meta semanal</small>`:`<div class="fb" aria-hidden="true"><i style="width:${x.pc}%"></i></div><small>${x.c} ${x.c===1?'dia':'dias'} (${x.pc}% desde o 1º registro) · melhor sequência ${x.bs}</small>`}</div>`).join('')||'<p class="empty">Nenhum hábito marcado neste ano.</p>'}</div>
- <div class="panel"><h2>Melhores dias</h2>${top.map(x=>`<div class="item"><span class="chip" style="background:${MC[x.e.m-1]}">${MN[x.e.m-1]}</span><div class="t">${fmt(x.k)}<small>${sn(x)}</small></div></div>`).join('')||'<p class="empty">Nenhum dia com humor “Bom” ou “Ótimo” registrado.</p>'}</div>
- <div class="panel wide"><h2>Vitórias e gratidão</h2><p class="empty" style="padding:0 0 var(--space-2)">${gr} ${gr===1?'dia com gratidão registrada':'dias com gratidão registrada'}. Últimas vitórias anotadas:</p>${win.map(x=>`<div class="item"><div class="t">${fmt(x.k)}<small>${esc(plain(x.e.b).slice(0,160))}</small></div></div>`).join('')||'<p class="empty">Nenhuma vitória anotada.</p>'}</div></div>`}
+ <div class="panel"><h2>Melhores dias</h2>${top.map(x=>`<div class="item"><span class="chip" style="background:${MC[x.e.m-1]}">${MN[x.e.m-1]}</span><div class="t">${fmt(x.k)}<small data-priv-text>${sn(x)}</small></div></div>`).join('')||'<p class="empty">Nenhum dia com humor “Bom” ou “Ótimo” registrado.</p>'}</div>
+ <div class="panel wide"><h2>Vitórias e gratidão</h2><p class="empty" style="padding:0 0 var(--space-2)">${gr} ${gr===1?'dia com gratidão registrada':'dias com gratidão registrada'}. Últimas vitórias anotadas:</p>${win.map(x=>`<div class="item"><div class="t">${fmt(x.k)}<small data-priv-text>${esc(plain(x.e.b).slice(0,160))}</small></div></div>`).join('')||'<p class="empty">Nenhuma vitória anotada.</p>'}</div></div>`}
 function lkPrune(){const L=lkAll();if(!L.length)return;const ex=ref=>{const[ty,id]=ref.split(':'),c=TRC[ty];return !!c&&((c.g()||[]).some(x=>x.id===id)||(S.trash||[]).some(e=>e.id===ref))},now=Date.now(),keep=L.filter(l=>(l.at&&now-l.at<864e5)||(ex(l.a)&&ex(l.b)));if(keep.length!==L.length)S.lnk=keep}
 /* ===== Pacote F: paleta de comandos, privacidade e versões automáticas ===== */
 Object.assign(ICO,{
@@ -421,8 +418,18 @@ function snapPut(why,minGap,state){
   for(;;){try{localStorage.setItem(SNK,JSON.stringify(L));return true}catch(e){if(L.length<=(state?2:1))return false;L.pop()}}}catch(e){return false}}
 function snapAuto(){if(LOCAL_CORRUPT)return;const has=(S.tasks||[]).length+(S.events||[]).length+(S.notes||[]).length+(S.inbox||[]).length+((S.fin||{}).tx||[]).length+(S.habits||[]).length>0;const L=snaps();if(!has)return;if(L[0]&&Date.now()-L[0].t<12*36e5)return;snapPut('Automática')}
 setTimeout(snapAuto,4000);setInterval(snapAuto,30*60e3);
-function snapRestore(t){const x=snaps().find(s=>s.t===t);if(!x)return;let d;try{d=JSON.parse(x.j)}catch(e){toast('Esta versão está corrompida.');return}
- const previous=JSON.stringify(S),wasCorrupt=LOCAL_CORRUPT;if(!wasCorrupt&&!snapPut('Antes de restaurar uma versão')){toast('Não foi possível guardar a versão atual. Exporte um backup e libere espaço.');return}if(!('projects' in d))d.projects=[];d.history=auditClean([...(S.history||[]),...(Array.isArray(d.history)?d.history:[])]);applyState(d);auditLog('snapshotRestore');LOCAL_CORRUPT=false;if(!save()){S=JSON.parse(previous);LOCAL_CORRUPT=wasCorrupt;applyTheme();undoReset();render();toast('Não foi possível salvar a restauração. Os dados anteriores foram mantidos.');return}render();toast('Versão de '+snapFmt(t)+' restaurada.'+(wasCorrupt?'':' Os dados anteriores foram guardados como versão.'),true)}
+function snapRestore(t){
+ const x=snaps().find(s=>s.t===t);if(!x)return;
+ let d;try{d=JSON.parse(x.j)}catch(e){toast('Esta versão está corrompida.');return}
+ const previous=JSON.stringify(S),wasCorrupt=LOCAL_CORRUPT;
+ if(!wasCorrupt&&!snapPut('Antes de restaurar uma versão')){toast('Não foi possível guardar a versão atual. Exporte um backup e libere espaço.');return}
+ if(!('projects' in d))d.projects=[];
+ d.history=auditClean([...(S.history||[]),...(Array.isArray(d.history)?d.history:[])]);
+ UN=null;UTime=0;
+ applyState(d);auditLog('snapshotRestore');LOCAL_CORRUPT=false;
+ if(!save()){S=JSON.parse(previous);LOCAL_CORRUPT=wasCorrupt;applyTheme();applyA11y();undoReset();render();toast('Não foi possível salvar a restauração. Os dados anteriores foram mantidos.');return}
+ render();toast('Versão de '+snapFmt(t)+' restaurada.'+(wasCorrupt?'':' Os dados anteriores foram guardados como versão.'),!wasCorrupt);
+}
 const snapFmt=t=>new Date(t).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
 function snapPanel(){
  const L=snaps();
@@ -446,12 +453,12 @@ function ckItems(q){
  if(hasEx())A('Ações','Remover dados de exemplo','undo',exClear,'apagar demonstração');
  if(tok.length){
   const m=(ty,ic2,arr,lab,kw)=>{let n=0;arr.forEach(it=>{if(n>=5)return;const l=lab(it);if(!l)return;const k=norm(l+' '+(kw?kw(it):''));if(tok.every(t=>k.includes(t))){n++;out.push({g:'Itens',l,ico:ic2,run:()=>{lkGo(ty+':'+it.id);render()},s:2})}})};
-  m('tk','check',[...S.tasks].sort((a,b)=>(a.done?1:0)-(b.done?1:0)),t=>t.t);m('nt','note',S.notes,n=>n.t||'',n=>(n.b||'').replace(/<[^>]*>/g,' '));m('ev','cal',S.events,e=>e.t);m('lk','link',S.links,l=>l.n);m('rd','book',S.reads||[],r=>r.t);m('mt','flag',S.metas,g=>g.t);
+  m('tk','check',[...S.tasks].sort((a,b)=>(a.done?1:0)-(b.done?1:0)),t=>t.t);m('nt','note',S.notes,n=>n.t||'',n=>(n.b||'').replace(/<[^>]*>/g,' '));m('ev','cal',S.events,e=>e.t);m('lk','link',S.links,l=>l.n);m('rd','book',S.reads||[],r=>r.t);m('mt','flag',S.metas,g=>g.t);m('prj','flag',(S.projects||[]).filter(p=>!p.archived),p=>p.t);
   let ntx=0;finInit().tx.forEach(t=>{if(ntx>=5)return;const l=`${t.t} · ${BRL(t.v)} (${fmt(t.d)})`,k=norm(`${t.t} ${t.cat||''} ${t.sub||''} ${t.tg||''} ${t.pj||''} ${t.d} ${t.v} ${String(t.v).replace('.',',')}`);if(tok.every(w=>k.includes(w))){ntx++;out.push({g:'Itens',l,ico:'wallet',run:()=>{S.view='financas';S.fvw='mes';S.ftab='lanc';S.fmo=(+t.d.slice(0,4)-today.getFullYear())*12+ +t.d.slice(5,7)-1-today.getMonth();FQ=t.t;Q='';$('#q').value='';render()},s:2})}});
-  let ndia=0;Object.keys(S.dia||{}).sort().reverse().forEach(d=>{if(ndia>=5)return;const e=S.dia[d]||{},tx=plain(e.a||e.b||e.c||'').trim(),l=`Diário ${fmt(d)}${tx?': '+tx.slice(0,50):''}`,k=norm(`${fmt(d)} ${d} ${e.a||''} ${e.b||''} ${e.c||''}`);if(tok.every(w=>k.includes(w))){ndia++;out.push({g:'Itens',l,ico:'smile',run:()=>{S.view='diario';S.dvw='dia';S.ddo=Math.min(0,mDays(d));Q='';$('#q').value='';render()},s:2})}});
+  let ndia=0;Object.keys(S.dia||{}).sort().reverse().forEach(d=>{if(ndia>=5)return;const e=S.dia[d]||{},tx=plain(e.a||e.b||e.c||'').trim(),shown=PRIV&&tx?'•••••':tx.slice(0,50),l=`Diário ${fmt(d)}${shown?': '+shown:''}`,k=norm(`${fmt(d)} ${d} ${e.a||''} ${e.b||''} ${e.c||''}`);if(tok.every(w=>k.includes(w))){ndia++;out.push({g:'Itens',l,ico:'smile',run:()=>{S.view='diario';S.dvw='dia';S.ddo=Math.min(0,mDays(d));Q='';$('#q').value='';render()},s:2})}});
   let nhb=0;(S.habits||[]).forEach(h=>{if(nhb>=5)return;if(tok.every(w=>norm(h.n).includes(w))){nhb++;out.push({g:'Itens',l:h.n,ico:'repeat',run:()=>{S.view='habitos';Q='';$('#q').value='';render()},s:2})}});
  }
- const hid=new Set(menuCfg().hidden);Object.keys(NAV).forEach(k=>A('Ir para','Ir para '+NAV[k].n,({dash:'home',hoje:'today',rotina:'sun',avisos:'bell',agenda:'cal',tarefas:'check',projetos:'flag',metas:'flag',habitos:'repeat',notas:'note',diario:'smile',links:'link',etiquetas:'tag',financas:'wallet',aparencia:'spark',backup:'save',lixeira:'trash',leituras:'book',menu:'sliders'})[k],go(k),hid.has(k)?'oculto':''));
+ const hid=new Set(menuCfg().hidden);Object.keys(NAV).forEach(k=>A('Ir para','Ir para '+NAV[k].n,({dash:'home',hoje:'today',rotina:'sun',avisos:'bell',agenda:'cal',tarefas:'check',projetos:'flag',metas:'flag',habitos:'repeat',notas:'note',diario:'smile',links:'link',etiquetas:'tag',financas:'wallet',aparencia:'spark',backup:'save',lixeira:'trash',arquivados:'note',leituras:'book',menu:'sliders'})[k],go(k),hid.has(k)?'oculto':''));
  const ord=tok.length?{'Itens':0,'Ações':1,'Ir para':2,'Criar':3}:{'Ações':0,'Ir para':1},ql=x=>x.g==='Criar'?2:tok.every(t=>norm(x.l).includes(t))?0:1;
  return out.map((x,i)=>({...x,i})).sort((a,b)=>tok.length?ql(a)-ql(b)||ord[a.g]-ord[b.g]||a.s-b.s||a.i-b.i:ord[a.g]-ord[b.g]||a.i-b.i).slice(0,tok.length?14:16)}
 function ckDraw(){
@@ -482,21 +489,34 @@ document.addEventListener('click',e=>{
 const DTI='<svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>';
 const dtBR=v=>/^\d{4}-\d{2}-\d{2}$/.test(v||'')?v.slice(8)+'/'+v.slice(5,7)+'/'+v.slice(0,4):'';
 const dtISO=t=>{const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(t||'');if(!m)return '';const d=+m[1],mo=+m[2],y=+m[3],x=new Date(y,mo-1,d);return x.getFullYear()===y&&x.getMonth()===mo-1&&x.getDate()===d&&y>=1900&&y<=2200?m[3]+'-'+m[2]+'-'+m[1]:''};
+function dtSet(p,iso){if(!p)return;p.value=iso||'';if(p._dtSync)p._dtSync()}
 function dtUp(root){
  (root.querySelectorAll?root.querySelectorAll('input[type=date]:not([data-dt])'):[]).forEach(p=>{
   p.dataset.dt='1';const req=p.required,w=document.createElement('span');w.className='dtw';
   const t=document.createElement('input');t.type='text';t.className=(p.className||'in')+' dtt';t.inputMode='numeric';t.autocomplete='off';t.placeholder='dd/mm/aaaa';t.maxLength=10;
-  t.value=dtBR(p.value);if(req)t.required=true;
+  t.value=dtBR(p.value);t.required=req;t.disabled=p.disabled;
   const lb=p.getAttribute('aria-label')||p.title||'Data';t.setAttribute('aria-label',lb);if(p.title)t.title=p.title;if(p.getAttribute('style'))t.setAttribute('style',p.getAttribute('style'));
-  const b=document.createElement('button');b.type='button';b.className='dtb';b.tabIndex=-1;b.setAttribute('aria-label','Abrir calendário: '+lb);b.innerHTML=DTI;
-  p.required=false;p.className='dtp';p.tabIndex=-1;p.setAttribute('aria-hidden','true');p.removeAttribute('style');p.removeAttribute('title');p.removeAttribute('aria-label');
+  const b=document.createElement('button');b.type='button';b.className='dtb';b.tabIndex=-1;b.disabled=p.disabled;b.setAttribute('aria-label','Abrir calendário: '+lb);b.innerHTML=DTI;
+  p.dataset.req=req?'1':'0';p.required=false;p.className='dtp';p.tabIndex=-1;p.setAttribute('aria-hidden','true');p.removeAttribute('style');p.removeAttribute('title');p.removeAttribute('aria-label');
   p.parentNode.insertBefore(w,p);w.append(t,b,p);
-  const chk=()=>{const v=dtISO(t.value);p.value=v;t.setCustomValidity(t.value&&!v?'Use o formato dia/mês/ano, por exemplo 25/12/2026':'')};
-  t.addEventListener('input',()=>{const d=t.value.replace(/\D/g,'').slice(0,8);t.value=d.length>4?d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4):d.length>2?d.slice(0,2)+'/'+d.slice(2):d;chk()});
-  t.addEventListener('blur',()=>{const m=/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/.exec(t.value);if(m){t.value=m[1].padStart(2,'0')+'/'+m[2].padStart(2,'0')+'/20'+m[3]}chk()});
-  p.addEventListener('change',()=>{t.value=dtBR(p.value);chk()});
-  b.addEventListener('click',()=>{p.value=dtISO(t.value)||p.value;try{p.showPicker()}catch(e){p.focus();p.click()}});
-  chk();
+  let lastVal=p.value;
+  const chk=commit=>{
+   const v=dtISO(t.value);p.value=v;
+   t.setCustomValidity(t.value&&!v?'Use o formato dia/mês/ano, por exemplo 25/12/2026':'');
+   if(commit&&(!t.value||v)&&p.value!==lastVal){
+    lastVal=p.value;p._dtInternal=true;
+    try{p.dispatchEvent(new Event('change',{bubbles:true}))}finally{p._dtInternal=false}
+   }
+  };
+  p._dtText=t;
+  p._dtSync=()=>{t.value=dtBR(p.value);t.disabled=p.disabled;b.disabled=p.disabled;if(p.dataset.req!==undefined)t.required=p.dataset.req==='1';lastVal=p.value;chk(false)};
+  t.addEventListener('input',()=>{const d=t.value.replace(/\D/g,'').slice(0,8);t.value=d.length>4?d.slice(0,2)+'/'+d.slice(2,4)+'/'+d.slice(4):d.length>2?d.slice(0,2)+'/'+d.slice(2):d;chk(false)});
+  t.addEventListener('change',()=>{chk(true)});
+  t.addEventListener('blur',()=>{const m=/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/.exec(t.value);if(m){t.value=m[1].padStart(2,'0')+'/'+m[2].padStart(2,'0')+'/20'+m[3]}chk(true)});
+  t.addEventListener('keydown',e=>{if(e.key==='Enter'&&!t.form){e.preventDefault();chk(true)}});
+  p.addEventListener('change',()=>{if(p._dtInternal)return;t.value=dtBR(p.value);lastVal=p.value;chk(false)});
+  b.addEventListener('click',()=>{if(p.disabled)return;p.value=dtISO(t.value)||p.value;try{p.showPicker()}catch(e){p.focus();p.click()}});
+  chk(false);
  });
 }
 new MutationObserver(ms=>{for(const m of ms)m.addedNodes.forEach(n=>{if(n.nodeType===1)dtUp(n)})}).observe(document.body,{childList:true,subtree:true});

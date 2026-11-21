@@ -24,7 +24,7 @@ Painel pessoal (tarefas, agenda, hábitos, notas, finanças, Spotify, clima…) 
 | Sincronização | Estado do hub em `data/users/<uid>/hub-0..n` + `hub-meta` no Firestore, em pedaços de 300 mil caracteres. Envio 2 s após a última mudança, com transação que verifica a revisão e grava todos os pedaços junto com `hub-meta`; escuta só `hub-meta`. Mescla de três vias (`merge3`) quando dois aparelhos mudam e reconexão automática quando a internet volta (`online`). |
 | Troca de conta | Dados locais da conta anterior guardados em `hub-acct-<uid>` e restaurados quando ela volta. |
 | PWA / Offline | Manifesto (`manifest.webmanifest`), ícones em `img/`, Service Worker (`sw.js`) que guarda a casca e a fonte para abrir sem internet, painel de instalação em Aparência e atalhos de URL (`?v=...`, `?qa=...`). |
-| Menu | Início, Hoje, Rotina, Lembretes, Agenda, Tarefas, Metas, Hábitos, Notas, Diário, Links, Etiquetas, Finanças, Aparência, Backup, Lixeira, Leituras, Personalizar menu. |
+| Menu | Início, Hoje, Rotina, Lembretes, Agenda, Tarefas, Projetos, Metas, Hábitos, Notas, Arquivados, Leituras, Diário, Links, Etiquetas, Finanças, Aparência, Backup, Lixeira, Personalizar menu (20 telas). |
 | Cards do Início | 5 cards ativos por padrão (`linha`, `todo`, `agenda`, `habs`, `fin`) + 10 opcionais (Frase do dia, Spotify, Clima, Produtividade, Links rápidos, Notas recentes, Revisão semanal, Histórico, Humor, Metas). Botão **Companhia** liga/desliga Spotify e Clima juntos com um clique. |
 | Spotify | Link de playlist/álbum/faixa → player oficial embutido (`open.spotify.com/embed`), carregado só ao clicar. |
 | Clima | Busca de cidade ou localização → Open-Meteo (sem chave). Só coordenadas saem do aparelho. |
@@ -32,7 +32,7 @@ Painel pessoal (tarefas, agenda, hábitos, notas, finanças, Spotify, clima…) 
 
 ## Stack
 
-- HTML + CSS + JS puro em **scripts clássicos** (`<script src>` em ordem, mesmo escopo global), ~2.300 linhas no total. Sem build, sem npm, sem framework.
+- HTML + CSS + JS puro em **scripts clássicos** (`<script src>` em ordem, mesmo escopo global), ~3.200 linhas no total. Sem build, sem npm, sem framework.
 - Firebase JS SDK **compat 10.12.2** (app, auth, firestore) via `www.gstatic.com`, carregado só no site.
 - Fonte Outfit (Google Fonts). APIs externas: Open-Meteo, Spotify embed.
 - Hospedagem: GitHub Pages, branch `main`, raiz → https://vitoriapac.github.io/MeuHub/
@@ -42,8 +42,9 @@ Painel pessoal (tarefas, agenda, hábitos, notas, finanças, Spotify, clima…) 
 
 ```
 Rodar local:   python -m http.server 8080        (na pasta do projeto; abre http://localhost:8080)
+Bump versão:   node scripts/bump-version.js      (sincroniza ?v= no index.html e VER em sw.js)
 Publicar:      git push origin main               (Pages publica em ~1 min)
-Testar:        node tests/run.js                  (~50 s; CHROME_PATH se o navegador não for achado)
+Testar:        node tests/run.js                  (CHROME_PATH se o navegador não for achado)
 ```
 
 ## Estrutura
@@ -66,6 +67,7 @@ SPEC.md            → esta especificação
 PRODUCT.md         → visão de produto, usos principais e princípios
 DESIGN.md          → sistema de design, tipografia, cores e padrões visuais
 tests/run.js       → testes ponta a ponta com Chrome headless + Firebase simulado
+scripts/bump-version.js → atualiza ?v= no index.html e VER em sw.js em sincronia
 tasks/             → plano e tarefas do trabalho em andamento
 .claude/launch.json→ servidor local do app Claude (não versionado)
 ```
@@ -75,9 +77,11 @@ tasks/             → plano e tarefas do trabalho em andamento
 Seguir o que o arquivo já faz: JS compacto, nomes curtos já estabelecidos (`S` estado, `render()`, `$()` seletor, `esc()` escapar HTML, `toast()` aviso), template strings para HTML, ações por `data-a` tratadas no listener central de `click`/`submit`, textos da interface em português.
 
 ```js
-/* outra conta no mesmo aparelho: guarda à parte os dados locais da anterior e traz os da nova */
-function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK];
- try{ls.setItem('hub-acct-'+from,JSON.stringify(ks.map(k=>ls.getItem(k))))}catch(e){FB.auth.signOut();toast('Não há espaço neste navegador para trocar de conta. Faça um Backup e tente de novo.');return}
+/* outra conta no mesmo aparelho: guarda à parte os dados locais da anterior (sem os snapshots locais) e traz os da nova */
+function acctSwap(from,to){
+ const ls=localStorage,ks=['hub-v1','hub-sync',AUDIT_KEY,PROFILE_KEY];
+ const oldSnaps=ls.getItem(SNK),pack={};
+ ks.forEach(k=>{const v=ls.getItem(k);if(v!==null)pack[k]=v});
  ...}
 ```
 
@@ -86,14 +90,14 @@ function acctSwap(from,to){const ls=localStorage,ks=['hub-v1','hub-sync',SNK];
 - Botões novos usam `data-a="acao"`, não `onclick`.
 - Cores só por variáveis CSS (`--bg`, `--card`, `--ink`…), com tema claro e escuro.
 - Código novo vai no arquivo da sua área em `js/`. Os arquivos compartilham o escopo global e carregam em ordem: um arquivo pode **chamar** função de outro carregado depois só dentro de funções que rodam mais tarde (clique, render). **Comando que roda no carregamento e usa algo de outro arquivo vai no fim do `main.js`** (ex.: `fbInit()`).
-- Ao mudar qualquer `css/` ou `js/`, trocar o `?v=` de **todos** os links no `index.html` e a constante `VER` em `sw.js` para a data do dia (`AAAAMMDD`, com sufixo se publicar 2x no dia). Sem isso, o cache do GitHub Pages (~10 min) ou o Service Worker pode misturar arquivos novos e velhos.
+- Ao mudar qualquer `css/` ou `js/`, executar `node scripts/bump-version.js` para trocar o `?v=` de **todos** os links no `index.html` e a constante `VER` em `sw.js` para a data do dia (`AAAAMMDD`, com sufixo se publicar 2x no dia). Sem isso, o cache do GitHub Pages (~10 min) ou o Service Worker pode misturar arquivos novos e velhos.
 
 ## Estratégia de testes
 
 Implementado em `tests/run.js` (T1):
 
 - `tests/run.js` (Node 24, sem dependências): sobe um servidor estático do próprio Node que entrega `index.html`, `css/` e `js/` com Firebase simulado (nuvem e sessão em `localStorage`) no arquivo que tiver `FB_CONFIG`, e dirige um Chrome headless via DevTools Protocol. Arquivo linkado que não existe faz o cenário falhar.
-- Cenários mínimos, cada um com `assert`:
+- Cenários mínimos (complementados por cenários de regressão específicos — 241 cenários no total), cada um com `assert`:
   1. Sem login: tela de login visível e hub bloqueado (`inert`).
   2. Login → mudança → documentos `hub-meta` e `hub-0` gravados.
   3. Mudança vinda de "outro aparelho" é mesclada.
@@ -102,7 +106,7 @@ Implementado em `tests/run.js` (T1):
   6. Sem internet: abre só local se já houve login (e a mudança offline chega à nuvem depois); senão, "Tentar de novo".
   7. Divisão em pedaços não corta emoji ao meio.
   8. Remove o token do antigo login pelo Google Drive (`hub-gd`).
-  9. Todas as telas do menu, cada aba das Finanças (mês e ano), o Início com todos os cards e a busca abrem sem erro de JS e sem tela vazia.
+  9. Todas as 20 telas do menu, cada aba das Finanças (mês e ano), o Início com todos os cards e a busca abrem sem erro de JS e sem tela vazia.
   10. Todo arquivo local tem `?v=`, todos com a mesma versão, e nenhum arquivo de `css/`/`js/` fica fora do `index.html`.
   11. Rede lenta: cada `.js` chega 700 ms depois do anterior; abrir com e sem login e sem internet não dá erro.
   12. PWA: `manifest.webmanifest` válido, ícones existentes, `sw.js` registrado e ativo com `VER` igual ao `?v=`, `<meta name="theme-color">` dinâmico e atalhos de URL (`?v=hoje`, `?qa=fin`).
@@ -114,7 +118,7 @@ Implementado em `tests/run.js` (T1):
 **Sempre:**
 - Rodar `node tests/run.js` e testar localmente antes de publicar.
 - Manter o app funcionando sem `FB_CONFIG`.
-- Trocar o `?v=` de todos os links e o `VER` em `sw.js` ao mudar `css/` ou `js/` (ver Estilo).
+- Executar `node scripts/bump-version.js` para trocar o `?v=` de todos os links e o `VER` em `sw.js` ao mudar `css/` ou `js/` (ver Estilo).
 - Escapar com `esc()` todo dado externo exibido.
 - Confirmar no site publicado depois de cada `push`.
 
@@ -136,7 +140,7 @@ Implementado em `tests/run.js` (T1):
 
 - [x] Site publicado carrega o Firebase sem erros no console e mostra "Entrar com o Google".
 - [x] Leitura e escrita no Firestore sem login retornam `PERMISSION_DENIED`.
-- [x] Os 12 cenários de teste passam com `node tests/run.js`.
+- [x] Os 12 cenários centrais e a suíte completa de regressão (241 cenários) passam com `node tests/run.js`.
 - [x] Uma tarefa criada no computador aparece no celular da mesma conta em até ~1 minuto.
 - [x] Tela de login e hub funcionam em 375 px de largura sem rolagem horizontal.
 

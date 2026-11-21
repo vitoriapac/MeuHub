@@ -1331,12 +1331,223 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await b.send('Emulation.setDeviceMetricsOverride', { width: 375, height: 667, deviceScaleFactor: 2, mobile: true });
       try {
         await ev('S.view="financas";S.fvw="mes";render()');
-        assert.strictEqual(await ev('getComputedStyle($("#side")).position'), 'fixed', 'barra inferior deve ser fixa em 375 px');
+        assert.strictEqual(await ev('getComputedStyle($("#mobile-bar")).position'), 'fixed', 'barra inferior deve ser fixa em 375 px');
         assert.ok(await ev('$("#q").getBoundingClientRect().width >= 200'), 'campo de busca deve ter pelo menos 200 px em 375 px');
         assert.strictEqual(await ev('getComputedStyle($(".ftabs")).flexWrap'), 'nowrap', 'abas das Finanças devem rolar numa linha só no celular');
       } finally {
         await b.send('Emulation.clearDeviceMetricsOverride');
       }
+    }],
+    ['backup completo restaura todas as chaves sincronizáveis e limpa campos omitidos no mínimo', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(async()=>{
+        S.tasks=[{id:'t1',t:'T1',done:false,p:'m'}];
+        S.notes=[{id:'n1',t:'N1',b:'',c:'p',updatedAt:Date.now()}];
+        S.lnk=[{a:'tk:t1',b:'nt:n1'}];
+        S.sp=[{id:'sp1',n:'Foco',u:'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M'}];
+        S.spsel='sp1';
+        S.wx={city:'Curitiba',lat:-25.43,lon:-49.27};
+        S.rem={on:1};S.cap=6;
+        S.trash=[{b:'x1',ty:'nt',it:{id:'n0',t:'Lixo'},at:Date.now()}];
+        S.frase='Calma';S.frasen=1;S.nav='topo';S.dens='comp';
+        S.keys=false;S.hc=true;S.rmo='on';
+        S.projects=[{id:'p1',t:'Proj',status:'active',archived:false,refs:[]}];
+        S.history=[];auditLog('reviewStart');
+        const full=JSON.stringify(pick());
+        S.tasks=[];S.notes=[];S.lnk=[];S.sp=[];S.spsel='';S.wx=null;S.rem={};S.cap=8;S.trash=[];
+        S.frase='';S.frasen=0;S.nav='suave';S.dens='conf';S.keys=true;S.hc=false;S.rmo='auto';S.projects=[];
+        S.view='backup';render();
+        const restore=async txt=>{const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([txt],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(x=>setTimeout(x,180))};
+        await restore(full);
+        const snap={lnk:S.lnk.length,sp:S.sp.length,spsel:S.spsel,wx:S.wx&&S.wx.city,rem:S.rem.on,cap:S.cap,trash:S.trash.length,frase:S.frase,frasen:S.frasen,nav:S.nav,dens:S.dens,keys:S.keys,hc:S.hc,rmo:S.rmo,projects:S.projects.length,dsHc:document.documentElement.dataset.hc,dsRmo:document.documentElement.dataset.rmo,histReview:S.history.some(e=>e.type==='reviewStart'),histRestore:S.history.some(e=>e.type==='backupRestore')};
+        await restore(JSON.stringify({tasks:[],events:[]}));
+        return {snap,min:{lnk:S.lnk.length,sp:S.sp.length,trash:S.trash.length,projects:S.projects.length,wx:S.wx,cap:S.cap,keys:S.keys,hc:S.hc,rmo:S.rmo}};
+      })()`);
+      assert.deepStrictEqual(r.snap, {lnk:1,sp:1,spsel:'sp1',wx:'Curitiba',rem:1,cap:6,trash:1,frase:'Calma',frasen:1,nav:'topo',dens:'comp',keys:false,hc:true,rmo:'on',projects:1,dsHc:'1',dsRmo:'1',histReview:true,histRestore:true});
+      assert.deepStrictEqual(r.min, {lnk:0,sp:0,trash:0,projects:0,wx:null,cap:8,keys:true,hc:false,rmo:'auto'});
+    }],
+    ['campos de data brasileiros aceitam digitação direta e atualizam texto em Agenda, PayInv e Captura rápida', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(async()=>{
+        const wait=(ms=50)=>new Promise(x=>setTimeout(x,ms));
+        S.notes=[{id:'n1',t:'Nota',b:'',c:'p',updatedAt:Date.now()}];
+        S.metas=[{id:'g1',t:'Meta',ini:T,kr:[]}];
+        S.reads=[{id:'r1',t:'Livro',k:'livro',st:'f',p:100,df:''}];
+        S.view='notas';render();await wait();
+        let d=document.querySelector('[data-note-review="n1"]').closest('.dtw').querySelector('.dtt');
+        d.value='25/12/2026';d.dispatchEvent(new Event('input',{bubbles:true}));d.dispatchEvent(new Event('blur',{bubbles:true}));
+        S.view='metas';render();await wait();
+        d=document.querySelector('[data-goal-review="g1"]').closest('.dtw').querySelector('.dtt');
+        d.value='26/12/2026';d.dispatchEvent(new Event('input',{bubbles:true}));d.dispatchEvent(new Event('blur',{bubbles:true}));
+        S.view='leituras';RD.tab='collection';render();await wait();
+        d=document.querySelector('[data-rd-date="r1"]').closest('.dtw').querySelector('.dtt');
+        d.value='27/12/2026';d.dispatchEvent(new Event('input',{bubbles:true}));d.dispatchEvent(new Event('blur',{bubbles:true}));
+        S.view='agenda';S.mode='day';render();await wait();
+        const hr=document.querySelector('.hr[data-day]');hr?.click();
+        const agDay=hr?.dataset.day;
+        const agText=document.querySelector('#fev [name="d"]').closest('.dtw').querySelector('.dtt').value;
+        S.fin.acc=[{id:'bk',n:'Banco',ty:'bank',ini:1000},{id:'cc',n:'Cartão',ty:'card',ini:0,lim:1000,close:10,due:20}];
+        S.fin.tx=[{id:'tcc',k:'out',t:'Compra',v:100,d:T,ac:'cc',cat:'Outros'}];
+        S.view='financas';S.fvw='mes';S.ftab='lanc';render();await wait();
+        payInv('cc',0);await wait();
+        const invText=document.querySelector('#ffin [name="d"]').closest('.dtw').querySelector('.dtt').value;
+        qa('tk');await wait();
+        const f=document.querySelector('#fqa');f.elements.dest.value='scheduled';f.elements.dest.dispatchEvent(new Event('change',{bubbles:true}));
+        const pDtt=f.elements.planned.closest('.dtw').querySelector('.dtt');
+        const invalidEmpty=pDtt.required&&!pDtt.checkValidity();
+        pDtt.value='28/12/2026';pDtt.dispatchEvent(new Event('input',{bubbles:true}));pDtt.dispatchEvent(new Event('blur',{bubbles:true}));
+        const validFilled=pDtt.checkValidity();
+        qaClose();
+        return {note:S.notes[0].reviewDate,goal:S.metas[0].reviewDate,read:S.reads[0].df,agOk:agText===dtBR(agDay),invOk:invText===dtBR(T),invalidEmpty,validFilled};
+      })()`);
+      assert.deepStrictEqual(r, {note:'2026-12-25',goal:'2026-12-26',read:'2026-12-27',agOk:true,invOk:true,invalidEmpty:true,validFilled:true});
+    }],
+    ['desfazer na toast de snapRestore reverte a restauração sem disparar UN antigo', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        S.tasks=[{id:'t1',t:'Original',done:false,p:'m'}];save();
+        snapPut('Base');const t1=snaps()[0].t;
+        S.view='tarefas';render();
+        document.querySelector('[data-a="deltk"][data-id="t1"]').click();
+        S.tasks.push({id:'t2',t:'Depois',done:false,p:'m'});save();
+        snapRestore(t1);
+        const restoredOk=S.tasks.some(x=>x.id==='t1')&&!S.tasks.some(x=>x.id==='t2');
+        document.querySelector('#toast [data-a="undo"]').click();
+        return {restoredOk,hasT2:S.tasks.some(x=>x.id==='t2'),hasT1:S.tasks.some(x=>x.id==='t1')};
+      })()`);
+      assert.deepStrictEqual(r, {restoredOk:true,hasT2:true,hasT1:false});
+    }],
+    ['acctSwap exclui hub-snaps e preserva compatibilidade com formato legado em array', async () => {
+      await fresh(); await login('A');
+      await ev('localStorage.setItem("hub-snaps",JSON.stringify([{t:1,n:"snap",j:"{}"}]))');
+      await ev('fbLogout()'); await waitFor('!FB.on', 'sair de A');
+      await login('B');
+      const aPack = await ev('({raw:localStorage.getItem("hub-acct-A"),snaps:localStorage.getItem("hub-snaps")})');
+      const parsedA = JSON.parse(aPack.raw);
+      assert.ok(!Array.isArray(parsedA) && typeof parsedA === 'object');
+      assert.strictEqual(parsedA['hub-snaps'], undefined);
+      assert.ok(typeof parsedA['hub-v1'] === 'string');
+      assert.strictEqual(aPack.snaps, null);
+      await ev('fbLogout()'); await waitFor('!FB.on', 'sair de B');
+      await ev(`localStorage.setItem("hub-acct-C",JSON.stringify([JSON.stringify({tasks:[{id:"leg1",t:"t-legado",done:false,p:"m"}],events:[],notes:[],links:[]}),JSON.stringify({uid:"C",rev:0,dev:"legacy"}),JSON.stringify([{t:9,n:"velho",j:"{}"}]),"[]","{}"]))`);
+      await login('C');
+      assert.deepStrictEqual(await ev('S.tasks.map(t=>t.t)'), ['t-legado']);
+      assert.strictEqual(await ev('localStorage.getItem("hub-snaps")'), null);
+    }],
+    ['segurança: toast escapa nomes dinâmicos e colagem em .rt remove markup inseguro', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        window.__xss=undefined;
+        S.metas=[{id:'m1',t:'<img src=x onerror="window.__xss=1">',ini:T,kr:[]}];
+        S.fin={...finInit(),goals:[{id:'g1',n:'Meta segura',target:100,saved:0}],rules:[{id:'r1',m:'cafe',k:'out',cat:'<img src=x onerror="window.__xss=1">',sub:'<b>Café</b>',on:true}]};
+        S.view='financas';S.fvw='mes';S.ftab='orc';render();
+        const gf=document.querySelector('[data-gl="g1"]');
+        gf.elements.m.value='m1';gf.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        const goalToastImg=!!document.querySelector('#toast img');
+        S.ftab='lanc';render();
+        finSubmit({k:'out',t:'Compra cafe',v:'15',cat:'',d:T,ac:finInit().acc[0].id});
+        const ruleToastImg=!!document.querySelector('#toast img');
+        S.notes=[{id:'n1',t:'Nota',b:'',c:'p',updatedAt:Date.now()}];S.view='notas';render();
+        const rt=document.querySelector('.note .rt');rt.focus();
+        const dt=new DataTransfer();dt.setData('text/html','<img src=x onerror="window.__xss=1"><b>ok</b>');dt.setData('text/plain','ok');
+        const pe=new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:dt});
+        rt.dispatchEvent(pe);
+        return {xss:window.__xss,goalToastImg,ruleToastImg,rtImg:!!rt.querySelector('img'),rtHtml:rt.innerHTML};
+      })()`);
+      assert.strictEqual(r.xss, undefined);
+      assert.strictEqual(r.goalToastImg, false);
+      assert.strictEqual(r.ruleToastImg, false);
+      assert.strictEqual(r.rtImg, false);
+      assert.match(r.rtHtml, /ok/);
+    }],
+    ['modo privacidade oculta miniaturas de notas, busca, revisão anual do diário e Ctrl+K', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        S.notes=[{id:'n1',t:'Segredo',b:'Conteúdo privado da nota',c:'p',updatedAt:Date.now()}];
+        S.dia={[T]:{m:5,a:'Texto íntimo segredo',b:'Vitória privada'}};
+        if(!PRIV)togglePriv();
+        S.cards=cfg().map(c=>c.id==='notas'?{...c,on:true}:c);S.view='dash';render();
+        const tileBlur=getComputedStyle(document.querySelector('[data-card="notas"] .ntile span')).filter.includes('blur');
+        Q='segredo';render();
+        const searchBlurs=[...document.querySelectorAll('#main [data-priv-text]')].map(el=>getComputedStyle(el).filter);
+        Q='';S.view='diario';S.dvw='ano';render();
+        const yearBlurs=[...document.querySelectorAll('#main [data-priv-text]')].map(el=>getComputedStyle(el).filter);
+        const ckDia=ckItems('segredo').find(x=>x.l.startsWith('Diário '));
+        togglePriv();
+        return {tileBlur,searchCount:searchBlurs.length,searchBlurAll:searchBlurs.every(f=>f.includes('blur')),yearCount:yearBlurs.length,yearBlurAll:yearBlurs.every(f=>f.includes('blur')),ckMasked:!!ckDia&&ckDia.l.includes('•••••')&&!ckDia.l.includes('Texto íntimo')};
+      })()`);
+      assert.deepStrictEqual(r, {tileBlur:true,searchCount:2,searchBlurAll:true,yearCount:2,yearBlurAll:true,ckMasked:true});
+    }],
+    ['alerta mobile de sincronização aparece em falha no celular e some ao sincronizar', async () => {
+      await fresh(); await login('A');
+      await b.send('Emulation.setDeviceMetricsOverride', { width: 375, height: 667, deviceScaleFactor: 2, mobile: true });
+      try {
+        const errState = await ev('(()=>{setSt("err","sem conexão");const el=$("#mobile-sync-alert");return {hidden:el.hidden,display:getComputedStyle(el).display,text:el.textContent}})()');
+        assert.strictEqual(errState.hidden, false);
+        assert.notStrictEqual(errState.display, 'none');
+        assert.match(errState.text, /sem conexão/i);
+        const okState = await ev('(()=>{setSt("ok","salvo");return $("#mobile-sync-alert").hidden})()');
+        assert.strictEqual(okState, true);
+      } finally {
+        await b.send('Emulation.clearDeviceMetricsOverride');
+      }
+    }],
+    ['ux e acessibilidade: ordem da rotina, cards de links sem botões aninhados, projetos e Spotify flutuante', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        S.view='rotina';render();
+        const rts=document.querySelector('ol.rts'),tools=document.querySelector('[data-rotina-tools]');
+        const rotOrder=!!(rts&&tools&&(rts.compareDocumentPosition(tools)&Node.DOCUMENT_POSITION_FOLLOWING));
+        S.links=[{id:'l1',n:'Meu link',u:'https://example.com',cat:'Trabalho',k:'1',tg:'dev',c:'p'}];
+        S.view='links';render();
+        const nestedBtns=document.querySelectorAll('.link a button').length;
+        const linkBtns=[...document.querySelectorAll('.link .x')].map(el=>{const box=el.getBoundingClientRect();return {w:Math.round(box.width),h:Math.round(box.height)}});
+        S.projects=[{id:'prj1',t:'Mudança casa',status:'active',archived:false,refs:[]}];
+        Q='Mudança';render();const searchHasPrj=document.querySelector('#main').textContent.includes('Mudança casa');Q='';
+        const ckHasPrj=ckItems('Mudança').some(x=>x.l.includes('Mudança casa'));
+        const ckArch=ckItems('arquivados').find(x=>x.g==='Ir para'&&x.l.includes('Arquivados'));
+        S.sp=[{id:'sp1',n:'Mix',u:'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M'}];S.spsel='sp1';
+        S.cards=cfg().map(c=>c.id==='spotify'?{...c,on:true}:c);
+        S.view='dash';render();
+        document.querySelector('[data-a="spload"]').click();
+        const fr0=document.querySelector('#spwrap iframe'),noFloatDash=!!fr0&&!document.querySelector('#spwrap').classList.contains('sp-float');
+        S.view='tarefas';render();
+        const floatOk=document.querySelector('#spwrap').classList.contains('sp-float')&&document.querySelector('#spwrap iframe')===fr0;
+        document.querySelector('[data-a="spmin"]').click();
+        const minOk=document.querySelector('#spwrap').classList.contains('sp-min')&&document.querySelector('#spwrap iframe')===fr0;
+        document.querySelector('[data-a="spstop"]').click();
+        const stoppedOk=!document.querySelector('#spwrap');
+        return {rotOrder,nestedBtns,linkBtnOk:linkBtns.length>0&&linkBtns.every(x=>x.w>=44&&x.h>=44),searchHasPrj,ckHasPrj,archIco:!!(ckArch&&ckArch.ico),noFloatDash,floatOk,minOk,stoppedOk};
+      })()`);
+      assert.deepStrictEqual(r, {rotOrder:true,nestedBtns:0,linkBtnOk:true,searchHasPrj:true,ckHasPrj:true,archIco:true,noFloatDash:true,floatOk:true,minOk:true,stoppedOk:true});
+    }],
+    ['desempenho: render preguiçoso no Início, nas Finanças e render({save:false})', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(()=>{
+        let finCalls=0,yoyCalls=0,txCalls=0,saveHubV1Calls=0;
+        const origFinCard=finCard;window.finCard=(...a)=>{finCalls++;return origFinCard(...a)};
+        S.cards=cfg().map(c=>c.id==='fin'?{...c,on:false}:c);
+        S.view='dash';render();
+        const finOffCalls=finCalls;
+        S.cards=cfg().map(c=>c.id==='fin'?{...c,on:true}:c);
+        render();
+        const finOnCalls=finCalls-finOffCalls;
+        window.finCard=origFinCard;
+        const origYoy=yoyPanel,origTx=txListHtml;
+        window.yoyPanel=(...a)=>{yoyCalls++;return origYoy(...a)};
+        window.txListHtml=(...a)=>{txCalls++;return origTx(...a)};
+        S.view='financas';S.fvw='mes';S.ftab='contas';render();
+        const contasYoy=yoyCalls,contasTx=txCalls;
+        S.ftab='lanc';render();
+        const lancTx=txCalls-contasTx;
+        window.yoyPanel=origYoy;window.txListHtml=origTx;
+        const origSet=Storage.prototype.setItem;
+        Storage.prototype.setItem=function(k,v){if(k==='hub-v1')saveHubV1Calls++;return origSet.call(this,k,v)};
+        render({save:false});
+        Storage.prototype.setItem=origSet;
+        return {finOffCalls,finOnCalls,contasYoy,contasTx,lancTx,saveHubV1Calls};
+      })()`);
+      assert.deepStrictEqual(r, {finOffCalls:0,finOnCalls:1,contasYoy:0,contasTx:0,lancTx:1,saveHubV1Calls:0});
     }],
   ];
 

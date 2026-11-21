@@ -50,7 +50,7 @@ O Meu Hub pode ser instalado no celular ou no computador e abre em janela própr
 
 - **Android / Chrome / Edge (PC):** abra **Aparência → Aplicativo (PWA)** e clique em **Instalar aplicativo** (ou use o ícone de instalar na barra do navegador).
 - **iPhone / iPad (Safari):** toque em **Compartilhar** e escolha **Adicionar à Tela de Início**.
-- **Atalhos no ícone do app:** segure o ícone instalado para abrir direto **Hoje**, **Nova tarefa**, **Novo gasto** ou **Finanças**.
+- **Atalhos no ícone do app:** segure o ícone instalado para abrir direto **Hoje**, **Nova tarefa**, **Novo gasto**, **Agenda** ou **Finanças**.
 
 ---
 
@@ -103,7 +103,7 @@ O site só abre depois de entrar com o Google. Os dados são sincronizados entre
 
 [`index.html`](file:///c:/Users/vitor/Documents/MeuHub/index.html) contém a casca HTML e os links. A aparência fica em [`css/style.css`](file:///c:/Users/vitor/Documents/MeuHub/css/style.css) e o código em `js/`, um arquivo por área (`core`, `sync`, `financas`, `recursos`, `inicio`, `main`), carregados nessa ordem. Consulte [ARCHITECTURE.md](ARCHITECTURE.md) e [SPEC.md](SPEC.md) para detalhes.
 
-**Ao publicar mudanças em `css/` ou `js/`**, troque o `?v=` de todos os links no [`index.html`](file:///c:/Users/vitor/Documents/MeuHub/index.html) e a constante `VER` em [`sw.js`](file:///c:/Users/vitor/Documents/MeuHub/sw.js) para a mesma versão (ex.: `?v=20261023`). O Cenário 10 e o Cenário 12 de `tests/run.js` validam essa sincronia automaticamente.
+**Ao publicar mudanças em `css/` ou `js/`**, execute `node scripts/bump-version.js` para atualizar em sincronia o `?v=` de todos os links no [`index.html`](file:///c:/Users/vitor/Documents/MeuHub/index.html) e a constante `VER` em [`sw.js`](file:///c:/Users/vitor/Documents/MeuHub/sw.js) para a mesma versão (ex.: `?v=20261120`), validando também que nenhum asset ficou de fora. O Cenário 10 e o Cenário 12 de `tests/run.js` verificam essa sincronia automaticamente.
 
 ---
 
@@ -117,7 +117,7 @@ python -m http.server 8080
 node tests/run.js
 ```
 
-O executor [`tests/run.js`](file:///c:/Users/vitor/Documents/MeuHub/tests/run.js) abre o site em um Chrome ou Edge headless com Firebase simulado e valida login, sincronização, mescla entre aparelhos, troca de conta, saída, modo sem internet, integridade de emojis UTF-16, todas as 18 telas e 6 abas de finanças, cache-busting, rede lenta, falhas de armazenamento, gravação concorrente e PWA/Service Worker (~50 s). Se o navegador não for encontrado automaticamente, defina a variável de ambiente `CHROME_PATH`.
+O executor [`tests/run.js`](file:///c:/Users/vitor/Documents/MeuHub/tests/run.js) abre o site em um Chrome ou Edge headless com Firebase simulado e valida login, sincronização, mescla entre aparelhos, troca de conta, saída, modo sem internet, integridade de emojis UTF-16, todas as 20 telas e 6 abas de finanças, cache-busting, rede lenta, falhas de armazenamento, gravação concorrente, PWA/Service Worker e cenários de regressão de segurança, privacidade, acessibilidade e desempenho (~60 s). Se o navegador não for encontrado automaticamente, defina a variável de ambiente `CHROME_PATH`.
 
 ### Arquivados e planejamento
 
