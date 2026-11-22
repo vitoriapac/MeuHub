@@ -76,7 +76,7 @@ function findBrowser() {
 
 async function launch() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'meuhub-test-'));
-  const proc = spawn(findBrowser(), ['--headless=new', '--disable-gpu', '--no-first-run', '--remote-debugging-port=0', '--user-data-dir=' + dir, 'about:blank']);
+  const proc = spawn(findBrowser(), ['--headless=new', '--disable-gpu', '--no-first-run', ...(process.platform === 'linux' ? ['--no-sandbox', '--disable-setuid-sandbox'] : []), '--remote-debugging-port=0', '--user-data-dir=' + dir, 'about:blank']);
   let port;
   for (let i = 0; i < 100 && !port; i++) { try { port = fs.readFileSync(path.join(dir, 'DevToolsActivePort'), 'utf8').split('\n')[0] } catch (e) { await sleep(100) } }
   if (!port) throw new Error('o navegador não abriu a porta de depuração');
