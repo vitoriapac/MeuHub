@@ -95,7 +95,8 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)push()});
 const FB_CONFIG={apiKey:'AIzaSyDouA0p2KjgWXvS8vnQ5vjn-aZHkRpOIwU',authDomain:'meuhub-48efb.firebaseapp.com',projectId:'meuhub-48efb',storageBucket:'meuhub-48efb.firebasestorage.app',messagingSenderId:'814751686360',appId:'1:814751686360:web:9b630a29ff6ea0807981ad'};// valores públicos; a proteção está nas regras do Firestore
 const FBV='10.12.2';
 let FB={ready:false,err:false,on:false,email:'',auth:null},fbUnsub=null;
-const fbScript=n=>new Promise((res,rej)=>{const t=document.createElement('script');t.src='https://www.gstatic.com/firebasejs/'+FBV+'/firebase-'+n+'-compat.js';t.crossOrigin='anonymous';t.referrerPolicy='no-referrer';t.onload=res;t.onerror=e=>{t.remove();rej(e)};document.head.append(t)});
+const FB_SRI={app:'sha384-AQ3POAMqIhwS81FrUH95ekxqBZHeP5tG2JfEL3+7GuTtfRLWnrRh32UxwzM+//A9',auth:'sha384-TnlRYaR4JYz/lpaGuaiU61PjNberSA4vjLjtF+oRC/IkohkJqnWxw5EmDSOt1vA1',firestore:'sha384-qn4Jh88HhJA8dplNQyGjOh9OGI4izVhrfj/qIFgaKcdgOE06pXqIKGlsCILZcLAC'};
+const fbScript=n=>new Promise((res,rej)=>{const t=document.createElement('script');t.src='https://www.gstatic.com/firebasejs/'+FBV+'/firebase-'+n+'-compat.js';if(FB_SRI[n])t.integrity=FB_SRI[n];t.crossOrigin='anonymous';t.referrerPolicy='no-referrer';t.onload=res;t.onerror=e=>{t.remove();rej(e)};document.head.append(t)});
 try{localStorage.removeItem('hub-gd')}catch(e){}// token do antigo login pelo Google Drive
 function fbInit(){
  if(!FB_CONFIG)return;

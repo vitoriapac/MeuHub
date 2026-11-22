@@ -183,6 +183,7 @@ const CLICK_EARLY={
  syncnow:(b,id,e,a)=>{e.preventDefault();syncAct(a)},
  bkexp:(b,id,e)=>{e.preventDefault();exportBk()},
  bkshr:(b,id,e)=>{e.preventDefault();shareBk()},
+ idbrestore:(b,id,e)=>{e.preventDefault();restoreIdbBk()},
  'profile-switch':(b,id,e)=>{e.preventDefault();try{profileSwitch(id);render();toast('Perfil aplicado')}catch(err){toast(esc(err.message||'Não foi possível aplicar o perfil'))}}
 };
 CLICK_EARLY['bulk-due-cancel']=CLICK_EARLY['bulk-cancel'];

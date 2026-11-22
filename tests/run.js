@@ -110,7 +110,7 @@ async function main() {
   const b = await launch(), { ev, waitFor } = b;
 
   // cada cenário começa num aparelho "limpo": sem dados locais, nuvem vazia, sem sessão
-  const open = async () => { await b.send('Page.navigate', { url }); await sleep(200); await waitFor('typeof FB==="object"&&FB.ready', 'Firebase simulado pronto') };
+  const open = async () => { await b.send('Page.navigate', { url }); await sleep(200); await waitFor('typeof FB==="object"&&FB.ready', 'Firebase simulado pronto', srv.slow ? 15000 : 8000) };
   const fresh = async (offline = false) => {
     await b.send('Page.navigate', { url: url + 'limpar' }); await waitFor('document.title==="limpo"', 'limpar armazenamento');
     if (offline) await ev('localStorage.setItem("__offline","1")');

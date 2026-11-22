@@ -35,7 +35,7 @@ const idbOpen=()=>new Promise((res,rej)=>{if(typeof indexedDB==='undefined')retu
 const idbPut=(k,v)=>{idbOpen().then(db=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=()=>db.close();tx.onerror=()=>db.close()}).catch(()=>{})};
 const idbGet=k=>idbOpen().then(db=>new Promise((res,rej)=>{const tx=db.transaction('kv','readonly'),rq=tx.objectStore('kv').get(k);rq.onsuccess=()=>{db.close();res(rq.result)};rq.onerror=()=>{db.close();rej(rq.error)}})).catch(()=>null);
 const save=()=>{let ok=!LOCAL_CORRUPT,original=null,evicted=false,restoreFailed=false,data='';if(ok){S.history=auditClean(S.history);data=JSON.stringify(S);for(;;){try{localStorage.setItem('hub-v1',data);break}catch(e){if(e.name!=='QuotaExceededError'){ok=false;break}try{const L=snaps();if(!L.length){ok=false;break}if(!evicted)original=localStorage.getItem(SNK);L.pop();if(L.length)localStorage.setItem(SNK,JSON.stringify(L));else localStorage.removeItem(SNK);evicted=true}catch(x){ok=false;break}}}if(!ok&&evicted&&original!==null)try{localStorage.setItem(SNK,original)}catch(e){restoreFailed=true}}
- if(ok&&data)idbPut('hub-v1',data);
+ if(ok&&data){idbPut('hub-v1',data);try{const rawSnaps=localStorage.getItem(SNK);if(rawSnaps)idbPut(SNK,rawSnaps)}catch(e){}}
  let warning=document.getElementById('storage-warning');if(!ok&&!warning){warning=document.createElement('div');warning.id='storage-warning';warning.setAttribute('role','alert');warning.className='panel';document.querySelector('.main').prepend(warning)}if(warning){if(ok)warning.remove();else warning.innerHTML=(LOCAL_CORRUPT?'Dados locais corrompidos. O envio automático está suspenso. Recupere os dados em Backup.':restoreFailed?'Não foi possível salvar nem recuperar todas as versões locais. Exporte um backup agora.':'Não foi possível salvar neste navegador. Exporte um backup e libere espaço.')+' <button class="pill" data-v="backup">Abrir Backup</button>'}
  if(ok&&evicted)toast('Versões locais antigas foram removidas para liberar espaço.');if(!LOCAL_CORRUPT){track();if(ok)syncSoon()}return ok};
 const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
@@ -176,7 +176,22 @@ function storageSummary(){
  }catch(e){return ''}
 }
 function backup(){
- return `<div class="top"><h1>Backup</h1></div>${safetySummary()}<div class="panel"><p style="margin-top:0" id="bklast">${S.lastBk?'Último backup: '+fmt(S.lastBk)+' ('+(daysSince(S.lastBk)||'hoje')+(daysSince(S.lastBk)?' dias atrás':'')+'). ':'Nenhum backup baixado ainda. '}Baixe uma cópia para guardar ou restaurar em outro aparelho. A sincronização automática está logo abaixo.</p><div class="bar"><button class="pill dark" data-a="bkexp">Baixar backup</button><button class="pill" data-a="bkshr">Compartilhar cópia</button><label class="pill" style="cursor:pointer">Conferir backup<input type="file" id="bkcheck" accept=".json,application/json" class="hide"></label><label class="pill" style="cursor:pointer">Restaurar de arquivo<input type="file" id="bkfile" accept=".json,application/json" class="hide"></label><label class="pill" style="cursor:pointer" title="Junta os dados do arquivo com os deste aparelho, sem apagar nada">Importar mesclando<input type="file" id="bkmerge" accept=".json,application/json" class="hide"></label></div><p id="bkmsg" class="empty" role="status"></p>${storageSummary()}</div>${selectivePanel()}${auditPanel()}${snapPanel()}${syncPanel()}${pwaPanel()}`;
+ return `<div class="top"><h1>Backup</h1></div>${safetySummary()}<div class="panel"><p style="margin-top:0" id="bklast">${S.lastBk?'Último backup: '+fmt(S.lastBk)+' ('+(daysSince(S.lastBk)||'hoje')+(daysSince(S.lastBk)?' dias atrás':'')+'). ':'Nenhum backup baixado ainda. '}Baixe uma cópia para guardar ou restaurar em outro aparelho. A sincronização automática está logo abaixo.</p><div class="bar"><button class="pill dark" data-a="bkexp">Baixar backup</button><button class="pill" data-a="bkshr">Compartilhar cópia</button><label class="pill" style="cursor:pointer">Conferir backup<input type="file" id="bkcheck" accept=".json,application/json" class="hide"></label><label class="pill" style="cursor:pointer">Restaurar de arquivo<input type="file" id="bkfile" accept=".json,application/json" class="hide"></label><label class="pill" style="cursor:pointer" title="Junta os dados do arquivo com os deste aparelho, sem apagar nada">Importar mesclando<input type="file" id="bkmerge" accept=".json,application/json" class="hide"></label><button class="pill" data-a="idbrestore" title="Recupera a última cópia espelhada automaticamente no IndexedDB deste navegador">Recuperar cópia local (IndexedDB)</button></div><p id="bkmsg" class="empty" role="status"></p>${storageSummary()}</div>${selectivePanel()}${auditPanel()}${snapPanel()}${syncPanel()}${pwaPanel()}`;
+}
+async function restoreIdbBk(){
+ const m=$('#bkmsg');
+ const raw=await idbGet('hub-v1');
+ if(!raw||typeof raw!=='string'){if(m)m.textContent='Nenhuma cópia espelhada encontrada no IndexedDB deste navegador.';return}
+ let data=null;try{data=JSON.parse(raw)}catch(e){}
+ if(!data||typeof data!=='object'||Array.isArray(data)||(typeof validBackup==='function'&&!validBackup(data))){if(m)m.textContent='A cópia do IndexedDB é inválida.';return}
+ if(!LOCAL_CORRUPT&&typeof snapPut==='function')snapPut('Antes de recuperar do IndexedDB');
+ LOCAL_CORRUPT=false;
+ S=Object.assign(DEF_STATE(),data);
+ if(typeof auditClean==='function')S.history=auditClean(S.history);
+ applyTheme();if(typeof applyA11y==='function')applyA11y();
+ render();
+ if($('#bkmsg'))$('#bkmsg').textContent='Cópia do IndexedDB restaurada neste aparelho.';
+ toast('Cópia do IndexedDB restaurada.');
 }
 function siteSave(name,data,type){const b=new Blob([data],{type:type||'application/json'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
 const stamp=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return T+'-'+p(d.getHours())+p(d.getMinutes())};

@@ -93,12 +93,12 @@ function createAppSandbox() {
   ctx.globalThis = ctx;
 
   vm.createContext(ctx);
-  for (const file of ['js/core.js', 'js/sync.js', 'js/financas.js']) {
+  for (const file of ['js/core.js', 'js/sync.js', 'js/financas.js', 'js/financas-invest.js']) {
     const code = fs.readFileSync(path.join(ROOT, file), 'utf8');
     vm.runInContext(code, ctx, { filename: file });
   }
   return vm.runInContext(
-    '({ esc, ds, fmt, chunks, merge3, norm, num, simulatedCardCycle, simulatePurchase, parseFinNL, parseNL })',
+    '({ esc, ds, fmt, chunks, merge3, norm, num, simulatedCardCycle, simulatePurchase, parseFinNL, parseNL, parseCSV, parseOFX, invInit, invUsd, invUnitBrl, invValBrl, invParseSheetId, invExtractSheetPrices })',
     ctx
   );
 }
@@ -198,4 +198,35 @@ test('financas: parseFinNL extrai descrição, valor e hashtags', () => {
   assert.equal(parsed.t, 'Almoço no mercado');
   assert.equal(parsed.v, '45,90');
   assert.equal(parsed.tg, 'alimentacao');
+});
+
+test('financas: parseCSV e parseOFX processam extratos com segurança', () => {
+  const rows = app.parseCSV('Data;Descrição;Valor\n20/11/2026;"Mercado; Central";-125,50\n');
+  assert.equal(rows.length, 2);
+  assert.equal(rows[1][1], 'Mercado; Central');
+
+  const ofx = `<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>
+    <STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20261120120000<TRNAMT>-89.90<FITID>123<NAME>Padaria &amp; Café</STMTTRN>
+  </BANKTRANLIST><LEDGERBAL><BALAMT>1500.00</BALAMT></LEDGERBAL></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>`;
+  const parsed = app.parseOFX(ofx);
+  assert.equal(parsed.items.length, 1);
+  assert.equal(parsed.items[0].dt, '2026-11-20');
+  assert.equal(parsed.items[0].amt, -89.9);
+  assert.equal(parsed.items[0].desc, 'Padaria & Café');
+  assert.equal(parsed.balAmt, 1500);
+});
+
+test('financas-invest: conversão USD/BRL, parse de sheetId e extração de cotações CSV', () => {
+  const inv = app.invInit({ acc: [], tx: [] });
+  inv.cfg.usd = 5.5;
+  assert.equal(app.invUsd(inv), 5.5);
+  assert.equal(app.invUnitBrl({ price: 10, cur: 'USD' }, 5.5), 55);
+  assert.equal(app.invValBrl({ qty: 2, price: 10, cur: 'USD' }, 5.5), 110);
+
+  const sid = app.invParseSheetId('https://docs.google.com/spreadsheets/d/1a3EeYg_p0w2aD_EJXr4s5KAxcrI1yfriUgPbOb2qovM/edit');
+  assert.equal(sid, '1a3EeYg_p0w2aD_EJXr4s5KAxcrI1yfriUgPbOb2qovM');
+
+  const res = app.invExtractSheetPrices('Ativo,Cotação\nPETR4,"R$ 38,50"\nIVVB11,"R$ 320,00"\n');
+  assert.equal(res.prices.PETR4, 38.5);
+  assert.equal(res.prices.IVVB11, 320);
 });

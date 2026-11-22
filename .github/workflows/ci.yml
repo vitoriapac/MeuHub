@@ -18,6 +18,12 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Verificar sintaxe JS (node --check)
+        run: |
+          for f in js/*.js scripts/*.js tests/*.js sw.js; do
+            node --check "$f"
+          done
+
       - name: Verificar sincronia de versão (index.html e sw.js)
         run: node scripts/bump-version.js --check
 

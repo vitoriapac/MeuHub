@@ -45,7 +45,7 @@ flowchart TB
 
 ## 2. Mapa de Arquivos e Ordem de Carregamento
 
-A ordem dos `<script src="...?v=...">` ao final do `<body>` no [`index.html`](file:///c:/Users/vitor/Documents/MeuHub/index.html) faz parte do contrato arquitetural:
+A ordem dos `<script src="...?v=..." defer>` ao final do `<body>` no [`index.html`](file:///c:/Users/vitor/Documents/MeuHub/index.html) faz parte do contrato arquitetural:
 
 ```mermaid
 flowchart LR
