@@ -1,10 +1,11 @@
 // recursos: abas das finanças, busca, desfazer, menu lateral, acessibilidade, lixeira, lembretes, rotina, leituras, paleta de comandos, privacidade, versões, datas
 /* ===== Abas das Finanças, despesa na captura rápida, busca ampliada, vencimentos e desfazer geral ===== */
-const FTABS=[['geral','Visão geral'],['analise','Análises'],['lanc','Lançamentos'],['orc','Orçamentos e metas'],['contas','Contas e recorrentes'],['regras','Regras e importação']];
+const FTABS=[['geral','Visão geral'],['inv','Investimentos'],['analise','Análises'],['lanc','Lançamentos'],['orc','Orçamentos e metas'],['contas','Contas e recorrentes'],['regras','Regras e importação']];
 function financas(){
  if(S.fvw==='ano')return relAnual();
  const tab=FTABS.some(x=>x[0]===S.ftab)?S.ftab:'geral';
- return financasMes(tab)+(tab==='geral'||tab==='analise'?simulationPanel():'')+finClearPanel();
+ const tail=(tab==='geral'||tab==='analise')?`<div class="two" style="margin-top:var(--space-3)">${simulationPanel()}${finClearPanel(1)}</div>`:finClearPanel();
+ return financasMes(tab)+tail;
 }
 /* captura rápida com despesa e receita */
 function qa(t){

@@ -24,7 +24,7 @@ function render(opts){
  renderMenu();document.querySelectorAll('.nav[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===S.view&&!Q));
  pomoDraw();fillTags();updU();trashSweep();a11y(FK);lkDraw();flashEl();
  {const mn=$('#main');if(mn&&LV!==S.view){LV=S.view;mn.classList.remove('vin');void mn.offsetWidth;mn.classList.add('vin')}}
- gateR();spSync();if(S.view==='dash'&&document.querySelector('[data-card=clima]'))wxEnsure();
+ gateR();spSync();if(S.view==='dash'&&document.querySelector('[data-card=clima]'))wxEnsure();if(S.view==='financas'&&S.ftab==='inv'&&typeof invEnsureQuotes==='function')invEnsureQuotes();
  if(!opts||opts.save!==false)save();
 }
 const PAUSE_GUARD=new Set(['plan','review-plan','snooze','focus','fit','fitday','fit-propose','fit-confirm','rtplan','rtdeadline','dash-done']);
@@ -454,7 +454,7 @@ document.addEventListener('click',e=>{
  if(TRASH_SNAP.has(a))snap(a);
  const fn=CLICK_ACTIONS[a];
  if(fn){if(fn(id,b,e)==='stop')return}
- else if(!finActE(a,id))return;
+ else if(!finActE(a,id,b))return;
  trashFlush(TB);
  if(FULL_RENDER_ACTIONS.has(a))render();else renderKeepDraft();
  if(a==='rd-open'){const detail=document.querySelector('#book-detail');if(detail){detail.scrollIntoView({block:'nearest',behavior:SMOOTH()});detail.focus({preventScroll:true})}}
@@ -487,7 +487,7 @@ function validBackup(d){
  if(d.projects&&d.projects.some(p=>!str(p.id)||!str(p.t)||!['active','done'].includes(p.status)||!optional(p,'archived',v=>typeof v==='boolean')||!optional(p,'budget',v=>typeof v==='number'&&Number.isFinite(v)&&v>=0)||!optional(p,'nextTask',str)||!optional(p,'start',v=>v===''||date(v))||!optional(p,'end',v=>v===''||date(v))||!list(p.refs)||p.refs.some(r=>!str(r.id)||!/^(tk|mt|nt|tx):[^:]+$/.test(r.id))))return false;
  if(d.metas&&d.metas.some(x=>!Array.isArray(x.kr)||!optional(x,'archived',v=>typeof v==='boolean')||!optional(x,'reviewDate',v=>v===''||date(v))||!optional(x,'pausedTaskIds',v=>Array.isArray(v)&&v.every(str))))return false;
  if(d.reads&&d.reads.some(r=>!optional(r,'st',x=>['q','a','f','p'].includes(x))||!optional(r,'cover',x=>Number.isSafeInteger(x)&&x>0)||!optional(r,'coverUrl',x=>typeof x==='string'&&(x===''||/^https:\/\/[^\s"'<>]+$/i.test(x)))||!optional(r,'coverColor',x=>typeof x==='string'&&/^#[0-9a-f]{6}$/i.test(x))||!optional(r,'pages',x=>Number.isInteger(x)&&x>=0)||!optional(r,'page',x=>Number.isInteger(x)&&x>=0)||!optional(r,'year',x=>Number.isInteger(x)&&x>=1800&&x<=2100)||!optional(r,'mins',x=>Number.isInteger(x)&&x>=1&&x<=10000)||!optional(r,'season',x=>Number.isInteger(x)&&x>=1&&x<=999)||!optional(r,'episode',x=>Number.isInteger(x)&&x>=0&&x<=9999)||!optional(r,'episodes',x=>Number.isInteger(x)&&x>=1&&x<=9999)||!optional(r,'rereads',x=>Number.isInteger(x)&&x>=0&&x<=1000)||!optional(r,'tg',str)||!optional(r,'quotes',x=>list(x)&&x.every(q=>str(q.id)&&str(q.text)&&optional(q,'ref',str)))||!optional(r,'df',x=>x===''||date(x))))return false;
- if(d.fin){if(!optional(d.fin,'primary',str)||!optional(d.fin,'recDismiss',x=>Array.isArray(x)&&x.every(str)))return false;for(const k of ['tx','acc','rec','rules','goals','prules','split','bills'])if(d.fin[k]!=null&&!list(d.fin[k]))return false;if(d.fin.bud!=null&&!obj(d.fin.bud))return false;if(d.fin.budHist!=null&&(!obj(d.fin.budHist)||Object.values(d.fin.budHist).some(c=>!obj(c)||Object.entries(c).some(([m,v])=>!/^\d{4}-(0[1-9]|1[0-2])$/.test(m)||(v!==null&&(typeof v!=='number'||!Number.isFinite(v)||v<=0))))))return false;if(d.fin.tx&&d.fin.tx.some(x=>!optional(x,'shoppingReviewed',str)||!optional(x,'rb',v=>v===1||typeof v==='boolean')||!optional(x,'rcat',str)||!optional(x,'ref',str)||!date(x.d)||x.v===null||x.v===''||!Number.isFinite(+x.v)))return false}
+ if(d.fin){if(!optional(d.fin,'primary',str)||!optional(d.fin,'inv',obj)||!optional(d.fin,'recDismiss',x=>Array.isArray(x)&&x.every(str)))return false;for(const k of ['tx','acc','rec','rules','goals','prules','split','bills'])if(d.fin[k]!=null&&!list(d.fin[k]))return false;if(d.fin.bud!=null&&!obj(d.fin.bud))return false;if(d.fin.budHist!=null&&(!obj(d.fin.budHist)||Object.values(d.fin.budHist).some(c=>!obj(c)||Object.entries(c).some(([m,v])=>!/^\d{4}-(0[1-9]|1[0-2])$/.test(m)||(v!==null&&(typeof v!=='number'||!Number.isFinite(v)||v<=0))))))return false;if(d.fin.tx&&d.fin.tx.some(x=>!optional(x,'shoppingReviewed',str)||!optional(x,'rb',v=>v===1||typeof v==='boolean')||!optional(x,'rcat',str)||!optional(x,'ref',str)||!date(x.d)||x.v===null||x.v===''||!Number.isFinite(+x.v)))return false}
  return true}
 document.addEventListener('change',e=>{
  if(e.target.id==='profile-name'){S.profileName=e.target.value.trim().slice(0,60);render();return}

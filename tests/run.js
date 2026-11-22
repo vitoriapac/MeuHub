@@ -2552,6 +2552,190 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       assert.match(r.tagsPageText, /Duna/);
       assert.ok(r.valid);
     }],
+    ['finanças: módulo Investimentos (planilha Rumo aos 100k, cotações ao vivo, balanceamento, proventos, valuation e simulador)', async () => {
+      await fresh(); await login('A');
+      const r = await ev(`(async () => {
+        const origFetch = window.fetch;
+        const mockCsv = [
+          'Ativo,Cotação,Qtd',
+          'BBAS3,"15,40",12',
+          'MXRF11,"9,10",10',
+          'Ativo,Ticket,dólar',
+          'Globais,VT,"145,00"',
+          'AÇÃO,PREÇO,DIV,LPA,LPA,VPA',
+          'VLID3,"15,20","1,85",0,"3,90","22,10"'
+        ].join('\\n');
+        window.fetch = async (url) => {
+          const u = String(url);
+          if (u.includes('awesomeapi.com.br')) return new Response(JSON.stringify({ USDBRL: { bid: '6.05' } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          if (u.includes('docs.google.com/spreadsheets')) return new Response(mockCsv, { status: 200, headers: { 'Content-Type': 'text/csv' } });
+          return origFetch(url);
+        };
+        try {
+          S.view = 'financas'; S.ftab = 'inv'; render();
+          const hasPresetBtn = !!document.querySelector('[data-a="inv-preset"]');
+          document.querySelector('[data-a="inv-preset"]').click();
+          const afterPreset = {
+            assets: S.fin.inv.assets.length,
+            divs: S.fin.inv.divs.length,
+            miles: S.fin.inv.milestones.length,
+            computed: invCompute(S.fin.inv)
+          };
+          const mainText0 = document.querySelector('#main').textContent;
+          const cfgPos = mainText0.indexOf('Configurações de Cotações e Planilha');
+          const macroPos = mainText0.indexOf('Rebalanceamento Macro');
+          const orderOk = macroPos >= 0 && cfgPos > macroPos;
+
+          while (INV_BUSY) await new Promise(res => setTimeout(res, 20));
+          await invSyncQuotes(true);
+          const bbas = S.fin.inv.assets.find(a => a.ticker === 'BBAS3');
+          const mxrf = S.fin.inv.assets.find(a => a.ticker === 'MXRF11');
+          const vt = S.fin.inv.assets.find(a => a.ticker === 'VT');
+          const synced = { usd: S.fin.inv.cfg.usd, bbas: bbas.price, mxrf: mxrf.price, vt: vt.price };
+
+          // + Aportar inline em BBAS3
+          document.querySelector('[data-a="inv-buy"][data-id="' + bbas.id + '"]').click();
+          const fbuy = document.querySelector('#finvbuy');
+          fbuy.elements.qty.value = '3';
+          fbuy.elements.price.value = '15,40';
+          fbuy.elements.useCash.checked = true;
+          fbuy.elements.ac.value = S.fin.acc[0].id;
+          fbuy.requestSubmit();
+          const bbasQtyAfterBuy = S.fin.inv.assets.find(a => a.id === bbas.id).qty;
+          const buyTx = S.fin.tx.find(t => t.t === 'Aporte BBAS3');
+
+          // Provento + filtro anual + Mapa de Proventos
+          const fdiv = document.querySelector('#finvdiv');
+          fdiv.elements.ym.value = '2025-07';
+          fdiv.elements.v.value = '21,50';
+          fdiv.elements.addCash.checked = true;
+          fdiv.requestSubmit();
+          document.querySelector('[data-a="inv-yr"][data-id="2025"]').click();
+          const provText2025 = document.querySelector('#main').innerText;
+          document.querySelector('[data-a="inv-paymonth"][data-id="' + bbas.id + '"][data-m="4"]').click();
+          const bbasPayMonths = S.fin.inv.assets.find(a => a.id === bbas.id).payMonths;
+
+          // Simulador de juros compostos
+          const fsim = document.querySelector('#finvsim');
+          fsim.elements.initial.value = '2000';
+          fsim.elements.monthly.value = '500';
+          fsim.elements.rate.value = '12';
+          fsim.elements.years.value = '10';
+          fsim.elements.goal.value = '2000';
+          fsim.requestSubmit();
+          const simText = document.querySelector('[data-inv-sim-result]')?.innerText || '';
+
+          // Vínculo com meta
+          const F = finInit();
+          F.goals.push({ id: 'g_res', n: 'Reserva', target: 5000, saved: 0 });
+          render();
+          const gSel = document.querySelector('[data-inv-goal="' + mxrf.id + '"]');
+          gSel.value = 'g_res';
+          gSel.dispatchEvent(new Event('change', { bubbles: true }));
+          const goalSaved = F.goals.find(g => g.id === 'g_res').saved;
+
+          // Fechamento do mês -> Caixa de Investimentos (__inv_cash)
+          const cashBeforeClose = S.fin.inv.cfg.cash;
+          S.fin.tx.push({ id: 'inc1', k: 'in', t: 'Salário', v: 2000, d: T, cat: 'Receita', ac: F.acc[0].id });
+          S.ftab = 'orc'; S.fvw = 'mes'; S.fmo = 0; render();
+          const fclose = document.querySelector('#fclosemonth');
+          fclose.elements.goal.value = '__inv_cash';
+          fclose.elements.v.value = '250,00';
+          fclose.requestSubmit();
+          const cashAfterClose = S.fin.inv.cfg.cash;
+
+          return {
+            hasPresetBtn, afterPreset, mainText0, orderOk, synced,
+            bbasQtyAfterBuy, buyTx, provText2025, bbasPayMonths,
+            simText, goalSaved, cashBeforeClose, cashAfterClose,
+            valid: validBackup(pick())
+          };
+        } finally {
+          window.fetch = origFetch;
+        }
+      })()`);
+      assert.ok(r.hasPresetBtn);
+      assert.strictEqual(r.afterPreset.assets, 47);
+      assert.strictEqual(r.afterPreset.divs, 7);
+      assert.strictEqual(r.afterPreset.miles, 8);
+      assert.strictEqual(r.afterPreset.computed.cost, 2272.14);
+      assert.strictEqual(r.afterPreset.computed.divTotal, 92.4);
+      assert.strictEqual(r.afterPreset.computed.aporte, 300);
+      assert.strictEqual(r.afterPreset.computed.usd, 5.94);
+      assert.strictEqual(r.afterPreset.computed.cash, 9.85);
+      assert.ok(r.afterPreset.computed.gross > 1900);
+      assert.strictEqual(r.afterPreset.computed.clsRows.length, 6);
+      assert.ok(r.orderOk, 'Conteúdo principal da carteira deve vir antes das configurações');
+      assert.match(r.mainText0, /R\$\s*22,25/);
+      assert.match(r.mainText0, /R\$\s*42,43/);
+      assert.strictEqual(r.synced.usd, 6.05);
+      assert.strictEqual(r.synced.bbas, 15.4);
+      assert.strictEqual(r.synced.mxrf, 9.1);
+      assert.strictEqual(r.synced.vt, 145);
+      assert.strictEqual(r.bbasQtyAfterBuy, 15);
+      assert.ok(r.buyTx && Math.abs(r.buyTx.v - 46.2) < 0.01);
+      assert.match(r.provText2025, /\+\s*R\$\s*3,93/);
+      assert.match(r.provText2025, /\+22,4%/);
+      assert.ok(r.bbasPayMonths.includes(4));
+      assert.match(r.simText, /Em 10 anos/);
+      assert.match(r.simText, /Juros compostos/);
+      assert.strictEqual(r.goalSaved, 91);
+      assert.strictEqual(Math.round((r.cashAfterClose - r.cashBeforeClose) * 100) / 100, 250);
+      assert.ok(r.valid);
+    }],
+    ['finanças: todas as sub-abas preenchem a grade desktop sem espaços vazios nem transbordamento', async () => {
+      await fresh(); await login('A');
+      await ev(`(()=>{exLoad();invLoadPreset();S.fin.inv.cfg.sheetId='';S.fin.inv.cfg.brapiToken='';})()`);
+      try {
+        await b.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+        const gaps = await ev(`(() => {
+          const check = (label) => {
+            const g = document.querySelector('#main .cards');
+            const gr = g.getBoundingClientRect();
+            const rows = {};
+            [...g.children].forEach(el => {
+              const r = el.getBoundingClientRect();
+              if (!r.width || !r.height) return;
+              const k = Math.round(r.top);
+              (rows[k] = rows[k] || []).push(r);
+            });
+            const bad = [];
+            Object.entries(rows).forEach(([top, list]) => {
+              const minL = Math.min(...list.map(r => r.left));
+              const maxR = Math.max(...list.map(r => r.right));
+              if (minL - gr.left > 4 || gr.right - maxR > 4) bad.push({ label, top, gapRight: Math.round(gr.right - maxR), gapLeft: Math.round(minL - gr.left) });
+            });
+            const ov = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+            if (ov > 1) bad.push({ label, overflow1280: ov });
+            return bad;
+          };
+          const out = [];
+          S.view = 'financas'; S.fvw = 'mes';
+          for (const [t] of FTABS) { S.ftab = t; render({ save: false }); out.push(...check('mes/' + t)); }
+          S.fvw = 'ano'; render({ save: false }); out.push(...check('ano'));
+          return out;
+        })()`);
+        assert.deepStrictEqual(gaps, [], 'Nenhuma linha de cards em Finanças deve deixar colunas vazias no desktop');
+
+        await b.send('Emulation.setDeviceMetricsOverride', { width: 320, height: 800, deviceScaleFactor: 1, mobile: true });
+        const mobOv = await ev(`(() => {
+          const bad = [];
+          S.view = 'financas'; S.fvw = 'mes';
+          for (const [t] of FTABS) {
+            S.ftab = t; render({ save: false });
+            const ov = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+            if (ov > 1) bad.push({ tab: t, ov });
+          }
+          S.fvw = 'ano'; render({ save: false });
+          const ovA = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+          if (ovA > 1) bad.push({ tab: 'ano', ov: ovA });
+          return bad;
+        })()`);
+        assert.deepStrictEqual(mobOv, [], 'Sub-abas de Finanças não devem transbordar em 320px');
+      } finally {
+        await b.send('Emulation.clearDeviceMetricsOverride');
+      }
+    }],
   ];
 
   let failed = 0;

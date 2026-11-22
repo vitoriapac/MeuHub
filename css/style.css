@@ -106,12 +106,15 @@ html.nt *,html.nt #main{transition:none!important;animation:none!important}
 .tl:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .tll .now{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px solid var(--neg);pointer-events:none}.tll .now::before{content:"";position:absolute;top:-3px;left:-5px;width:8px;height:8px;border-radius:50%;background:var(--neg)}
 .tlf{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2);margin-top:var(--space-2)}.tlf small{opacity:.75}
-@media (min-width:861px) and (max-width:1179px){#main .cards>[data-card=agenda],#main .cards>[data-card=notas]{grid-column:auto}}
+@media (min-width:861px) and (max-width:1179px){#main .cards>[data-card=agenda],#main .cards>[data-card=notas]{grid-column:auto}#main .cards:not(.dashc)>.c2:last-child:nth-child(odd){grid-column:1/-1}}
 @media (min-width:1180px){
  #main .cards{grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch}
- #main .cards>*{grid-column:span 2}
+ #main .cards>*{grid-column:span 3}
+ #main .cards.dashc>*{grid-column:span 2}
  #main .cards>[data-card=linha],#main .cards>[data-card=rev],#main .cards>[data-card=hist]{grid-column:1/-1}
  #main .cards>[data-card=prod],#main .cards>[data-card=fin]{grid-column:span 4}
+ #main .cards>.c2{grid-column:span 2}
+ #main .cards>.c4{grid-column:span 4}
  #main .cards>.panel.wide:not([data-card]){grid-column:1/-1}
 }
 /* gráficos mais legíveis */
