@@ -9,7 +9,7 @@ const FLK=()=>'fl'+S.fmo+'|'+(S.fcat||'')+'|'+(S.fkd||'')+'|'+FQ+'|'+(S.fac||'')
 const pgMore=(k,tot,d)=>{const sh=pgN(k,d);return tot>sh?`<div class="pgm"><button class="pill" data-a="pgmore" data-id="${esc(k)}" data-d="${d}">Mostrar mais ${Math.min(d,tot-sh)}</button><span class="empty" style="padding:0">${sh} de ${tot}</span></div>`:''};
 const V={projetos,arquivados,leituras,rotina,lixeira,avisos,dash,agenda,notas,tarefas,links,backup,aparencia,habitos,financas,diario,hoje,etiquetas,metas,menu:menuView};
 let LV=null;
-function renderKeepDraft(){const key=f=>f.id?'id:'+f.id:f.dataset.shoppingForm?'shopping:'+f.dataset.shoppingForm:f.dataset.shoppingEdit?'edit:'+f.dataset.shoppingEdit+':'+f.dataset.item:'';const forms=PGV===S.view?[...document.querySelectorAll('#main form')].map(f=>({key:key(f),values:[...f.elements].filter(x=>x.name&&!/^(checkbox|radio|file|submit|button)$/i.test(x.type||'')&&(x.tagName==='SELECT'?x.value!==(([...x.options].find(o=>o.defaultSelected)||x.options[0])||{}).value:x.value!==x.defaultValue)).map(x=>[x.name,x.value])})).filter(x=>x.key&&x.values.length):[];render();forms.forEach(d=>{const f=[...document.querySelectorAll('#main form')].find(x=>key(x)===d.key);if(f)d.values.forEach(([name,value])=>{const x=f.elements.namedItem(name);if(x)x.value=value})})}
+function renderKeepDraft(opts){const key=f=>f.id?'id:'+f.id:f.dataset.shoppingForm?'shopping:'+f.dataset.shoppingForm:f.dataset.shoppingEdit?'edit:'+f.dataset.shoppingEdit+':'+f.dataset.item:'';const forms=PGV===S.view?[...document.querySelectorAll('#main form')].map(f=>({key:key(f),values:[...f.elements].filter(x=>x.name&&!/^(checkbox|radio|file|submit|button)$/i.test(x.type||'')&&(x.tagName==='SELECT'?x.value!==(([...x.options].find(o=>o.defaultSelected)||x.options[0])||{}).value:x.value!==x.defaultValue)).map(x=>[x.name,x.value])})).filter(x=>x.key&&x.values.length):[];render(opts);forms.forEach(d=>{const f=[...document.querySelectorAll('#main form')].find(x=>key(x)===d.key);if(f)d.values.forEach(([name,value])=>{const x=f.elements.namedItem(name);if(x)x.value=value})})}
 function render(opts){
  dayPending=false;remoteRenderPending=false;
  const sameView=PGV===S.view,prevScroll=sameView?window.scrollY:0;
@@ -563,17 +563,17 @@ document.addEventListener('paste',e=>{
 document.addEventListener('input',e=>{
  const t=e.target;
  if(t.form){const k=noteDraftKey(t.form);if(k&&t.name)(NOTE_DRAFTS[k]=NOTE_DRAFTS[k]||{})[t.name]=t.value}
- if(t.id==='note-search'){const pos=t.selectionStart;NQ=t.value;PG.nt=30;renderKeepDraft();const i=$('#note-search');if(i)i.setSelectionRange(pos,pos);return}
+ if(t.id==='note-search'){const pos=t.selectionStart;NQ=t.value;PG.nt=30;renderKeepDraft({save:false});const i=$('#note-search');if(i)i.setSelectionRange(pos,pos);return}
  if(t.dataset.rm){const k=t.dataset.mo;(S.revm[k]=S.revm[k]||{})[t.dataset.rm]=t.value;save();return}
  if(t.dataset.dk){const d=t.dataset.dd;(S.dia[d]=S.dia[d]||{})[t.dataset.dk]=t.value;save();return}
  if(t.dataset.rv){const w=t.dataset.wk;(S.rev[w]=S.rev[w]||{})[t.dataset.rv]=t.value;save();return}
  if(t.id==='acc'){S.acc=t.value;applyTheme();save();return}
  if(t.dataset.rdf){const r=(S.reads||[]).find(x=>x.id===t.dataset.id);if(r){r[t.dataset.rdf]=t.value;save()}return}
  if(t.dataset.rdp){const r=(S.reads||[]).find(x=>x.id===t.dataset.rdp);if(r){r.p=+t.value;if(r.pages)r.page=Math.round(r.pages*r.p/100);if(t.previousElementSibling)t.previousElementSibling.textContent=t.value+'%';save()}return}
- if(t.id==='rd-search'){const pos=t.selectionStart;RD.q=t.value;renderKeepDraft();const i=$('#rd-search');if(i)i.setSelectionRange(pos,pos);return}
+ if(t.id==='rd-search'){const pos=t.selectionStart;RD.q=t.value;renderKeepDraft({save:false});const i=$('#rd-search');if(i)i.setSelectionRange(pos,pos);return}
  if(t.id==='fo'){(S.dia[T]=S.dia[T]||{}).focus=t.value;save();return}
  if(t.id==='rtnew'){(S.rot[T]=S.rot[T]||{}).draft=t.value;save();return}
- if(t.id==='archive-search'){const pos=t.selectionStart;archiveQuery=t.value;render();const i=$('#archive-search');if(i){i.focus();i.setSelectionRange(pos,pos)}return}
+ if(t.id==='archive-search'){const pos=t.selectionStart;archiveQuery=t.value;render({save:false});const i=$('#archive-search');if(i){i.focus();i.setSelectionRange(pos,pos)}return}
  if(t.id==='q'){Q=t.value.trim();render({save:false});return}
  if(t.dataset.n){const n=S.notes.find(x=>x.id===t.dataset.n);if(!n)return;n[t.dataset.f]=t.isContentEditable?clean(t.innerHTML):t.value;noteTouch(n);save();if(/^[fg]$/.test(t.dataset.f)){const el=$('#nfil');if(el)el.innerHTML=nFilters()}}
 });

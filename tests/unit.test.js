@@ -230,3 +230,30 @@ test('financas-invest: conversão USD/BRL, parse de sheetId e extração de cota
   assert.equal(res.prices.PETR4, 38.5);
   assert.equal(res.prices.IVVB11, 320);
 });
+
+test('segurança: todos os hosts de fetch() em js/*.js estão liberados no connect-src da CSP', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const cspMatch = html.match(/http-equiv="Content-Security-Policy"\s+content="([^"]+)"/i);
+  assert.ok(cspMatch, 'CSP meta tag deve existir em index.html');
+  const connectDir = cspMatch[1].split(';').map((s) => s.trim()).find((s) => s.startsWith('connect-src '));
+  assert.ok(connectDir, 'connect-src deve existir na CSP');
+  const allowed = connectDir.slice('connect-src '.length).split(/\s+/);
+
+  const jsDir = path.join(ROOT, 'js');
+  const hosts = new Set();
+  for (const file of fs.readdirSync(jsDir).filter((f) => f.endsWith('.js'))) {
+    const src = fs.readFileSync(path.join(jsDir, file), 'utf8');
+    for (const m of src.matchAll(/fetch\(\s*['"]https:\/\/([^/'"]+)/g)) {
+      hosts.add(m[1]);
+    }
+    if (src.includes("wikipedia.org/w/api.php")) {
+      hosts.add('pt.wikipedia.org');
+      hosts.add('en.wikipedia.org');
+    }
+  }
+  assert.ok(hosts.size > 0, 'Deve encontrar hosts externos em fetch()');
+  for (const host of hosts) {
+    const ok = allowed.some((entry) => entry === 'https://' + host || (entry.startsWith('https://*.') && host.endsWith(entry.slice('https://*'.length))));
+    assert.ok(ok, `Host https://${host} usado em fetch() não está liberado no connect-src da CSP`);
+  }
+});

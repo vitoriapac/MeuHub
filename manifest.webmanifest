@@ -1,7 +1,9 @@
 {
+  "id": "./",
   "name": "Meu Hub",
   "short_name": "Meu Hub",
   "description": "Hub pessoal para planejar o dia, cuidar das finanças e anotar.",
+  "categories": ["productivity", "finance"],
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",
