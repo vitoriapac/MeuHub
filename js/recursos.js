@@ -114,11 +114,12 @@ document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;const d=docum
 /* ===== Acessibilidade: nomes, foco, teclado, contraste e preferências ===== */
 const SMOOTH=()=>S.rmo==='on'||matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth';
 const A11Y={d:'Data',h:'Horário de início',h2:'Horário de término',c:'Cor',r:'Repetição',rm:'Lembrete',t:'Título',v:'Valor',due:'Prazo',p:'Prioridade',pj:'Projeto',rc:'Repetição',tg:'Etiquetas',k:'Atalho de teclado',cat:'Categoria',src:'Origem do progresso',un:'Unidade',fim:'Prazo',n:'Nome',u:'Endereço do link',day:'Dia do mês',ty:'Tipo',md:'Condição',min:'Valor mínimo',max:'Valor máximo',ac:'Conta',to:'Conta de destino',sub:'Subcategoria',nw:'Novo nome',m:'Texto',tk:'Tarefa',end:'Termina em',pc:'Parcelas',ini:'Saldo inicial'};
-function toast(m,u){let t=$('#toast');
+function toast(m,u,act){let t=$('#toast');
  if(!t){t=document.createElement('div');t.id='toast';t.setAttribute('role','status');t.setAttribute('aria-live','polite');document.body.appendChild(t);
   const hold=()=>clearTimeout(UT),rel=()=>{clearTimeout(UT);UT=setTimeout(()=>t.classList.remove('on'),4000)};
   t.addEventListener('mouseenter',hold);t.addEventListener('focusin',hold);t.addEventListener('mouseleave',rel);t.addEventListener('focusout',rel)}
- t.innerHTML=`<span>${m}</span>${u?'<button data-a="undo">Desfazer</button>':''}`;t.classList.add('on');clearTimeout(UT);UT=setTimeout(()=>t.classList.remove('on'),u?10000:6000)}
+ const btn=u?'<button data-a="undo">Desfazer</button>':act&&act.a?`<button data-a="${esc(act.a)}">${esc(act.label||'Atualizar')}</button>`:'';
+ t.innerHTML=`<span>${m}</span>${btn}`;t.classList.add('on');clearTimeout(UT);UT=setTimeout(()=>t.classList.remove('on'),u||act?10000:6000)}
 function focusKey(){const a=document.activeElement;if(!a||!a.closest||!a.closest('#main')||a===$('#main'))return null;const d=a.dataset||{};
  return{tag:a.tagName,id:a.id||'',name:a.name||'',a:d.a||'',did:d.id||'',s:d.s||'',n:d.n||'',k:d.k||'',dd:d.d||'',lab:a.getAttribute('aria-label')||'',txt:a.tagName==='BUTTON'?(a.textContent||'').trim().slice(0,30):'',idx:[...document.querySelectorAll('#main '+a.tagName.toLowerCase())].indexOf(a)}}
 function focusRestore(k,exact){const q=[...document.querySelectorAll('#main '+k.tag.toLowerCase())];

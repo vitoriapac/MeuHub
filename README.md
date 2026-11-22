@@ -113,8 +113,14 @@ O site só abre depois de entrar com o Google. Os dados são sincronizados entre
 # Servir localmente em http://localhost:8080
 python -m http.server 8080
 
+# Executar os testes unitários rápidos (~100 ms)
+node --test tests/unit.test.js
+
 # Executar os cenários de teste ponta a ponta (Node 24+, sem dependências)
 node tests/run.js
+
+# Filtrar um cenário específico durante o desenvolvimento
+node tests/run.js --filter=financas
 ```
 
 O executor [`tests/run.js`](file:///c:/Users/vitor/Documents/MeuHub/tests/run.js) abre o site em um Chrome ou Edge headless com Firebase simulado e valida login, sincronização, mescla entre aparelhos, troca de conta, saída, modo sem internet, integridade de emojis UTF-16, todas as 20 telas e 6 abas de finanças, cache-busting, rede lenta, falhas de armazenamento, gravação concorrente, PWA/Service Worker e cenários de regressão de segurança, privacidade, acessibilidade e desempenho (~60 s). Se o navegador não for encontrado automaticamente, defina a variável de ambiente `CHROME_PATH`.

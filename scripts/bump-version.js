@@ -40,7 +40,8 @@ function nextVersion(arg) {
   return base + suffix + 'a';
 }
 
-const nextVer = nextVersion(process.argv[2]);
+const checkOnly = process.argv.includes('--check');
+const nextVer = checkOnly ? currentVer : nextVersion(process.argv.slice(2).find((a) => !a.startsWith('--')));
 
 // Valida que todos os arquivos de css/ e js/ estão referenciados em index.html e sw.js
 const assetFiles = ['css', 'js'].flatMap((dir) => {
@@ -54,6 +55,17 @@ if (missingHtml.length || missingSw.length) {
   if (missingHtml.length) console.error('Arquivos ausentes no index.html:', missingHtml.join(', '));
   if (missingSw.length) console.error('Arquivos ausentes no sw.js:', missingSw.join(', '));
   process.exit(1);
+}
+
+if (checkOnly) {
+  const htmlVers = [...html.matchAll(/(?:css|js)\/[^"'?\s]+\?v=(\w+)/g)].map((m) => m[1]);
+  const mismatch = htmlVers.filter((v) => v !== currentVer);
+  if (!htmlVers.length || mismatch.length) {
+    console.error(`Versões fora de sincronia com sw.js (${currentVer}):`, [...new Set(mismatch)].join(', ') || 'nenhuma encontrada');
+    process.exit(1);
+  }
+  console.log(`Versão sincronizada: ${currentVer} (${assetFiles.length} arquivos validados)`);
+  process.exit(0);
 }
 
 const updatedHtml = html.replace(/((?:css|js)\/[^"'?\s]+\?v=)\w+/g, `$1${nextVer}`);

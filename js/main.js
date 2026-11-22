@@ -12,10 +12,13 @@ let LV=null;
 function renderKeepDraft(){const key=f=>f.id?'id:'+f.id:f.dataset.shoppingForm?'shopping:'+f.dataset.shoppingForm:f.dataset.shoppingEdit?'edit:'+f.dataset.shoppingEdit+':'+f.dataset.item:'';const forms=PGV===S.view?[...document.querySelectorAll('#main form')].map(f=>({key:key(f),values:[...f.elements].filter(x=>x.name&&!/^(checkbox|radio|file|submit|button)$/i.test(x.type||'')&&(x.tagName==='SELECT'?x.value!==(([...x.options].find(o=>o.defaultSelected)||x.options[0])||{}).value:x.value!==x.defaultValue)).map(x=>[x.name,x.value])})).filter(x=>x.key&&x.values.length):[];render();forms.forEach(d=>{const f=[...document.querySelectorAll('#main form')].find(x=>key(x)===d.key);if(f)d.values.forEach(([name,value])=>{const x=f.elements.namedItem(name);if(x)x.value=value})})}
 function render(opts){
  dayPending=false;remoteRenderPending=false;
- if(PGV!==S.view){PG={};PGV=S.view}
+ const sameView=PGV===S.view,prevScroll=sameView?window.scrollY:0;
+ if(!sameView){PG={};PGV=S.view}
+ const openDetailsIds=sameView?[...document.querySelectorAll('#main details[open][id]')].map(d=>d.id):[];
  const FK=focusKey(),reviewOpen=!!document.querySelector('#weekly-review[open]'),guideOpen=!!document.querySelector('[data-review-guide][open]'),noteFiltersOpen=!!document.querySelector('[data-note-filters][open]'),impRestOpen=!!document.querySelector('[data-imp-rest][open]'),txBulkOpen=!!document.querySelector('[data-tx-bulk][open]');
  $('#main').innerHTML=Q?busca():V[S.view]();
  if(S.view==='notas'&&!Q)restoreNoteDrafts();
+ openDetailsIds.forEach(id=>{const d=document.getElementById(id);if(d&&d.tagName==='DETAILS')d.open=true});
  if(reviewOpen&&$('#weekly-review'))$('#weekly-review').open=true;
  if(guideOpen&&$('[data-review-guide]'))$('[data-review-guide]').open=true;
  if(noteFiltersOpen&&$('[data-note-filters]'))$('[data-note-filters]').open=true;
@@ -24,6 +27,7 @@ function render(opts){
  renderMenu();document.querySelectorAll('.nav[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===S.view&&!Q));
  pomoDraw();fillTags();updU();trashSweep();a11y(FK);lkDraw();flashEl();
  {const mn=$('#main');if(mn&&LV!==S.view){LV=S.view;mn.classList.remove('vin');void mn.offsetWidth;mn.classList.add('vin')}}
+ if(sameView&&prevScroll>0&&Math.abs(window.scrollY-prevScroll)>4)window.scrollTo({top:prevScroll,behavior:'instant'});
  gateR();spSync();if(S.view==='dash'&&document.querySelector('[data-card=clima]'))wxEnsure();if(S.view==='financas'&&S.ftab==='inv'&&typeof invEnsureQuotes==='function')invEnsureQuotes();
  if(!opts||opts.save!==false)save();
 }
@@ -79,6 +83,7 @@ function handleAttOpen(b,id,e){
  if(kind==='sal')document.querySelector('#cash-flow-panel')?.scrollIntoView({block:'start'});
 }
 const CLICK_EARLY={
+ 'sw-reload':()=>location.reload(),
  'att-dismiss':(b,id,e)=>{
   e.preventDefault();
   const key=b.dataset.key,item=attention().find(x=>x.dismissKey===key);
@@ -843,4 +848,16 @@ document.addEventListener('submit',e=>{
 auditMigrate();undoReset();
 {const up=new URLSearchParams(location.search),uv=up.get('v'),uqa=up.get('qa');if(uv&&V[uv])S.view=uv;if(uv||uqa)try{history.replaceState(null,'',location.pathname)}catch(e){}render();if(uqa&&/^(tk|nt|ev|dp|rc)$/.test(uqa))qa(uqa)}
 fbInit();// por último: as respostas do Firebase chamam render() e o resto do app, que precisam já estar carregados
-if('serviceWorker' in navigator&&!window.__noSW)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&!window.__noSW){
+ navigator.serviceWorker.register('sw.js').then(reg=>{
+  reg.addEventListener('updatefound',()=>{
+   const nw=reg.installing;
+   if(!nw)return;
+   nw.addEventListener('statechange',()=>{
+    if(nw.state==='installed'&&navigator.serviceWorker.controller){
+     toast('Nova versão disponível.',false,{a:'sw-reload',label:'Atualizar'});
+    }
+   });
+  });
+ }).catch(()=>{});
+}

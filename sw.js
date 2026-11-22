@@ -8,6 +8,7 @@ const ASSETS=[
  './js/core.js?v='+VER,
  './js/sync.js?v='+VER,
  './js/financas.js?v='+VER,
+ './js/financas-invest.js?v='+VER,
  './js/recursos.js?v='+VER,
  './js/inicio.js?v='+VER,
  './js/main.js?v='+VER,
@@ -15,7 +16,9 @@ const ASSETS=[
  './img/icon-192.png',
  './img/icon-512.png',
  './img/icon-maskable.png',
- './img/apple-touch-icon.png'
+ './img/apple-touch-icon.png',
+ './fonts/outfit-latin.woff2',
+ './fonts/outfit-latin-ext.woff2'
 ];
 self.addEventListener('install',e=>{
  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));

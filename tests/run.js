@@ -26,8 +26,8 @@ window.firebase={initializeApp(){},auth:Object.assign(()=>MA,{GoogleAuthProvider
 // index.html e a config/carregador de teste entram no arquivo que tiver FB_CONFIG, seja qual for.
 function sitePages() {
   const roots = ['index.html', 'manifest.webmanifest', 'sw.js'].filter(f => fs.existsSync(path.join(ROOT, f)));
-  const files = [...roots, ...['css', 'js', 'img'].flatMap(d => fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d)).map(f => d + '/' + f) : [])];
-  const site = Object.fromEntries(files.map(f => ['/' + f, f.endsWith('.png') ? fs.readFileSync(path.join(ROOT, f)) : fs.readFileSync(path.join(ROOT, f), 'utf8')]));
+  const files = [...roots, ...['css', 'js', 'img', 'fonts'].flatMap(d => fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d)).map(f => d + '/' + f) : [])];
+  const site = Object.fromEntries(files.map(f => ['/' + f, /\.(png|woff2)$/.test(f) ? fs.readFileSync(path.join(ROOT, f)) : fs.readFileSync(path.join(ROOT, f), 'utf8')]));
   const swap = (file, from, to) => {
     const next = site[file].replace(from, to);
     if (next === site[file]) throw new Error(file + ' mudou: não achei ' + from);
@@ -43,7 +43,7 @@ function sitePages() {
   return site;
 }
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml; charset=utf-8', '.png': 'image/png' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml; charset=utf-8', '.png': 'image/png', '.woff2': 'font/woff2' };
 function serve(site) {
   const srv = http.createServer((req, res) => {
     const p = req.url.split('?')[0];
@@ -2738,8 +2738,12 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
     }],
   ];
 
+  const filterArg = process.argv.find(a => a.startsWith('--filter='))?.slice(9) || process.env.TEST_FILTER || '';
+  const list = filterArg ? scenarios.filter(([name]) => name.toLowerCase().includes(filterArg.toLowerCase())) : scenarios;
+  if (filterArg && !list.length) { b.close(); srv.close(); console.error(`Nenhum cenário corresponde ao filtro: ${filterArg}`); process.exit(1); }
+
   let failed = 0;
-  for (const [name, fn] of scenarios) {
+  for (const [name, fn] of list) {
     b.errors.length = 0; srv.missing.length = 0;
     try {
       await fn();
@@ -2749,7 +2753,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
     } catch (e) { failed++; console.log('✗ ' + name + '\n    ' + e.message.split('\n').join('\n    ')) }
   }
   b.close(); srv.close();
-  console.log(failed ? `\n${failed} de ${scenarios.length} falharam` : `\n${scenarios.length} cenários passaram`);
+  console.log(failed ? `\n${failed} de ${list.length} falharam` : `\n${list.length} cenários passaram`);
   process.exit(failed ? 1 : 0);
 }
 

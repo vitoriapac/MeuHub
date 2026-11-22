@@ -95,7 +95,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)push()});
 const FB_CONFIG={apiKey:'AIzaSyDouA0p2KjgWXvS8vnQ5vjn-aZHkRpOIwU',authDomain:'meuhub-48efb.firebaseapp.com',projectId:'meuhub-48efb',storageBucket:'meuhub-48efb.firebasestorage.app',messagingSenderId:'814751686360',appId:'1:814751686360:web:9b630a29ff6ea0807981ad'};// valores públicos; a proteção está nas regras do Firestore
 const FBV='10.12.2';
 let FB={ready:false,err:false,on:false,email:'',auth:null},fbUnsub=null;
-const fbScript=n=>new Promise((res,rej)=>{const t=document.createElement('script');t.src='https://www.gstatic.com/firebasejs/'+FBV+'/firebase-'+n+'-compat.js';t.onload=res;t.onerror=e=>{t.remove();rej(e)};document.head.append(t)});
+const fbScript=n=>new Promise((res,rej)=>{const t=document.createElement('script');t.src='https://www.gstatic.com/firebasejs/'+FBV+'/firebase-'+n+'-compat.js';t.crossOrigin='anonymous';t.referrerPolicy='no-referrer';t.onload=res;t.onerror=e=>{t.remove();rej(e)};document.head.append(t)});
 try{localStorage.removeItem('hub-gd')}catch(e){}// token do antigo login pelo Google Drive
 function fbInit(){
  if(!FB_CONFIG)return;

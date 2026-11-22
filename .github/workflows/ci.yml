@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Verificar sincronia de versão (index.html e sw.js)
+        run: node scripts/bump-version.js --check
+
+      - name: Testes unitários rápidos
+        run: node --test tests/unit.test.js
+
+      - name: Instalar Google Chrome (para testes E2E)
+        uses: browser-actions/setup-chrome@v1
+        id: setup-chrome
+
+      - name: Testes ponta a ponta (CDP)
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+        run: node tests/run.js
