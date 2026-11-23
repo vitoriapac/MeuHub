@@ -93,7 +93,7 @@ function createAppSandbox() {
   ctx.globalThis = ctx;
 
   vm.createContext(ctx);
-  for (const file of ['js/core.js', 'js/sync.js', 'js/financas.js', 'js/financas-invest.js']) {
+  for (const file of ['js/core.js', 'js/sync.js', 'js/financas.js', 'js/financas-import.js', 'js/financas-invest.js']) {
     const code = fs.readFileSync(path.join(ROOT, file), 'utf8');
     vm.runInContext(code, ctx, { filename: file });
   }
@@ -256,4 +256,11 @@ test('segurança: todos os hosts de fetch() em js/*.js estão liberados no conne
     const ok = allowed.some((entry) => entry === 'https://' + host || (entry.startsWith('https://*.') && host.endsWith(entry.slice('https://*'.length))));
     assert.ok(ok, `Host https://${host} usado em fetch() não está liberado no connect-src da CSP`);
   }
+});
+
+test('design: style.css usa tokens sem cor solta #b9b3a2, preserva opacidade de placeholders e tem @media print', () => {
+  const css = fs.readFileSync(path.join(ROOT, 'css', 'style.css'), 'utf8');
+  assert.ok(!css.includes('#b9b3a2'), 'Cor fixa #b9b3a2 deve ser substituída por token derivado de --sideink');
+  assert.ok(css.includes('.in::placeholder{color:var(--mute);opacity:1}'), 'Placeholders devem usar --mute com opacity: 1');
+  assert.ok(css.includes('@media print{'), 'Folha de impressão @media print deve estar presente');
 });

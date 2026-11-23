@@ -1,12 +1,76 @@
 {
   "version": 2,
   "skills": {
+    "craft": {
+      "source": "diego3g/craft",
+      "commit": "0732e8c0533cd25f7bf15d476d4664187d7fda7c",
+      "sourceType": "github",
+      "skillPath": "skills/craft/SKILL.md",
+      "computedHash": "2b21ac5c464a5402821bdd825c2a44f12f937c2ec5f2ddafd57f2e22590c26ee",
+      "installMode": "copy"
+    },
+    "craft-critique": {
+      "source": "diego3g/craft",
+      "commit": "0732e8c0533cd25f7bf15d476d4664187d7fda7c",
+      "sourceType": "github",
+      "skillPath": "skills/craft-critique/SKILL.md",
+      "computedHash": "71d6c64befa8ee797993675c6b0610c8f7868429f3c0c346954f977a511c1ad4",
+      "installMode": "copy"
+    },
+    "craft-explore": {
+      "source": "diego3g/craft",
+      "commit": "0732e8c0533cd25f7bf15d476d4664187d7fda7c",
+      "sourceType": "github",
+      "skillPath": "skills/craft-explore/SKILL.md",
+      "computedHash": "4f09233def6ec1ac4a98168b8e44f91b911263aa840561265308b74b07af5e02",
+      "installMode": "copy"
+    },
+    "craft-setup": {
+      "source": "diego3g/craft",
+      "commit": "0732e8c0533cd25f7bf15d476d4664187d7fda7c",
+      "sourceType": "github",
+      "skillPath": "skills/craft-setup/SKILL.md",
+      "computedHash": "3e36fbeb5907a45af0f8bcee46086ff05c118c70b31540710f8ef669cd12f429",
+      "installMode": "copy"
+    },
+    "craft-states": {
+      "source": "diego3g/craft",
+      "commit": "0732e8c0533cd25f7bf15d476d4664187d7fda7c",
+      "sourceType": "github",
+      "skillPath": "skills/craft-states/SKILL.md",
+      "computedHash": "eb2f50e6e5b82afe0e2fc73b781da00174943364bed109d9e6629e90912a0ea5",
+      "installMode": "copy"
+    },
+    "craft-sync": {
+      "source": "diego3g/craft",
+      "commit": "0732e8c0533cd25f7bf15d476d4664187d7fda7c",
+      "sourceType": "github",
+      "skillPath": "skills/craft-sync/SKILL.md",
+      "computedHash": "d8fa9e611eb616fe0300d9d0f097ffffd28af9edcef45a3800f48ad43e558922",
+      "installMode": "copy"
+    },
+    "craft-system": {
+      "source": "diego3g/craft",
+      "commit": "0732e8c0533cd25f7bf15d476d4664187d7fda7c",
+      "sourceType": "github",
+      "skillPath": "skills/craft-system/SKILL.md",
+      "computedHash": "38dfbac66c5c0720e1a531eefdd1a74f5be47f819b96c64d6714951c25603dbf",
+      "installMode": "copy"
+    },
     "impeccable": {
       "source": "pbakaus/impeccable",
       "commit": "b49177d32788f2dc585c42831d845dacf1ebed2c",
       "sourceType": "github",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
       "computedHash": "08bd5bf141cb507f46bd8347890cd985865606f15adf88295ed3a73bc9ad5d96",
+      "installMode": "copy"
+    },
+    "using-craft": {
+      "source": "diego3g/craft",
+      "commit": "0732e8c0533cd25f7bf15d476d4664187d7fda7c",
+      "sourceType": "github",
+      "skillPath": "skills/using-craft/SKILL.md",
+      "computedHash": "d7814b33b62dcdd52a3416deb6b8c584a3e29afc0dbc51c1986ba5480695044e",
       "installMode": "copy"
     }
   }

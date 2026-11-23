@@ -1,5 +1,6 @@
 .playwright-mcp/
 .claude/
 .impeccable/live/
+.impeccable/critique/
 .DS_Store
 Thumbs.db

@@ -664,7 +664,7 @@ function snapPut(why,minGap,state){
  try{const data=state||pick(),j=JSON.stringify(data),L=snaps();if(L[0]&&L[0].j===j)return true;if(minGap&&L[0]&&Date.now()-L[0].t<minGap)return false;
   const F=data.fin||{};L.unshift({t:Math.max(Date.now(),L[0]?L[0].t+1:0),why,j,c:{tk:(data.tasks||[]).length,ev:(data.events||[]).length,nt:(data.notes||[]).length,tx:(F.tx||[]).length}});
   while(L.length>SNMAX)L.pop();
-  for(;;){try{localStorage.setItem(SNK,JSON.stringify(L));return true}catch(e){if(L.length<=(state?2:1))return false;L.pop()}}}catch(e){return false}}
+  for(;;){try{const s=JSON.stringify(L);localStorage.setItem(SNK,s);if(typeof idbPut==='function')idbPut(SNK,s);return true}catch(e){if(L.length<=(state?2:1))return false;L.pop()}}}catch(e){return false}}
 function snapAuto(){if(LOCAL_CORRUPT)return;const has=(S.tasks||[]).length+(S.events||[]).length+(S.notes||[]).length+(S.inbox||[]).length+((S.fin||{}).tx||[]).length+(S.habits||[]).length>0;const L=snaps();if(!has)return;if(L[0]&&Date.now()-L[0].t<12*36e5)return;snapPut('Automática')}
 setTimeout(snapAuto,4000);setInterval(snapAuto,30*60e3);
 function snapRestore(t){
