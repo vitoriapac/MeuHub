@@ -52,6 +52,12 @@ function createAppSandbox() {
     parseFloat,
     isFinite,
     isNaN,
+    CompressionStream,
+    DecompressionStream,
+    TextEncoder,
+    Response,
+    btoa,
+    atob,
     setTimeout: noop,
     clearTimeout: noop,
     setInterval: noop,
@@ -98,7 +104,7 @@ function createAppSandbox() {
     vm.runInContext(code, ctx, { filename: file });
   }
   return vm.runInContext(
-    '({ S, localStorage, esc, ds, fmt, withTimeout, taskPaused, goalTracks, storageSummary, saveUI, gzipStr, ungzipStr, diaArchiveYear, SK, DOMS, chunks, merge3, norm, num, simulatedCardCycle, simulatePurchase, parseFinNL, parseNL, parseCSV, parseOFX, finInit, applyRules, finArchiveYear, invInit, invUsd, invUnitBrl, invValBrl, invParseSheetId, invExtractSheetPrices })',
+    '({ S, SY, saveSY, localStorage, esc, ds, fmt, withTimeout, taskPaused, goalTracks, storageSummary, saveUI, gzipStr, ungzipStr, gzipBin, ungzipVal, idbKey, diaArchiveYear, SK, DOMS, chunks, merge3, norm, num, simulatedCardCycle, simulatePurchase, parseFinNL, parseNL, parseCSV, parseOFX, finInit, applyRules, finArchiveYear, invInit, invUsd, invUnitBrl, invValBrl, invParseSheetId, invExtractSheetPrices })',
     ctx
   );
 }
@@ -413,5 +419,46 @@ test('core: diaArchiveYear arquiva anos anteriores e preserva o ano atual', () =
   } finally {
     app.S.dia = prevDia;
     app.S.diaArchives = prevArch;
+  }
+});
+
+test('core: gzipBin e ungzipVal preservam texto em Uint8Array e mantêm compatibilidade', async () => {
+  const sample = 'Armazenamento Meu Hub — '.repeat(60);
+  const packed = await app.gzipBin(sample);
+  assert.equal(packed.__gz, 1);
+  assert.ok(ArrayBuffer.isView(packed.b));
+  assert.equal(await app.ungzipVal(packed), sample);
+  const legacy = await app.gzipStr(sample);
+  assert.equal(await app.ungzipVal(legacy), sample);
+});
+
+test('core: idbKey isola chaves por uid e suporta escopo global', () => {
+  const prevUid = app.SY.uid;
+  try {
+    app.SY.uid = '';
+    assert.equal(app.idbKey('hub-v1'), 'local:hub-v1');
+    app.SY.uid = 'user123';
+    assert.equal(app.idbKey('hub-v1'), 'user123:hub-v1');
+    assert.equal(app.idbKey('acct-A', true), 'global:acct-A');
+  } finally {
+    app.SY.uid = prevUid;
+  }
+});
+
+test('sync: saveSY omite last e domLast do localStorage preservando em memória', () => {
+  const prevLast = app.SY.last;
+  const prevDom = app.SY.domLast;
+  try {
+    app.SY.last = '{"tasks":[]}';
+    app.SY.domLast = { core: '{"tasks":[]}' };
+    app.saveSY();
+    const raw = JSON.parse(app.localStorage.getItem('hub-sync'));
+    assert.equal('last' in raw, false);
+    assert.equal('domLast' in raw, false);
+    assert.equal(raw.hasBase, true);
+    assert.equal(app.SY.last, '{"tasks":[]}');
+  } finally {
+    app.SY.last = prevLast;
+    app.SY.domLast = prevDom;
   }
 });

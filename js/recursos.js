@@ -656,14 +656,19 @@ function setPriv(){const b=$('#pv');if(!b)return;b.innerHTML=ic(PRIV?'eyeoff':'e
 function togglePriv(){PRIV=!PRIV;try{localStorage.setItem('hub-priv',PRIV?'1':'0')}catch(e){}setPriv();render();toast(PRIV?'Valores e textos ocultos neste aparelho.':'Valores e textos visíveis.')}
 setTimeout(setPriv,0);
 /* versões automáticas (só neste aparelho) */
-const SNK='hub-snaps',SNMAX=8;
+const SNK='hub-snaps',SNMAX=8,SNLS_MAX=2;
 function snaps(){try{const a=JSON.parse(localStorage.getItem(SNK));return Array.isArray(a)?a:[]}catch(e){return[]}}
 function snapPut(why,minGap,state){
  try{const data=state||pick(),j=JSON.stringify(data),L=snaps();if(L[0]&&L[0].j===j)return true;if(minGap&&L[0]&&Date.now()-L[0].t<minGap)return false;
   const F=data.fin||{};L.unshift({t:Math.max(Date.now(),L[0]?L[0].t+1:0),why,j,c:{tk:(data.tasks||[]).length,ev:(data.events||[]).length,nt:(data.notes||[]).length,tx:(F.tx||[]).length}});
   while(L.length>SNMAX)L.pop();
-  if(typeof idbPut==='function')idbPut(SNK,JSON.stringify(L));
-  for(;;){try{localStorage.setItem(SNK,JSON.stringify(L));return true}catch(e){if(L.length<=(state?2:1))return false;L.pop()}}}catch(e){return false}}
+  if(typeof idbPut==='function'){
+   if(typeof idbGet==='function'){
+    idbGet(SNK).then(raw=>{let prev=[];try{if(raw)prev=JSON.parse(raw)}catch(e){}const seen=new Set(L.map(x=>x&&x.t));const full=[...L,...(Array.isArray(prev)?prev:[]).filter(x=>x&&typeof x.t==='number'&&!seen.has(x.t))].sort((a,b)=>b.t-a.t).slice(0,SNMAX);return idbPut(SNK,JSON.stringify(full))}).catch(()=>{});
+   }else idbPut(SNK,JSON.stringify(L));
+  }
+  const lsList=L.slice(0,SNLS_MAX);
+  for(;;){try{localStorage.setItem(SNK,JSON.stringify(lsList));return true}catch(e){if(lsList.length<=(state?2:1))return false;lsList.pop()}}}catch(e){return false}}
 function snapAuto(){if(LOCAL_CORRUPT)return;const has=(S.tasks||[]).length+(S.events||[]).length+(S.notes||[]).length+(S.inbox||[]).length+((S.fin||{}).tx||[]).length+(S.habits||[]).length>0;const L=snaps();if(!has)return;if(L[0]&&Date.now()-L[0].t<12*36e5)return;snapPut('Automática')}
 setTimeout(snapAuto,4000);setInterval(snapAuto,30*60e3);
 function snapRestore(t){

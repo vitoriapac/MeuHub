@@ -30,12 +30,33 @@ let S=DEF_STATE();
 function goalTracks(g,t){const ref='mt:'+g.id,task='tk:'+t.id;return t.mt===g.id||(g.kr||[]).some(k=>k.ty==='pj'&&t.pj===k.ref||k.ty==='tg'&&tagsU(t).includes(k.ref))||(S.lnk||[]).some(l=>l.a===ref&&l.b===task||l.b===ref&&l.a===task)}
 function taskPaused(t){return !!(t&&(t.archived||(!t.done&&((t.seriesId&&(S.tasks||[]).some(x=>x.archived&&(x.id===t.seriesId||x.seriesId===t.seriesId)))||(S.metas||[]).some(g=>g.archived&&((Array.isArray(g.pausedTaskIds)&&(g.pausedTaskIds.includes(t.id)||(t.seriesId&&g.pausedTaskIds.includes(t.seriesId))))||goalTracks(g,t)))))))}
 function pauseArchivedFocus(){const k=S.fk,t=k&&S.tasks.find(x=>x.id===k.id);if(k&&k.run&&taskPaused(t)){k.left=Math.max(0,k.end-Date.now());k.run=false}}
-let LOCAL_CORRUPT=false;try{const raw=localStorage.getItem('hub-v1'),data=JSON.parse(raw||'{}');if(!data||typeof data!=='object'||Array.isArray(data)||(raw!==null&&['tasks','events','notes','links'].some(k=>!Array.isArray(data[k]))))throw Error('dados inválidos');Object.assign(S,data)}catch(e){LOCAL_CORRUPT=true}
+let LOCAL_CORRUPT=false,LAST_SAVED_DATA='';try{const raw=localStorage.getItem('hub-v1'),data=JSON.parse(raw||'{}');if(!data||typeof data!=='object'||Array.isArray(data)||(raw!==null&&['tasks','events','notes','links'].some(k=>!Array.isArray(data[k]))))throw Error('dados inválidos');Object.assign(S,data);if(raw)LAST_SAVED_DATA=raw}catch(e){LOCAL_CORRUPT=true}
 const UIK='hub-ui',UI_KEYS=['view','ftab','fvw','dvw','fmo','ddo'];
 function saveUI(){try{const o={};UI_KEYS.forEach(k=>o[k]=S[k]);localStorage.setItem(UIK,JSON.stringify(o))}catch(e){}}
 try{const ui=JSON.parse(localStorage.getItem(UIK)||'null');if(ui&&typeof ui==='object'&&!Array.isArray(ui))UI_KEYS.forEach(k=>{if(k in ui)S[k]=ui[k]})}catch(e){}
 if(!S.seeded){S.seeded=true;S.onb=true}
-const idbOpen=()=>new Promise((res,rej)=>{if(typeof indexedDB==='undefined')return rej();const r=indexedDB.open('meuhub-db',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('kv'))r.result.createObjectStore('kv')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+let IDB_CONN=null;
+const idbScope=()=>(typeof SY==='object'&&SY&&SY.uid)?SY.uid:'local';
+const idbKey=(k,global)=>global?('global:'+k):(idbScope()+':'+k);
+const idbOpen=()=>{
+ if(typeof indexedDB==='undefined')return Promise.reject();
+ if(IDB_CONN)return IDB_CONN;
+ IDB_CONN=new Promise((res,rej)=>{
+  const r=indexedDB.open('meuhub-db',1);
+  r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('kv'))r.result.createObjectStore('kv')};
+  r.onsuccess=()=>{const db=r.result;db.onclose=()=>{IDB_CONN=null};db.onversionchange=()=>{db.close();IDB_CONN=null};res(db)};
+  r.onerror=()=>{IDB_CONN=null;rej(r.error)};
+ });
+ return IDB_CONN;
+};
+async function gzipBin(str){
+ if(typeof CompressionStream!=='function'||typeof str!=='string')return str;
+ try{
+  const cs=new CompressionStream('gzip'),w=cs.writable.getWriter();
+  w.write(new TextEncoder().encode(str));w.close();
+  return {__gz:1,b:new Uint8Array(await new Response(cs.readable).arrayBuffer())};
+ }catch(e){return str}
+}
 async function gzipStr(str){
  if(typeof CompressionStream!=='function'||typeof str!=='string')return str;
  try{
@@ -56,17 +77,29 @@ async function ungzipStr(val){
   return await new Response(ds.readable).text();
  }catch(e){return val}
 }
-const idbPut=(k,v)=>{Promise.resolve(typeof v==='string'&&v.length>1024?gzipStr(v):v).then(val=>idbOpen().then(db=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(val,k);tx.oncomplete=()=>db.close();tx.onerror=()=>db.close()})).catch(()=>{})};
-const idbGet=k=>idbOpen().then(db=>new Promise((res,rej)=>{const tx=db.transaction('kv','readonly'),rq=tx.objectStore('kv').get(k);rq.onsuccess=()=>{db.close();res(rq.result)};rq.onerror=()=>{db.close();rej(rq.error)}})).then(ungzipStr).catch(()=>null);
+async function ungzipVal(val){
+ if(val&&typeof val==='object'&&val.__gz===1&&ArrayBuffer.isView(val.b)&&typeof DecompressionStream==='function'){
+  try{
+   const ds=new DecompressionStream('gzip'),w=ds.writable.getWriter();
+   w.write(val.b);w.close();
+   return await new Response(ds.readable).text();
+  }catch(e){return null}
+ }
+ return ungzipStr(val);
+}
+const idbPut=(k,v,global)=>Promise.resolve(typeof v==='string'&&v.length>1024?gzipBin(v):v).then(val=>idbOpen().then(db=>new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(val,idbKey(k,global));tx.oncomplete=()=>res(true);tx.onerror=()=>rej(tx.error)}))).catch(()=>false);
+const idbDel=(k,global)=>idbOpen().then(db=>new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').delete(idbKey(k,global));tx.oncomplete=()=>res(true);tx.onerror=()=>rej(tx.error)})).catch(()=>false);
+const idbGetRaw=rawKey=>idbOpen().then(db=>new Promise((res,rej)=>{const tx=db.transaction('kv','readonly'),rq=tx.objectStore('kv').get(rawKey);rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error)})).then(ungzipVal).catch(()=>null);
+const idbGet=async(k,global)=>{const v=await idbGetRaw(idbKey(k,global));if(v!==null&&v!==undefined)return v;return (!global&&idbScope()==='local')?idbGetRaw(k):null};
 let IDB_Q=null,IDB_T=0;
-function flushIdbSync(){if(!IDB_Q)return;const q=IDB_Q;IDB_Q=null;clearTimeout(IDB_T);IDB_T=0;idbPut('hub-v1',q.data);if(q.snaps)idbPut(SNK,q.snaps)}
-function scheduleIdbSync(data,snaps){IDB_Q={data,snaps};if(IDB_T)return;const run=()=>flushIdbSync();if(typeof requestIdleCallback==='function')requestIdleCallback(run,{timeout:1000});else IDB_T=setTimeout(run,250)}
+function flushIdbSync(){if(!IDB_Q)return;const q=IDB_Q;IDB_Q=null;clearTimeout(IDB_T);IDB_T=0;idbPut('hub-v1',q.data)}
+function scheduleIdbSync(data){IDB_Q={data};if(IDB_T)return;const run=()=>flushIdbSync();if(typeof requestIdleCallback==='function')requestIdleCallback(run,{timeout:1000});else IDB_T=setTimeout(run,250)}
 window.addEventListener('pagehide',flushIdbSync);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flushIdbSync()});
-const save=()=>{let ok=!LOCAL_CORRUPT,original=null,evicted=false,restoreFailed=false,data='';if(ok){S.history=auditClean(S.history);data=JSON.stringify(S);for(;;){try{localStorage.setItem('hub-v1',data);break}catch(e){if(e.name!=='QuotaExceededError'){ok=false;break}try{const L=snaps();if(!L.length){ok=false;break}if(!evicted)original=localStorage.getItem(SNK);L.pop();if(L.length)localStorage.setItem(SNK,JSON.stringify(L));else localStorage.removeItem(SNK);evicted=true}catch(x){ok=false;break}}}if(!ok&&evicted&&original!==null)try{localStorage.setItem(SNK,original)}catch(e){restoreFailed=true}}
- if(ok&&data){let rawSnaps=null;if(!evicted)try{rawSnaps=localStorage.getItem(SNK)}catch(e){}scheduleIdbSync(data,rawSnaps)}
+const save=()=>{let ok=!LOCAL_CORRUPT,original=null,evicted=false,restoreFailed=false,data='',dirty=true;if(ok){S.history=auditClean(S.history);data=JSON.stringify(S);dirty=data!==LAST_SAVED_DATA||localStorage.getItem('hub-v1')===null;for(;;){try{localStorage.setItem('hub-v1',data);LAST_SAVED_DATA=data;break}catch(e){if(e.name!=='QuotaExceededError'){ok=false;break}try{const L=snaps();if(!L.length){ok=false;break}if(!evicted)original=localStorage.getItem(SNK);L.pop();if(L.length)localStorage.setItem(SNK,JSON.stringify(L));else localStorage.removeItem(SNK);evicted=true}catch(x){ok=false;break}}}}if(!ok&&evicted&&original!==null)try{localStorage.setItem(SNK,original)}catch(e){restoreFailed=true}
+ if(ok&&dirty&&data)scheduleIdbSync(data);
  let warning=document.getElementById('storage-warning');if(!ok&&!warning){warning=document.createElement('div');warning.id='storage-warning';warning.setAttribute('role','alert');warning.className='panel';document.querySelector('.main').prepend(warning)}if(warning){if(ok)warning.remove();else warning.innerHTML=(LOCAL_CORRUPT?'Dados locais corrompidos. O envio automático está suspenso. Recupere os dados em Backup.':restoreFailed?'Não foi possível salvar nem recuperar todas as versões locais. Exporte um backup agora.':'Não foi possível salvar neste navegador. Exporte um backup e libere espaço.')+' <button class="pill" data-v="backup">Abrir Backup</button>'}
- if(ok&&evicted)toast('Versões locais antigas foram removidas para liberar espaço.');if(!LOCAL_CORRUPT){track();if(ok)syncSoon()}return ok};
+ if(ok&&evicted)toast('Versões locais antigas foram removidas para liberar espaço.');if(!LOCAL_CORRUPT){if(dirty)track();if(ok&&(dirty||typeof SY==='object'&&SY&&!SY.last))syncSoon()}return ok};
 const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 const DIA=['dom','seg','ter','qua','qui','sex','sáb'];
 const fmt=s=>{const [y,m,d]=s.split('-');return d+' '+MES[+m-1]};
@@ -196,17 +229,30 @@ function selectCSV(area){const specs={tasks:{rows:S.tasks,cols:[['id',x=>x.id],[
 function storageSummary(){
  try{
   const ls=localStorage,snapKey=typeof SNK==='string'?SNK:'hub-snaps';
-  const kb=n=>(n*2/1024).toFixed(1).replace('.',',')+' KB';
+  const kb=n=>n>=1024*512?(n*2/(1024*1024)).toFixed(2).replace('.',',')+' MB':(n*2/1024).toFixed(1).replace('.',',')+' KB';
   const labels=[['hub-v1','dados'],['hub-sync','sincronização'],[snapKey,'versões locais']];
   let total=0;const parts=[];
   labels.forEach(([k,l])=>{const v=ls.getItem(k);if(v){total+=v.length;parts.push(l+': '+kb(v.length))}});
   for(let i=0;i<ls.length;i++){const k=ls.key(i);if(k&&k.startsWith('hub-')&&!labels.some(x=>x[0]===k)){const v=ls.getItem(k)||'';total+=v.length}}
   const areas=[['fin','Finanças'],['notes','Notas'],['dia','Diário'],['reads','Leituras'],['tasks','Tarefas'],['trash','Lixeira']].map(([k,l])=>[l,JSON.stringify(S[k]||'').length]).filter(x=>x[1]>512).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([l,n])=>l+': '+kb(n));
   const warn=total*2>3.5*1024*1024?' Espaço próximo do limite do navegador: recomenda-se baixar um backup e limpar itens antigos da lixeira.':'';
-  return `<p class="empty" data-storage-usage style="padding:var(--space-1) 0 0">Espaço usado neste navegador: <strong>${kb(total)}</strong>${parts.length?' ('+parts.join(' · ')+')':''}.${areas.length?' Maiores áreas: '+areas.join(', ')+'.':''}${warn}</p>`;
+  return `<p class="empty" data-storage-usage style="padding:var(--space-1) 0 0">Espaço usado neste navegador: <strong>${kb(total)}</strong>${parts.length?' ('+parts.join(' · ')+')':''}.${areas.length?' Maiores áreas: '+areas.join(', ')+'.':''}${warn}<span data-idb-usage></span></p>`;
  }catch(e){return ''}
 }
+async function refreshStorageEstimate(){
+ const el=document.querySelector('[data-idb-usage]');
+ if(!el||!navigator.storage||typeof navigator.storage.estimate!=='function')return;
+ try{
+  const est=await navigator.storage.estimate();
+  const persisted=typeof navigator.storage.persisted==='function'?await navigator.storage.persisted():false;
+  const fmtB=b=>b>=1024*1024?(b/(1024*1024)).toFixed(1).replace('.',',')+' MB':Math.round(b/1024)+' KB';
+  if(!document.body.contains(el))return;
+  const used=est.usage||0,quota=est.quota||0;
+  el.textContent=` Armazenamento offline total (IndexedDB + cache): ${fmtB(used)}${quota?' de '+fmtB(quota):''}${persisted?' · persistente':''}.`;
+ }catch(e){}
+}
 function backup(){
+ if(typeof setTimeout==='function')setTimeout(refreshStorageEstimate,0);
  return `<div class="top"><h1>Backup</h1></div>${safetySummary()}<div class="panel"><p style="margin-top:0" id="bklast">${S.lastBk?'Último backup: '+fmt(S.lastBk)+' ('+(daysSince(S.lastBk)||'hoje')+(daysSince(S.lastBk)?' dias atrás':'')+'). ':'Nenhum backup baixado ainda. '}Baixe uma cópia para guardar ou restaurar em outro aparelho. A sincronização automática está logo abaixo.</p><div class="bar"><button class="pill dark" data-a="bkexp">Baixar backup</button><button class="pill" data-a="bkshr">Compartilhar cópia</button><label class="pill" style="cursor:pointer">Conferir backup<input type="file" id="bkcheck" accept=".json,application/json" class="hide"></label><label class="pill" style="cursor:pointer">Restaurar de arquivo<input type="file" id="bkfile" accept=".json,application/json" class="hide"></label><label class="pill" style="cursor:pointer" title="Junta os dados do arquivo com os deste aparelho, sem apagar nada">Importar mesclando<input type="file" id="bkmerge" accept=".json,application/json" class="hide"></label><button class="pill" data-a="idbrestore" title="Recupera a última cópia espelhada automaticamente no IndexedDB deste navegador">Recuperar cópia local (IndexedDB)</button></div><p id="bkmsg" class="empty" role="status"></p>${storageSummary()}</div>${selectivePanel()}${auditPanel()}${snapPanel()}${syncPanel()}${pwaPanel()}`;
 }
 async function restoreIdbBk(){

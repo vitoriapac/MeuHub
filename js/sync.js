@@ -10,8 +10,19 @@ const pick=()=>{const o={};SK.forEach(k=>{o[k]=S[k]});return o},pickJSON=()=>JSO
 const pickDom=d=>{const o={};DOMS[d].forEach(k=>{o[k]=S[k]});return o},pickDomJSON=d=>JSON.stringify(pickDom(d));
 let FRESH=false;try{FRESH=!localStorage.getItem('hub-v1')}catch(e){}
 let SY={};try{SY=JSON.parse(localStorage.getItem('hub-sync')||'{}')}catch(e){}
-const hadSY=!!SY.dev;SY.dev=SY.dev||'d'+uid()+uid();if(!hadSY)SY.p=FRESH?pickJSON():'';SY.rev=SY.rev||0;
-const saveSY=()=>{try{localStorage.setItem('hub-sync',JSON.stringify(SY))}catch(e){}};saveSY();
+const hadSY=!!SY.dev,hadLegacyBase=!!(SY.last||SY.domLast);SY.dev=SY.dev||'d'+uid()+uid();if(!hadSY)SY.p=FRESH?pickJSON():'';SY.rev=SY.rev||0;
+let SY_BASE_LOADING=null;
+const syncBaseSave=()=>{if(typeof idbPut!=='function')return Promise.resolve(false);return idbPut('hub-sync-base',JSON.stringify({last:SY.last||'',domLast:SY.domLast||null}))};
+const syncBaseLoad=()=>{
+ if(SY.last||!SY.hasBase||typeof idbGet!=='function')return Promise.resolve();
+ if(!SY_BASE_LOADING)SY_BASE_LOADING=idbGet('hub-sync-base').then(raw=>{
+  if(raw&&typeof raw==='string'){try{const b=JSON.parse(raw);if(b&&typeof b==='object'){if(typeof b.last==='string'&&!SY.last)SY.last=b.last;if(b.domLast&&!SY.domLast)SY.domLast=b.domLast}}catch(e){}}
+ }).finally(()=>{SY_BASE_LOADING=null});
+ return SY_BASE_LOADING;
+};
+const saveSY=(withBase)=>{try{const {last,domLast,...meta}=SY;meta.hasBase=!!(last||domLast||SY.hasBase);SY.hasBase=meta.hasBase;localStorage.setItem('hub-sync',JSON.stringify(meta));if(withBase)syncBaseSave()}catch(e){}};
+saveSY(hadLegacyBase);
+if(SY.hasBase&&!SY.last)setTimeout(()=>{syncBaseLoad()},0);
 let DBr=null,metaRef=null,P='',DEAD=false,pushing=false,again=false,ST=0,ARM=null,chain=Promise.resolve();
 let SYS={s:'local',d:'',at:''};
 function synText(){return {local:'Somente neste aparelho'+(SYS.d?' ('+SYS.d+')':''),sync:'Sincronizando…',ok:'Sincronizado'+(SYS.at?' às '+SYS.at:''),err:'Falha ao sincronizar'+(SYS.d?' ('+SYS.d+')':'')+'. Tentando de novo.'}[SYS.s]}
@@ -79,12 +90,13 @@ async function readRemote(m){
  }
  const cs=await Promise.all([...Array(m.n)].map((_,i)=>DBr.doc(P+'hub-'+i).get()));if(cs.some(c=>!c.exists||c.data().rev!==m.rev))return null;const rj=cs.map(c=>c.data().s).join('');return{rj,remote:JSON.parse(rj)}}
 async function pullRemote(m,replace){
+ await syncBaseLoad();
  const r=await readRemote(m);if(!r)return false;
  const cur=pickJSON(),dirty=cur!==SY.last,fresh=!SY.last&&SY.p&&cur===SY.p;
  if(!LOCAL_CORRUPT&&(replace||(dirty&&!fresh))&&!snapPut('Antes de receber dados de outro aparelho')){setSt('err','não foi possível criar uma versão local');toast('Não foi possível guardar a versão atual. Exporte um backup e libere espaço.');return false}
  if(replace||fresh||!dirty){applyState(r.remote);if(replace)LOCAL_CORRUPT=false;}
  else{const conflicts=[],merged=merge3(SY.last?JSON.parse(SY.last):{},pick(),r.remote,conflicts);if(conflicts.length&&!snapPut('Versão recebida com conflito',0,r.remote)){setSt('err','não foi possível guardar a versão recebida');toast('Não foi possível guardar a versão recebida. Exporte um backup e libere espaço.');return false}applyState(merged);toast(conflicts.length?'O mesmo campo mudou em dois aparelhos. Mantivemos o valor local; as duas versões estão em Backup.':'Alterações de outro aparelho foram mescladas. A versão anterior está em Backup.')}
- SY.rev=m.rev;SY.last=r.rj;SY.n=m.n||0;SY.domRevs=r.domRevs||null;SY.domLast=r.domLast||null;SY.domN=r.domN||null;SY.p='';saveSY();undoReset();after();return true}
+ SY.rev=m.rev;SY.last=r.rj;SY.n=m.n||0;SY.domRevs=r.domRevs||null;SY.domLast=r.domLast||null;SY.domN=r.domN||null;SY.p='';saveSY(true);undoReset();after();return true}
 // pedaços de até n caracteres sem separar um emoji (par surrogate): metade solta vira "�" no Firestore
 const chunks=(s,n)=>{const p=[];for(let i=0;i<s.length;){let e=Math.min(i+n,s.length);if(e<s.length&&e-1>i&&/[\uD800-\uDBFF]/.test(s[e-1]))e--;p.push(s.slice(i,e));i=e}return p.length?p:['']};
 async function push(force,skipRec){
@@ -92,6 +104,7 @@ async function push(force,skipRec){
  if(pushing){again=true;return false}
  pushing=true;setSt('sync');
  try{
+  await syncBaseLoad();
   let expected=SY.rev;if(!skipRec){const s=await metaRef.get();expected=s.exists?s.data().rev:0;if(s.exists&&s.data().rev>SY.rev){const ok=await pullRemote(s.data());if(!ok){setTimeout(syncSoon,3000);return false}}}
   const j=pickJSON();if(j===SY.last&&!force&&SY.domRevs){setSt('ok');return true}
   const rev=Math.max(Date.now(),SY.rev+1),doms={},nextRevs={},nextLast={},nextN={},writes=[];
@@ -111,7 +124,7 @@ async function push(force,skipRec){
   await DBr.runTransaction(async tx=>{const current=await tx.get(metaRef);if(!skipRec&&(current.exists?current.data().rev:0)!==expected){const e=new Error('revisão mudou');e.code='hub-conflict';throw e}
    writes.forEach(([ref,doc])=>tx.set(ref,doc));
    tx.set(metaRef,{rev,v:2,dev:SY.dev,at:new Date().toISOString(),len:j.length,doms})});
-  SY.rev=rev;SY.last=j;SY.n=0;SY.domRevs=nextRevs;SY.domLast=nextLast;SY.domN=nextN;SY.p='';saveSY();setSt(pickJSON()===j?'ok':'sync');
+  SY.rev=rev;SY.last=j;SY.n=0;SY.domRevs=nextRevs;SY.domLast=nextLast;SY.domN=nextN;SY.p='';saveSY(true);setSt(pickJSON()===j?'ok':'sync');
   for(let i=0;i<prevN;i++)DBr.doc(P+'hub-'+i).delete().catch(()=>{});
   for(const d of Object.keys(DOMS))for(let i=nextN[d];i<(prevDomN[d]||0);i++)DBr.doc(P+'hub-d-'+d+'-'+i).delete().catch(()=>{});
   return true;
@@ -122,7 +135,7 @@ function syncSoon(){if(!DBr||DEAD)return;clearTimeout(ST);ST=setTimeout(()=>push
 async function handleMeta(snap){
  if(LOCAL_CORRUPT){setSt('err','dados locais corrompidos');return}
  if(!snap.exists){if(snap.metadata&&snap.metadata.fromCache)return;const g=await metaRef.get();if(!g.exists)await push(true);return}
- const m=snap.data();if(m.rev<=SY.rev){if(m.rev===SY.rev&&pickJSON()===SY.last)setSt('ok');return}
+ const m=snap.data();if(m.rev<=SY.rev){if(m.rev===SY.rev&&pickJSON()===SY.last)setSt('ok');else syncSoon();return}
  if(!(await pullRemote(m)))setTimeout(()=>metaRef.get().then(handleMeta).catch(()=>{}),2000);else setSt(pickJSON()===SY.last?'ok':'sync')}
 async function syncAct(a){
  if(a==='synccancel'){ARM=null;if(S.view==='backup')render({save:false});return}
@@ -151,21 +164,29 @@ function fbInit(){
    FB.ready=true;FB.on=!!u;FB.email=u&&u.email||'';
    if(u){DBr=firebase.firestore();P='data/users/'+u.uid+'/';metaRef=DBr.doc(P+'hub-meta');DEAD=false;setSt('sync');
     if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-    fbUnsub=metaRef.onSnapshot(sn=>{chain=chain.then(()=>handleMeta(sn)).catch(e=>setSt('err',e&&e.code))},e=>setSt('err',e&&e.code))}
+    fbUnsub=metaRef.onSnapshot(sn=>{chain=chain.then(()=>syncBaseLoad()).then(()=>handleMeta(sn)).catch(e=>setSt('err',e&&e.code))},e=>setSt('err',e&&e.code))}
    else{DBr=null;setSt('local')}
    render()})
  }).catch(()=>{FB.ready=true;FB.err=true;if(SY.uid)setSt('local','sem conexão');render()})}
 window.addEventListener('online',()=>{if(FB.err){FB.err=false;fbInit()}else if(DBr)syncSoon()});
 function fbLogin(){if(!FB.auth)return;FB.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e=>{if(e&&e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')toast('Não foi possível entrar. Se a janela de login não abriu, permita pop-ups para este site e tente de novo.')})}
 /* outra conta no mesmo aparelho: guarda à parte os dados locais da anterior (sem os snapshots locais) e traz os da nova, para nenhuma ver nem sobrescrever os da outra */
-function acctSwap(from,to){
+async function acctSwap(from,to){
  const ls=localStorage,ks=['hub-v1','hub-sync',AUDIT_KEY,PROFILE_KEY];
  const oldSnaps=ls.getItem(SNK),pack={};
  ks.forEach(k=>{const v=ls.getItem(k);if(v!==null)pack[k]=v});
  ls.removeItem(SNK);
- try{ls.setItem('hub-acct-'+from,JSON.stringify(pack))}
- catch(e){if(oldSnaps!==null)try{ls.setItem(SNK,oldSnaps)}catch(x){}FB.auth.signOut();toast('Não há espaço neste navegador para trocar de conta. Faça um Backup e tente de novo.');return}
- let b=null;try{b=JSON.parse(ls.getItem('hub-acct-'+to)||'null')}catch(e){}
+ const packStr=JSON.stringify(pack);
+ let saved=false;
+ try{ls.setItem('hub-acct-'+from,packStr);saved=true}catch(e){}
+ if(!saved&&typeof idbPut==='function'){saved=await idbPut('acct-'+from,packStr,true)}
+ if(!saved){if(oldSnaps!==null)try{ls.setItem(SNK,oldSnaps)}catch(x){}FB.auth.signOut();toast('Não há espaço neste navegador para trocar de conta. Faça um Backup e tente de novo.');return}
+ let b=null,fromIdb=false;
+ try{b=JSON.parse(ls.getItem('hub-acct-'+to)||'null')}catch(e){}
+ if(!b&&typeof idbGet==='function'){
+  const rawIdb=await idbGet('acct-'+to,true);
+  if(rawIdb&&typeof rawIdb==='string')try{b=JSON.parse(rawIdb);fromIdb=true}catch(e){}
+ }
  if(Array.isArray(b)){
   const legacy=['hub-v1','hub-sync',SNK,AUDIT_KEY,PROFILE_KEY];
   legacy.forEach((k,i)=>{if(k===SNK)return;if(b[i]!=null)ls.setItem(k,b[i]);else ls.removeItem(k)});
@@ -174,7 +195,7 @@ function acctSwap(from,to){
  }else{
   ks.forEach(k=>ls.removeItem(k));
  }
- ls.removeItem(SNK);ls.removeItem('hub-ui');ls.removeItem('hub-acct-'+to);location.reload();
+ ls.removeItem(SNK);ls.removeItem('hub-ui');ls.removeItem('hub-acct-'+to);if(fromIdb&&typeof idbDel==='function')await idbDel('acct-'+to,true);location.reload();
 }
 async function fbLogout(){if(!FB.auth)return;if(!(await push())){toast('Não foi possível sincronizar. Você continua na conta; tente novamente.');return}try{await FB.auth.signOut();toast('Você saiu da conta. Os dados continuam salvos na nuvem.')}catch(e){toast('Não foi possível sair da conta. Tente novamente.')}}
 /* tela de login: o site só abre depois de entrar (sem FB_CONFIG não há login possível, então abre direto) */
