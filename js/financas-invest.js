@@ -66,51 +66,52 @@ async function invSyncQuotes(force){
  if(INV_BUSY)return;
  INV_BUSY=true;INV_ERR='';
  if(force&&S.view==='financas'&&S.ftab==='inv')render({save:false});
- const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),10000);
  let usdGot=false,cnt=0;
  try{
-  const tasks=[];
-  tasks.push(fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL',{signal:ctrl.signal}).then(r=>r.ok?r.json():null).then(j=>{
-   const bid=pnum(j&&j.USDBRL&&j.USDBRL.bid);
-   if(bid>0){inv.cfg.usd=r2(bid);usdGot=true}
-  }).catch(()=>{}));
-  const sid=invParseSheetId(inv.cfg.sheetId),updatedTk=new Set();
-  if(sid){
-   tasks.push(fetch('https://docs.google.com/spreadsheets/d/'+encodeURIComponent(sid)+'/gviz/tq?tqx=out:csv&sheet=BalanceamentoCarteira',{signal:ctrl.signal}).then(r=>r.ok?r.text():'').then(csv=>{
-    if(!csv)return;
-    const {prices,val,sheetUsd}=invExtractSheetPrices(csv);
-    if(!usdGot&&sheetUsd>0)inv.cfg.usd=sheetUsd;
-    inv.assets.forEach(a=>{
-     const tk=String(a.ticker||'').trim().toUpperCase();
-     if(prices[tk]>0){a.price=prices[tk];updatedTk.add(tk);cnt++}
-     if(val[tk]){
-      if(val[tk].price>0&&!updatedTk.has(tk)){a.price=val[tk].price;updatedTk.add(tk);cnt++}
-      if(val[tk].div12>0)a.div12=val[tk].div12;
-      if(val[tk].lpa>0)a.lpa=val[tk].lpa;
-      if(val[tk].vpa>0)a.vpa=val[tk].vpa;
-     }
-    });
+  await withTimeout(10000,async signal=>{
+   const tasks=[];
+   tasks.push(fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL',{signal}).then(r=>r.ok?r.json():null).then(j=>{
+    const bid=pnum(j&&j.USDBRL&&j.USDBRL.bid);
+    if(bid>0){inv.cfg.usd=r2(bid);usdGot=true}
    }).catch(()=>{}));
-  }
-  await Promise.all(tasks);
-  const rem=[...new Set(inv.assets.filter(a=>['acoes','fiis','etf_br'].includes(a.cls)&&/^[A-Z]{4}\d{1,2}$/.test(String(a.ticker||'').toUpperCase())&&!updatedTk.has(String(a.ticker||'').toUpperCase())).map(a=>String(a.ticker).toUpperCase()))].slice(0,10);
-  const token=String(inv.cfg.brapiToken||'').trim();
-  if(rem.length&&(token||!sid)){
-   try{
-    const res=await fetch('https://brapi.dev/api/quote/'+rem.join(',')+(token?'?token='+encodeURIComponent(token):''),{signal:ctrl.signal});
-    if(res.ok){
-     const data=await res.json();
-     (data&&Array.isArray(data.results)?data.results:[]).forEach(q=>{
-      const tk=String(q.symbol||'').toUpperCase(),p=+q.regularMarketPrice;
-      if(p>0)inv.assets.forEach(a=>{if(String(a.ticker||'').toUpperCase()===tk){a.price=r2(p);cnt++}});
+   const sid=invParseSheetId(inv.cfg.sheetId),updatedTk=new Set();
+   if(sid){
+    tasks.push(fetch('https://docs.google.com/spreadsheets/d/'+encodeURIComponent(sid)+'/gviz/tq?tqx=out:csv&sheet=BalanceamentoCarteira',{signal}).then(r=>r.ok?r.text():'').then(csv=>{
+     if(!csv)return;
+     const {prices,val,sheetUsd}=invExtractSheetPrices(csv);
+     if(!usdGot&&sheetUsd>0)inv.cfg.usd=sheetUsd;
+     inv.assets.forEach(a=>{
+      const tk=String(a.ticker||'').trim().toUpperCase();
+      if(prices[tk]>0){a.price=prices[tk];updatedTk.add(tk);cnt++}
+      if(val[tk]){
+       if(val[tk].price>0&&!updatedTk.has(tk)){a.price=val[tk].price;updatedTk.add(tk);cnt++}
+       if(val[tk].div12>0)a.div12=val[tk].div12;
+       if(val[tk].lpa>0)a.lpa=val[tk].lpa;
+       if(val[tk].vpa>0)a.vpa=val[tk].vpa;
+      }
      });
-    }
-   }catch(e){}
-  }
+    }).catch(()=>{}));
+   }
+   await Promise.all(tasks);
+   const rem=[...new Set(inv.assets.filter(a=>['acoes','fiis','etf_br'].includes(a.cls)&&/^[A-Z]{4}\d{1,2}$/.test(String(a.ticker||'').toUpperCase())&&!updatedTk.has(String(a.ticker||'').toUpperCase())).map(a=>String(a.ticker).toUpperCase()))].slice(0,10);
+   const token=String(inv.cfg.brapiToken||'').trim();
+   if(rem.length&&(token||!sid)){
+    try{
+     const res=await fetch('https://brapi.dev/api/quote/'+rem.join(',')+(token?'?token='+encodeURIComponent(token):''),{signal});
+     if(res.ok){
+      const data=await res.json();
+      (data&&Array.isArray(data.results)?data.results:[]).forEach(q=>{
+       const tk=String(q.symbol||'').toUpperCase(),p=+q.regularMarketPrice;
+       if(p>0)inv.assets.forEach(a=>{if(String(a.ticker||'').toUpperCase()===tk){a.price=r2(p);cnt++}});
+      });
+     }
+    }catch(e){}
+   }
+  });
   if(cnt||usdGot){inv.cfg.updatedAt=Date.now();invSyncLinkedGoals(F);save()}
   else if(force)INV_ERR='Não foi possível atualizar cotações agora. Confira sua conexão.';
  }finally{
-  clearTimeout(timer);INV_BUSY=false;INV_AT=Date.now();
+  INV_BUSY=false;INV_AT=Date.now();
   if(force&&!INV_ERR)toast(cnt?`${cnt} cotações e dólar (${BRL(invUsd(inv))}) atualizados`:usdGot?`Dólar atualizado para ${BRL(invUsd(inv))}`:'Nenhuma cotação alterada');
   if(force&&INV_ERR)toast(INV_ERR);
   if(S.view==='financas'&&S.ftab==='inv')render();
@@ -475,6 +476,8 @@ function finActE(a,id,b){
  if(a==='spdel'){F.split=F.split.filter(x=>x.id!==id);return 1}
  if(a==='spone'){const e=F.split.find(x=>x.id===id);if(e)splSettle([id],e.p,e.dir==='recv'?e.v:-e.v);return 1}
  if(a==='spset'){const E=F.split.filter(x=>!x.st&&x.p===id);splSettle(E.map(x=>x.id),id,splBal()[id]||0);return 1}
+ if(a==='fin-archive'){if(finArchiveYear(+id))toast('Ano '+id+' arquivado com saldo consolidado.');return 1}
+ if(a==='fin-unarchive'){finUnarchiveYear(+id);return 1}
  if(a==='finclearcancel'){FCLEAR=null;clearTimeout(FCLEART);return 1}
  if(a==='fincleartx'){
   if(FCLEAR!=='tx'){

@@ -3,6 +3,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ds=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const uid=()=>Math.random().toString(36).slice(2,9);
+async function withTimeout(ms,fn){const c=typeof AbortController!=='undefined'?new AbortController():null,t=c?setTimeout(()=>c.abort(),ms):0;try{return await fn(c?c.signal:undefined)}finally{if(t)clearTimeout(t)}}
 const COL=['p','b','y','g'];
 const NOTE_COLORS=[['p','Tom da paleta 1'],['b','Tom da paleta 2'],['y','Tom da paleta 3'],['g','Tom da paleta 4'],['peach','Pêssego'],['mint','Menta'],['lavender','Lavanda'],['sand','Areia'],['rose','Rosa'],['sky','Azul céu'],['lemon','Limão'],['sage','Sálvia']];
 let NQ='',NTYPE='',NSTATUS='active';
@@ -30,12 +31,40 @@ function goalTracks(g,t){const ref='mt:'+g.id,task='tk:'+t.id;return t.mt===g.id
 function taskPaused(t){return !!(t&&(t.archived||(!t.done&&((t.seriesId&&(S.tasks||[]).some(x=>x.archived&&(x.id===t.seriesId||x.seriesId===t.seriesId)))||(S.metas||[]).some(g=>g.archived&&((Array.isArray(g.pausedTaskIds)&&(g.pausedTaskIds.includes(t.id)||(t.seriesId&&g.pausedTaskIds.includes(t.seriesId))))||goalTracks(g,t)))))))}
 function pauseArchivedFocus(){const k=S.fk,t=k&&S.tasks.find(x=>x.id===k.id);if(k&&k.run&&taskPaused(t)){k.left=Math.max(0,k.end-Date.now());k.run=false}}
 let LOCAL_CORRUPT=false;try{const raw=localStorage.getItem('hub-v1'),data=JSON.parse(raw||'{}');if(!data||typeof data!=='object'||Array.isArray(data)||(raw!==null&&['tasks','events','notes','links'].some(k=>!Array.isArray(data[k]))))throw Error('dados inválidos');Object.assign(S,data)}catch(e){LOCAL_CORRUPT=true}
+const UIK='hub-ui',UI_KEYS=['view','ftab','fvw','dvw','fmo','ddo'];
+function saveUI(){try{const o={};UI_KEYS.forEach(k=>o[k]=S[k]);localStorage.setItem(UIK,JSON.stringify(o))}catch(e){}}
+try{const ui=JSON.parse(localStorage.getItem(UIK)||'null');if(ui&&typeof ui==='object'&&!Array.isArray(ui))UI_KEYS.forEach(k=>{if(k in ui)S[k]=ui[k]})}catch(e){}
 if(!S.seeded){S.seeded=true;S.onb=true}
 const idbOpen=()=>new Promise((res,rej)=>{if(typeof indexedDB==='undefined')return rej();const r=indexedDB.open('meuhub-db',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('kv'))r.result.createObjectStore('kv')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
-const idbPut=(k,v)=>{idbOpen().then(db=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=()=>db.close();tx.onerror=()=>db.close()}).catch(()=>{})};
-const idbGet=k=>idbOpen().then(db=>new Promise((res,rej)=>{const tx=db.transaction('kv','readonly'),rq=tx.objectStore('kv').get(k);rq.onsuccess=()=>{db.close();res(rq.result)};rq.onerror=()=>{db.close();rej(rq.error)}})).catch(()=>null);
+async function gzipStr(str){
+ if(typeof CompressionStream!=='function'||typeof str!=='string')return str;
+ try{
+  const cs=new CompressionStream('gzip'),w=cs.writable.getWriter();
+  w.write(new TextEncoder().encode(str));w.close();
+  const buf=new Uint8Array(await new Response(cs.readable).arrayBuffer());
+  let bin='';for(let i=0;i<buf.length;i+=8192)bin+=String.fromCharCode(...buf.subarray(i,i+8192));
+  return 'gz:'+btoa(bin);
+ }catch(e){return str}
+}
+async function ungzipStr(val){
+ if(typeof val!=='string'||!val.startsWith('gz:')||typeof DecompressionStream!=='function')return val;
+ try{
+  const bin=atob(val.slice(3)),bytes=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  const ds=new DecompressionStream('gzip'),w=ds.writable.getWriter();
+  w.write(bytes);w.close();
+  return await new Response(ds.readable).text();
+ }catch(e){return val}
+}
+const idbPut=(k,v)=>{Promise.resolve(typeof v==='string'&&v.length>1024?gzipStr(v):v).then(val=>idbOpen().then(db=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(val,k);tx.oncomplete=()=>db.close();tx.onerror=()=>db.close()})).catch(()=>{})};
+const idbGet=k=>idbOpen().then(db=>new Promise((res,rej)=>{const tx=db.transaction('kv','readonly'),rq=tx.objectStore('kv').get(k);rq.onsuccess=()=>{db.close();res(rq.result)};rq.onerror=()=>{db.close();rej(rq.error)}})).then(ungzipStr).catch(()=>null);
+let IDB_Q=null,IDB_T=0;
+function flushIdbSync(){if(!IDB_Q)return;const q=IDB_Q;IDB_Q=null;clearTimeout(IDB_T);IDB_T=0;idbPut('hub-v1',q.data);if(q.snaps)idbPut(SNK,q.snaps)}
+function scheduleIdbSync(data,snaps){IDB_Q={data,snaps};if(IDB_T)return;const run=()=>flushIdbSync();if(typeof requestIdleCallback==='function')requestIdleCallback(run,{timeout:1000});else IDB_T=setTimeout(run,250)}
+window.addEventListener('pagehide',flushIdbSync);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)flushIdbSync()});
 const save=()=>{let ok=!LOCAL_CORRUPT,original=null,evicted=false,restoreFailed=false,data='';if(ok){S.history=auditClean(S.history);data=JSON.stringify(S);for(;;){try{localStorage.setItem('hub-v1',data);break}catch(e){if(e.name!=='QuotaExceededError'){ok=false;break}try{const L=snaps();if(!L.length){ok=false;break}if(!evicted)original=localStorage.getItem(SNK);L.pop();if(L.length)localStorage.setItem(SNK,JSON.stringify(L));else localStorage.removeItem(SNK);evicted=true}catch(x){ok=false;break}}}if(!ok&&evicted&&original!==null)try{localStorage.setItem(SNK,original)}catch(e){restoreFailed=true}}
- if(ok&&data){idbPut('hub-v1',data);try{const rawSnaps=localStorage.getItem(SNK);if(rawSnaps)idbPut(SNK,rawSnaps)}catch(e){}}
+ if(ok&&data){let rawSnaps=null;if(!evicted)try{rawSnaps=localStorage.getItem(SNK)}catch(e){}scheduleIdbSync(data,rawSnaps)}
  let warning=document.getElementById('storage-warning');if(!ok&&!warning){warning=document.createElement('div');warning.id='storage-warning';warning.setAttribute('role','alert');warning.className='panel';document.querySelector('.main').prepend(warning)}if(warning){if(ok)warning.remove();else warning.innerHTML=(LOCAL_CORRUPT?'Dados locais corrompidos. O envio automático está suspenso. Recupere os dados em Backup.':restoreFailed?'Não foi possível salvar nem recuperar todas as versões locais. Exporte um backup agora.':'Não foi possível salvar neste navegador. Exporte um backup e libere espaço.')+' <button class="pill" data-v="backup">Abrir Backup</button>'}
  if(ok&&evicted)toast('Versões locais antigas foram removidas para liberar espaço.');if(!LOCAL_CORRUPT){track();if(ok)syncSoon()}return ok};
 const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
@@ -172,7 +201,9 @@ function storageSummary(){
   let total=0;const parts=[];
   labels.forEach(([k,l])=>{const v=ls.getItem(k);if(v){total+=v.length;parts.push(l+': '+kb(v.length))}});
   for(let i=0;i<ls.length;i++){const k=ls.key(i);if(k&&k.startsWith('hub-')&&!labels.some(x=>x[0]===k)){const v=ls.getItem(k)||'';total+=v.length}}
-  return `<p class="empty" data-storage-usage style="padding:var(--space-1) 0 0">Espaço usado neste navegador: <strong>${kb(total)}</strong>${parts.length?' ('+parts.join(' · ')+')':''}.</p>`;
+  const areas=[['fin','Finanças'],['notes','Notas'],['dia','Diário'],['reads','Leituras'],['tasks','Tarefas'],['trash','Lixeira']].map(([k,l])=>[l,JSON.stringify(S[k]||'').length]).filter(x=>x[1]>512).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([l,n])=>l+': '+kb(n));
+  const warn=total*2>3.5*1024*1024?' Espaço próximo do limite do navegador: recomenda-se baixar um backup e limpar itens antigos da lixeira.':'';
+  return `<p class="empty" data-storage-usage style="padding:var(--space-1) 0 0">Espaço usado neste navegador: <strong>${kb(total)}</strong>${parts.length?' ('+parts.join(' · ')+')':''}.${areas.length?' Maiores áreas: '+areas.join(', ')+'.':''}${warn}</p>`;
  }catch(e){return ''}
 }
 function backup(){
@@ -514,6 +545,36 @@ function insights(){
  const days=Object.keys(S.dia).filter(k=>S.dia[k].m),avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
  const cmp=(l,p)=>{const A=days.filter(p).map(k=>S.dia[k].m),B=days.filter(k=>!p(k)).map(k=>S.dia[k].m);return A.length<3||B.length<3?null:`${l}: humor médio ${avg(A).toFixed(1)} contra ${avg(B).toFixed(1)} nos outros dias.`};
  const daily=S.habits.filter(h=>!h.perWeek);return [daily.length?cmp('Dias com todos os hábitos diários feitos',k=>daily.every(h=>h.log[k])):null,cmp('Dias com sessão de foco',k=>(S.fm[k]||0)>0),cmp('Dias em que bati a meta de tarefas',k=>doneOn(k)>=S.goal)].filter(Boolean)}
+function diaArchiveYear(year){
+ const y=+year,curY=today.getFullYear();
+ if(!Number.isInteger(y)||y>=curY)return false;
+ S.diaArchives=S.diaArchives||[];
+ if(S.diaArchives.some(x=>x.year===y))return false;
+ const pref=y+'-',entries={};let count=0;
+ Object.keys(S.dia||{}).forEach(k=>{if(k.startsWith(pref)){entries[k]=S.dia[k];count++}});
+ if(!count)return false;
+ if(typeof snapPut==='function')snapPut('Antes de arquivar Diário '+y);
+ const payload={year:y,entries,archivedAt:Date.now(),count};
+ idbPut('dia-archive-'+y,JSON.stringify(payload));
+ if(typeof DBr!=='undefined'&&DBr&&typeof P==='string')DBr.doc(P+'dia-archive-'+y).set(payload).catch(()=>{});
+ Object.keys(entries).forEach(k=>delete S.dia[k]);
+ S.diaArchives.push({year:y,count,archivedAt:payload.archivedAt});
+ S.diaArchives.sort((a,b)=>b.year-a.year);
+ return true;
+}
+async function diaUnarchiveYear(year){
+ const y=+year;
+ let payload=null;
+ const raw=await idbGet('dia-archive-'+y);
+ if(raw&&typeof raw==='string')try{payload=JSON.parse(raw)}catch(e){}
+ if(!payload&&typeof DBr!=='undefined'&&DBr&&typeof P==='string'){try{const doc=await DBr.doc(P+'dia-archive-'+y).get();if(doc.exists)payload=doc.data()}catch(e){}}
+ if(!payload||!payload.entries||typeof payload.entries!=='object'){toast('Arquivo do Diário de '+y+' não encontrado.');return false}
+ S.dia=S.dia||{};let restored=0;
+ Object.entries(payload.entries).forEach(([k,v])=>{if(!(k in S.dia)){S.dia[k]=v;restored++}});
+ S.diaArchives=(S.diaArchives||[]).filter(x=>x.year!==y);
+ render();toast('Diário de '+y+' restaurado ('+restored+' entradas).');
+ return true;
+}
 function diario(){
  if(S.dvw==='ano')return diarioAno();
  const dt=add(today,S.ddo),d=ds(dt),e=S.dia[d]||{},has=v=>v.m||v.e||v.a||v.b||v.c||v.focus||(v.routine&&Object.keys(v.routine).length),ks=Object.keys(S.dia).filter(k=>has(S.dia[k])).sort().reverse().slice(0,8),ins=insights();
@@ -522,7 +583,7 @@ function diario(){
  <div class="cards"><div class="panel wide hero"><h2>${DIAF[dt.getDay()]}, ${dt.getDate()} de ${MESF[dt.getMonth()]}</h2><div class="lb" style="margin-top:0">Humor geral</div>${moodBtns(d,'m')}<div class="lb">Energia geral</div>${moodBtns(d,'e')}${e.routine?`<div class="item"><div class="t">Registros da rotina<small>${[['m','Manhã'],['n','Noite']].map(([k,l])=>{const r=e.routine[k]||{};return l+': humor '+(MN[(r.m||0)-1]||'não registrado')+', energia '+(EN[(r.e||0)-1]||'não registrada')}).join(' · ')}</small></div></div>`:''}${e.focus?`<p>Foco do dia: ${esc(e.focus)}</p>`:''}${ta('a','Como foi o dia','Escreva livremente…')}${ta('b','Três vitórias','Pequenas ou grandes…')}${ta('c','Gratidão','Pelo que você é grato hoje?')}</div>
  <div class="panel"><h2>Últimos 30 dias</h2><div class="lb" style="margin-top:0">Humor (média 7 dias: ${dAvg('m',7)} · 30 dias: ${dAvg('m',30)})</div>${trend('m')}<div class="lb">Energia (média 7 dias: ${dAvg('e',7)} · 30 dias: ${dAvg('e',30)})</div>${trend('e')}</div>
  <div class="panel"><h2>Padrões</h2>${ins.length?ins.map(x=>`<div class="item"><div class="t">${esc(x)}</div></div>`).join(''):'<p class="empty">Registre o humor por alguns dias, com e sem hábitos, foco e metas cumpridas (mínimo de 3 dias de cada), e os padrões aparecem aqui.</p>'}</div>
- ${moodSpend()}<div class="panel wide"><h2>Entradas recentes</h2>${ks.map(k=>{const v=S.dia[k];return `<button class="item" style="width:100%;border:0;text-align:left;cursor:pointer;color:inherit" data-a="dgo" data-id="${k}"><div class="t">${fmt(k)}${v.m?` <span class="chip" style="background:${MC[v.m-1]}">${MN[v.m-1]}</span>`:''}<small>${esc(plain(v.a||v.b||v.c||'').slice(0,100))}</small></div></button>`}).join('')||emp('dia','Nenhuma entrada ainda. Comece registrando seu humor de hoje.','Registrar hoje','data-a="dnav" data-n="0"')}</div></div>`;
+ ${moodSpend()}<div class="panel wide"><h2>Entradas recentes</h2>${ks.map(k=>{const v=S.dia[k];return `<button class="item" style="width:100%;border:0;text-align:left;cursor:pointer;color:inherit" data-a="dgo" data-id="${k}"><div class="t">${fmt(k)}${v.m?` <span class="chip" style="background:${MC[v.m-1]}">${MN[v.m-1]}</span>`:''}<small>${esc(plain(v.a||v.b||v.c||'').slice(0,100))}</small></div></button>`}).join('')||emp('dia','Nenhuma entrada ainda. Comece registrando seu humor de hoje.','Registrar hoje','data-a="dnav" data-n="0"')}</div>${(()=>{const curY=today.getFullYear(),py={};Object.keys(S.dia||{}).forEach(k=>{const y=+k.slice(0,4);if(Number.isInteger(y)&&y>1900&&y<curY&&!(S.diaArchives||[]).some(a=>a.year===y))py[y]=(py[y]||0)+1});const arch=S.diaArchives||[];if(!Object.keys(py).length&&!arch.length)return '';return `<div class="panel wide"><h2>Arquivamento anual do Diário</h2><p class="empty" style="padding:0 0 var(--space-2)">Guarda entradas de anos encerrados no IndexedDB/nuvem para manter o dia a dia leve.</p><div class="bar">${Object.keys(py).sort().reverse().map(y=>`<button class="pill" data-a="dia-archive" data-id="${y}">Arquivar ${y} (${py[y]})</button>`).join('')}${arch.map(a=>`<button class="pill" data-a="dia-unarchive" data-id="${a.year}">Restaurar ${a.year} (${a.count})</button>`).join('')}</div></div>`})()}</div>`;
 }
 document.addEventListener('keydown',e=>{const g=e.target.closest&&e.target.closest('.mood');if(g&&/^Arrow(Left|Right|Up|Down)$/.test(e.key)){const bs=[...g.querySelectorAll('button')],i=bs.indexOf(e.target),n=bs[(i+(/Left|Up/.test(e.key)?-1:1)+bs.length)%bs.length];if(n){e.preventDefault();bs.forEach(x=>x.tabIndex=-1);n.tabIndex=0;n.focus()}}});
 document.addEventListener('keydown',e=>{const i=e.target;if(e.key==='Enter'&&i.dataset&&i.dataset.gdep){e.preventDefault();const x=parseFloat(String(i.value).replace(',','.')),g=S.fin.goals.find(y=>y.id===i.dataset.gdep);if(g&&x>0){g.saved+=x;render()}}});

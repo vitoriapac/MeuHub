@@ -18,7 +18,49 @@ function simulatePurchase(fin,accountId,start,amount,parts,rate,asOf,cardId){
  if(!Number.isSafeInteger(total))throw Error('Valor muito alto');const dates=[...new Set([asOf,last,...events.map(e=>e.d)])].sort();let base=opening,scenario=opening,minBase=opening,minScenario=opening;for(const d of dates){for(const e of events.filter(x=>x.d===d)){base+=e.delta||0;scenario+=(e.delta||0)+(e.scenario||0)}minBase=Math.min(minBase,base);minScenario=Math.min(minScenario,scenario)}return {total,base,scenario,minBase,minScenario,start:asOf,end:last,schedule};
 }
 function simulationPanel(){const accounts=(S.fin.acc||[]).filter(a=>a.ty!=='card'),cards=(S.fin.acc||[]).filter(a=>a.ty==='card');return `<details class="panel"><summary>Simular compra</summary><p class="empty">Projeção ilustrativa por conta, com lançamentos já cadastrados. Não inclui recorrências ainda não lançadas nem faturas futuras sem pagamento vinculado. Juros compostos incidem mensalmente sobre o total. Para cartão, a conta escolhida é usada somente nesta simulação: o cadastro não vincula uma conta ao cartão. Valores de faturas sem pagamento agendado ficam fora da base.</p><form id="purchase-simulator" class="bar"><label class="lb">Conta<select class="in" name="account" required>${accounts.map(a=>`<option value="${esc(a.id)}">${esc(a.n)}</option>`).join('')}</select></label><label class="lb">Forma de pagamento<select class="in" name="card"><option value="">Débito em conta</option>${cards.map(a=>`<option value="${esc(a.id)}">Cartão: ${esc(a.n)}</option>`).join('')}</select></label><label class="lb">Valor à vista (R$)<input class="in" name="amount" inputmode="decimal" required></label><label class="lb">Data da compra ou primeiro pagamento<input class="in" type="date" name="date" value="${T}" min="${T}" required></label><label class="lb">Parcelas<input class="in" name="parts" type="number" min="1" max="48" value="1" required></label><label class="lb">Juros mensais (%)<input class="in" name="rate" type="number" min="0" max="100" step="0.01" value="0" required></label><button class="pill" ${accounts.length?'':'disabled'}>Comparar cenários</button></form><div data-simulation-result aria-live="polite"></div></details>`}
-function finInit(){const F=S.fin;F.acc=F.acc||[];F.rec=F.rec||[];F.recDismiss=F.recDismiss||[];F.rules=F.rules||[];F.tx=F.tx||[];F.bud=F.bud||{};F.goals=F.goals||[];F.prules=F.prules||[];F.split=F.split||[];F.bills=F.bills||[];if(!F.acc.length)F.acc.push({id:'main',n:'Conta principal',ty:'cc',ini:0});if(F.inv)invInit(F);return F}
+function finInit(){const F=S.fin;F.acc=F.acc||[];F.rec=F.rec||[];F.recDismiss=F.recDismiss||[];F.rules=F.rules||[];F.tx=F.tx||[];F.bud=F.bud||{};F.goals=F.goals||[];F.prules=F.prules||[];F.split=F.split||[];F.bills=F.bills||[];F.archives=F.archives||[];if(!F.acc.length)F.acc.push({id:'main',n:'Conta principal',ty:'cc',ini:0});if(F.inv)invInit(F);return F}
+function finYearNetCents(F,year){
+ const pref=year+'-',net={};F.acc.forEach(a=>net[a.id]=0);
+ const defId=F.acc[0]&&F.acc[0].id;
+ for(const t of F.tx||[]){
+  if(!t.d||!t.d.startsWith(pref))continue;
+  const ac=F.acc.some(a=>a.id===t.ac)?t.ac:defId,c=Math.round((+t.v||0)*100);
+  if(t.k==='in'&&ac)net[ac]=(net[ac]||0)+c;
+  else if(t.k==='out'&&ac)net[ac]=(net[ac]||0)-c;
+  else if(t.k==='tr'){if(ac)net[ac]=(net[ac]||0)-c;if(t.to&&F.acc.some(a=>a.id===t.to))net[t.to]=(net[t.to]||0)+c}
+ }
+ return net;
+}
+function finArchiveYear(year){
+ const F=finInit(),y=+year,curY=today.getFullYear();
+ if(!Number.isInteger(y)||y>=curY)return false;
+ if(F.archives.some(x=>x.year===y))return false;
+ const pref=y+'-',archivedTx=F.tx.filter(t=>t.d&&t.d.startsWith(pref));
+ if(!archivedTx.length)return false;
+ if(typeof snapPut==='function')snapPut('Antes de arquivar Finanças '+y);
+ const net=finYearNetCents(F,y),payload={year:y,tx:archivedTx,net,archivedAt:Date.now(),count:archivedTx.length};
+ if(typeof idbPut==='function')idbPut('fin-archive-'+y,JSON.stringify(payload));
+ if(typeof DBr!=='undefined'&&DBr&&typeof P==='string')DBr.doc(P+'fin-archive-'+y).set(payload).catch(()=>{});
+ F.acc.forEach(a=>{a.ini=r2((+a.ini||0)+(net[a.id]||0)/100)});
+ F.tx=F.tx.filter(t=>!t.d||!t.d.startsWith(pref));
+ F.archives.push({year:y,count:archivedTx.length,archivedAt:payload.archivedAt});
+ F.archives.sort((a,b)=>b.year-a.year);
+ return true;
+}
+async function finUnarchiveYear(year){
+ const F=finInit(),y=+year;
+ let payload=null;
+ if(typeof idbGet==='function'){const raw=await idbGet('fin-archive-'+y);if(raw&&typeof raw==='string')try{payload=JSON.parse(raw)}catch(e){}}
+ if(!payload&&typeof DBr!=='undefined'&&DBr&&typeof P==='string'){try{const doc=await DBr.doc(P+'fin-archive-'+y).get();if(doc.exists)payload=doc.data()}catch(e){}}
+ if(!payload||!Array.isArray(payload.tx)){toast('Arquivo de '+y+' não encontrado neste aparelho nem na nuvem.');return false}
+ const seen=new Set(F.tx.map(t=>t.id)),restored=payload.tx.filter(t=>t&&!seen.has(t.id));
+ F.tx.push(...restored);
+ const net=payload.net||finYearNetCents({acc:F.acc,tx:restored},y);
+ F.acc.forEach(a=>{a.ini=r2((+a.ini||0)-(net[a.id]||0)/100)});
+ F.archives=F.archives.filter(x=>x.year!==y);
+ render();toast('Lançamentos de '+y+' restaurados ('+restored.length+').');
+ return true;
+}
 function budgetsAt(month){const F=finInit(),out={...F.bud};Object.entries(F.budHist||{}).forEach(([cat,changes])=>{const key=Object.keys(changes).filter(k=>k<=month).sort().pop();if(key){if(changes[key]===null)delete out[cat];else out[cat]=changes[key]}});return out}
 function setBudget(cat,month,value){const F=finInit();F.budHist=F.budHist||{};(F.budHist[cat]=F.budHist[cat]||{})[month]=value}
 const accId=t=>{const a=S.fin.acc;return t.ac&&a.some(x=>x.id===t.ac)?t.ac:a[0].id};
@@ -100,7 +142,9 @@ function accountImpact(f){const a=finInit().acc.find(x=>x.id===f.dataset.accEdit
 function finClearPanel(inGrid){
  const F=finInit(),hasTx=F.tx.length>0||F.acc.some(a=>(+a.ini||0)!==0);
  const hasAny=hasTx||F.acc.length>1||(F.acc[0]&&(F.acc[0].n!=='Conta principal'||F.acc[0].ty!=='cc'))||F.rec.length>0||F.rules.length>0||Object.keys(F.bud||{}).length>0||Object.keys(F.budHist||{}).length>0||F.goals.length>0||F.prules.length>0||F.split.length>0||F.bills.length>0||!!F.primary||((F.inv?.assets?.length||0)>0)||((F.inv?.divs?.length||0)>0);
- return `<div class="panel${inGrid?'':' wide'}" data-fin-tools${inGrid?'':' style="margin-top:var(--space-3)"'}><h2>Limpar dados das Finanças</h2><p class="empty" style="padding:0 0 var(--space-2)">Uma versão automática é salva em Backup antes de limpar, e você pode desfazer com Ctrl+Z logo em seguida.</p><div class="bar"><button class="pill${FCLEAR==='tx'?' dark':''}" data-a="fincleartx" ${hasTx?'':'disabled'}>${FCLEAR==='tx'?'Confirmar: limpar lançamentos':'Limpar lançamentos'}</button><button class="pill${FCLEAR==='all'?' dark':''}" data-a="finclearall" ${hasAny?'':'disabled'}>${FCLEAR==='all'?'Confirmar: zerar todas as Finanças':'Zerar todas as Finanças'}</button>${FCLEAR?'<button class="pill" data-a="finclearcancel">Cancelar</button>':''}</div></div>`;
+ const pastYears={};const curY=today.getFullYear();(F.tx||[]).forEach(t=>{const y=+(t.d||'').slice(0,4);if(Number.isInteger(y)&&y>1900&&y<curY&&!(F.archives||[]).some(a=>a.year===y))pastYears[y]=(pastYears[y]||0)+1});
+ const archHtml=(Object.keys(pastYears).length||(F.archives||[]).length)?`<div style="margin-top:var(--space-3);padding-top:var(--space-2);border-top:1px solid var(--line)"><h3 style="margin:0 0 var(--space-1)">Arquivamento anual</h3><p class="empty" style="padding:0 0 var(--space-2)">Consolida lançamentos de anos encerrados no saldo inicial das contas e guarda o histórico no IndexedDB/nuvem.</p><div class="bar">${Object.keys(pastYears).sort().reverse().map(y=>`<button class="pill" data-a="fin-archive" data-id="${y}">Arquivar ${y} (${pastYears[y]})</button>`).join('')}${(F.archives||[]).map(a=>`<button class="pill" data-a="fin-unarchive" data-id="${a.year}">Restaurar ${a.year} (${a.count})</button>`).join('')}</div></div>`:'';
+ return `<div class="panel${inGrid?'':' wide'}" data-fin-tools${inGrid?'':' style="margin-top:var(--space-3)"'}><h2>Limpar dados das Finanças</h2><p class="empty" style="padding:0 0 var(--space-2)">Uma versão automática é salva em Backup antes de limpar, e você pode desfazer com Ctrl+Z logo em seguida.</p><div class="bar"><button class="pill${FCLEAR==='tx'?' dark':''}" data-a="fincleartx" ${hasTx?'':'disabled'}>${FCLEAR==='tx'?'Confirmar: limpar lançamentos':'Limpar lançamentos'}</button><button class="pill${FCLEAR==='all'?' dark':''}" data-a="finclearall" ${hasAny?'':'disabled'}>${FCLEAR==='all'?'Confirmar: zerar todas as Finanças':'Zerar todas as Finanças'}</button>${FCLEAR?'<button class="pill" data-a="finclearcancel">Cancelar</button>':''}</div>${archHtml}</div>`;
 }
 function filteredTx(tx){
  const q=norm(FQ.trim()),kd=S.fkd||'',fc=S.fcat||'';
@@ -348,7 +392,7 @@ function rulesPanel(){
  ${F.rules.map((r,i)=>`<div class="item ${r.on===false?'done':''}"><div class="t">${when(r)}<small>→ ${then(r)} · afeta ${cnt[r.id]||0} lançamentos${r.on===false?' · desativada':''}</small></div><button class="x" data-a="rmv" data-id="${r.id}" data-n="-1" aria-label="Subir" ${i?'':'disabled'}>▲</button><button class="x" data-a="rmv" data-id="${r.id}" data-n="1" aria-label="Descer" ${i<F.rules.length-1?'':'disabled'}>▼</button><button class="x" data-a="rtog" data-id="${r.id}" aria-label="Ativar ou desativar" title="Ativar ou desativar">${r.on===false?'○':'●'}</button><button class="x" data-a="redit" data-id="${r.id}" aria-label="Editar regra">✎</button><button class="x" data-a="delrule" data-id="${r.id}" aria-label="Excluir regra">×</button></div>`).join('')||'<p class="empty">Exemplo: despesa cuja descrição contém "uber" → Transporte › App, etiqueta #trabalho.</p>'}
  <form class="bar" id="frule" style="margin:var(--space-2) 0 0"><select class="in" name="ty" aria-label="Tipo"><option value="out" ${sel(e&&e.ty||'out','out')}>Despesa</option><option value="in" ${sel(e&&e.ty,'in')}>Receita</option><option value="any" ${sel(e&&e.ty,'any')}>Qualquer</option></select><select class="in" name="md" aria-label="Condição"><option value="c" ${sel(e&&e.md,'c')}>contém</option><option value="s" ${sel(e&&e.md,'s')}>começa com</option><option value="e" ${sel(e&&e.md,'e')}>é igual a</option><option value="r" ${sel(e&&e.md,'r')}>expressão (regex)</option></select><input class="in grow" name="m" placeholder="Texto da descrição" value="${e?esc(e.m||''):''}"><input class="in" name="min" type="number" step="any" placeholder="Valor mín." value="${e&&e.min!==''?e.min:''}" style="width:110px"><input class="in" name="max" type="number" step="any" placeholder="Valor máx." value="${e&&e.max!==''?e.max:''}" style="width:110px"><select class="in" name="ac" aria-label="Conta"><option value="">Qualquer conta</option>${accOpts(e&&e.ac)}</select><select class="in" name="cat" aria-label="Categoria">${FC.map(c=>`<option ${e&&e.cat===c?'selected':''}>${c}</option>`).join('')}</select><input class="in" name="sub" list="subl" placeholder="Subcategoria" value="${e?esc(e.sub||''):''}"><input class="in" name="tg" list="alltags" placeholder="Etiquetas" value="${e?esc(e.tg||''):''}"><input class="in" name="pj" list="pjl" placeholder="Projeto" value="${e?esc(e.pj||''):''}"><button class="pill dark">${e?'Salvar regra':'Adicionar regra'}</button>${e?'<button type="button" class="pill" data-a="rcancel">Cancelar</button>':''}</form>
  <div class="bar" style="margin:var(--space-2) 0 0"><input class="in grow" id="rtest" placeholder="Testar: digite uma descrição, como UBER *TRIP"><input class="in" id="rtv" type="number" step="any" placeholder="Valor" style="width:110px"></div><p id="rtestout" class="empty" style="padding:0 0 var(--space-2)"></p>
- <div class="bar"><button class="pill" data-a="rulesapply">Categorizar lançamentos em "Outros"</button><button class="pill" data-a="rapplyall">Recategorizar todos os lançamentos</button></div>`}
+ <div class="bar"><button class="pill" data-a="rulesapply">Categorizar lançamentos em "Outros"</button><button class="pill${RARM?' dark':''}" data-a="rapplyall">${RARM?'Confirmar: recategorizar todos':'Recategorizar todos os lançamentos'}</button>${RARM?'<button class="pill" data-a="rcancelall">Cancelar</button>':''}</div>`}
 function finSubmit(v){
  const F=finInit(),e=FED?F.tx.find(t=>t.id===FED):null,oldT=e?e.t:'';
  if(!e){const p=parseFinNL(v.t,v.v,!v.d||v.d===T);v=Object.assign({},v,{t:p.t,v:p.v,d:p.d||v.d||T,tg:normTags([v.tg,p.tg].filter(Boolean).join(', '))})}

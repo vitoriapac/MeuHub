@@ -101,7 +101,7 @@ O site só abre depois de entrar com o Google. Os dados são sincronizados entre
 
 ## Arquivos e Manutenção de Cache
 
-[`index.html`](file:///c:/Users/vitor/Documents/MeuHub/index.html) contém a casca HTML e os links. A aparência fica em [`css/style.css`](file:///c:/Users/vitor/Documents/MeuHub/css/style.css) e o código em `js/`, um arquivo por área (`core`, `sync`, `financas`, `recursos`, `inicio`, `main`), carregados nessa ordem. Consulte [ARCHITECTURE.md](ARCHITECTURE.md) e [SPEC.md](SPEC.md) para detalhes.
+[`index.html`](file:///c:/Users/vitor/Documents/MeuHub/index.html) contém a casca HTML e os links. A aparência fica em [`css/style.css`](file:///c:/Users/vitor/Documents/MeuHub/css/style.css) e o código em `js/`, um arquivo por área (`core`, `sync`, `financas`, `financas-import`, `financas-invest`, `recursos`, `inicio`, `main`), carregados nessa ordem. Consulte [ARCHITECTURE.md](ARCHITECTURE.md) e [SPEC.md](SPEC.md) para detalhes.
 
 **Ao publicar mudanças em `css/` ou `js/`**, execute `node scripts/bump-version.js` para atualizar em sincronia o `?v=` de todos os links no [`index.html`](file:///c:/Users/vitor/Documents/MeuHub/index.html) e a constante `VER` em [`sw.js`](file:///c:/Users/vitor/Documents/MeuHub/sw.js) para a mesma versão (ex.: `?v=20261120`), validando também que nenhum asset ficou de fora. O Cenário 10 e o Cenário 12 de `tests/run.js` verificam essa sincronia automaticamente.
 
@@ -123,7 +123,7 @@ node tests/run.js
 node tests/run.js --filter=financas
 ```
 
-O executor [`tests/run.js`](file:///c:/Users/vitor/Documents/MeuHub/tests/run.js) abre o site em um Chrome ou Edge headless com Firebase simulado e valida login, sincronização, mescla entre aparelhos, troca de conta, saída, modo sem internet, integridade de emojis UTF-16, todas as 20 telas e 6 abas de finanças, cache-busting, rede lenta, falhas de armazenamento, gravação concorrente, PWA/Service Worker e cenários de regressão de segurança, privacidade, acessibilidade e desempenho (~60 s). Se o navegador não for encontrado automaticamente, defina a variável de ambiente `CHROME_PATH`.
+Os testes unitários (`node --test tests/unit.test.js`) validam funções puras em ~0,1 s, e o executor [`tests/run.js`](file:///c:/Users/vitor/Documents/MeuHub/tests/run.js) abre o site em um Chrome ou Edge headless com Firebase simulado e valida login, sincronização por domínio, mescla entre aparelhos, troca de conta, saída, modo sem internet, integridade de emojis UTF-16, todas as 20 telas e 6 abas de finanças, cache-busting, rede lenta, falhas de armazenamento, gravação concorrente, PWA/Service Worker e cenários de regressão de segurança, privacidade, acessibilidade e desempenho. Se o navegador não for encontrado automaticamente, defina a variável de ambiente `CHROME_PATH`.
 
 ### Arquivados e planejamento
 

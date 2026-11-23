@@ -125,6 +125,7 @@ async function main() {
   const localTasks = () => ev('S.tasks.map(t=>t.t).filter(t=>t.startsWith("t-"))');
   // junta os pedaços como o app faz; null se a nuvem ainda não tem uma versão completa
   const cloudTasksExpr = uid => `(()=>{const c=__cloud(),m=c["data/users/${uid}/hub-meta"];if(!m)return null;
+    if(m.v===2&&m.doms){const dm=m.doms.core;if(!dm)return null;let s="";for(let i=0;i<dm.n;i++){const d=c["data/users/${uid}/hub-d-core-"+i];if(!d||d.rev!==dm.rev)return null;s+=d.s}return JSON.parse(s).tasks.map(t=>t.t).filter(t=>t.startsWith("t-"))}
     let s="";for(let i=0;i<m.n;i++){const d=c["data/users/${uid}/hub-"+i];if(!d||d.rev!==m.rev)return null;s+=d.s}
     return JSON.parse(s).tasks.map(t=>t.t).filter(t=>t.startsWith("t-"))})()`;
   const cloudTasks = uid => ev(cloudTasksExpr(uid));
@@ -371,10 +372,10 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh();await login('A');const r=await ev(`(async()=>{S.history=[];auditLog('reviewStart');const old=JSON.parse(JSON.stringify(pick()));S.history=[];auditLog('reviewEnd');S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([JSON.stringify(old)],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));return {types:auditRead().map(x=>x.type),msg:document.querySelector('#bkmsg').textContent}})()`);assert.ok(r.types.includes('reviewStart')&&r.types.includes('reviewEnd')&&r.types.includes('backupRestore'));assert.match(r.msg,/restaurado/i);
     }],
     ['histórico sincroniza evento recebido de outro aparelho', async () => {
-      await fresh();await login('A');await ev(`(()=>{S.history=[];auditLog('reviewStart');save()})()`);await waitFor(`(()=>{const c=__cloud(),d=c['data/users/A/hub-0'];return d&&JSON.parse(d.s).history?.some(x=>x.type==='reviewStart')})()`,'histórico local na nuvem');await ev(`(async()=>{const db=firebase.firestore(),c=__cloud(),m=c['data/users/A/hub-meta'],st=JSON.parse(c['data/users/A/hub-0'].s);st.history.push({id:'remote-event',type:'reviewEnd',at:Date.now()});const j=JSON.stringify(st),rev=m.rev+1;await db.doc('data/users/A/hub-0').set({rev,i:0,s:j});await db.doc('data/users/A/hub-meta').set({...m,rev,n:1,dev:'outro',len:j.length})})()`);await waitFor(`S.history.some(x=>x.id==='remote-event')`,'evento remoto');const r=await ev(`({types:S.history.map(x=>x.type),remote:S.history.filter(x=>x.id==='remote-event').length})`);assert.ok(r.types.includes('reviewStart')&&r.types.includes('reviewEnd'));assert.strictEqual(r.remote,1);
+      await fresh();await login('A');await ev(`(()=>{S.history=[];auditLog('reviewStart');save()})()`);await waitFor(`(()=>{const c=__cloud(),d=c['data/users/A/hub-d-core-0'];return d&&JSON.parse(d.s).history?.some(x=>x.type==='reviewStart')})()`,'histórico local na nuvem');await ev(`(async()=>{const db=firebase.firestore(),c=__cloud(),m=c['data/users/A/hub-meta'],st=JSON.parse(c['data/users/A/hub-d-core-0'].s);st.history.push({id:'remote-event',type:'reviewEnd',at:Date.now()});const j=JSON.stringify(st),rev=m.rev+1;await db.doc('data/users/A/hub-d-core-0').set({rev,i:0,s:j});await db.doc('data/users/A/hub-meta').set({...m,rev,dev:'outro',doms:{...m.doms,core:{rev,n:1,len:j.length}}})})()`);await waitFor(`S.history.some(x=>x.id==='remote-event')`,'evento remoto');const r=await ev(`({types:S.history.map(x=>x.type),remote:S.history.filter(x=>x.id==='remote-event').length})`);assert.ok(r.types.includes('reviewStart')&&r.types.includes('reviewEnd'));assert.strictEqual(r.remote,1);
     }],
     ['histórico criado offline mantém identidade após reconexão simulada', async () => {
-      await fresh();await login('A');await ev('localStorage.setItem("__offline","1")');await open();const id=await ev(`(()=>{auditLog('reviewStart');save();return S.history.find(x=>x.type==='reviewStart').id})()`);await open();assert.strictEqual(await ev(`S.history.filter(x=>x.id===${JSON.stringify(id)}).length`),1);await ev('localStorage.removeItem("__offline")');await open();await waitFor('FB.on&&SYS.s==="ok"','reconexão do histórico');await waitFor(`(()=>{const d=__cloud()['data/users/A/hub-0'];return d&&JSON.parse(d.s).history?.some(x=>x.id===${JSON.stringify(id)})})()`,'histórico remoto');assert.strictEqual(await ev(`S.history.filter(x=>x.id===${JSON.stringify(id)}).length`),1);
+      await fresh();await login('A');await ev('localStorage.setItem("__offline","1")');await open();const id=await ev(`(()=>{auditLog('reviewStart');save();return S.history.find(x=>x.type==='reviewStart').id})()`);await open();assert.strictEqual(await ev(`S.history.filter(x=>x.id===${JSON.stringify(id)}).length`),1);await ev('localStorage.removeItem("__offline")');await open();await waitFor('FB.on&&SYS.s==="ok"','reconexão do histórico');await waitFor(`(()=>{const d=__cloud()['data/users/A/hub-d-core-0'];return d&&JSON.parse(d.s).history?.some(x=>x.id===${JSON.stringify(id)})})()`,'histórico remoto');assert.strictEqual(await ev(`S.history.filter(x=>x.id===${JSON.stringify(id)}).length`),1);
     }],
     ['restauração pela lixeira é registrada sem conteúdo pessoal', async () => {
       await fresh();await login('A');const r=await ev(`(()=>{S.history=[];S.tasks=[{id:'t',t:'Nome privado',done:false,p:'m'}];S.view='tarefas';render();document.querySelector('[data-a=deltk][data-id=t]').click();const bin=S.trash.find(x=>x.id==='tk:t');trashRestore(bin.b);return {tasks:S.tasks.length,events:auditRead()}})()`);assert.strictEqual(r.tasks,1);assert.ok(r.events.some(x=>x.type==='trashRestore'));assert.ok(!JSON.stringify(r.events).includes('Nome privado'));
@@ -386,7 +387,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh();await login('A');const r=await ev(`(async()=>{S.tasks=[];S.view='tarefas';render();document.querySelector('#task-template').requestSubmit();document.querySelector('#task-template').requestSubmit();const expected=S.tasks.map(t=>({id:t.id,sub:t.sub.map(x=>x.id)})),data=JSON.stringify(pick());S.tasks=[];S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([data],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));return {expected,actual:S.tasks.map(t=>({id:t.id,sub:t.sub.map(x=>x.id)})),msg:document.querySelector('#bkmsg').textContent}})()`);assert.deepStrictEqual(r.actual,r.expected);assert.notStrictEqual(r.actual[0].id,r.actual[1].id);assert.notStrictEqual(r.actual[0].sub[0],r.actual[1].sub[0]);assert.match(r.msg,/restaurado/i);
     }],
     ['troca de conta isola projetos e histórico sincronizável', async () => {
-      await fresh();await login('A');await ev(`(()=>{S.projects=[{id:'a',t:'Projeto A',status:'active',start:'',end:'',archived:false,refs:[]}];S.history=[];auditLog('goalArchive');save()})()`);await waitFor(`(()=>{const d=__cloud()['data/users/A/hub-0'];return d&&JSON.parse(d.s).projects?.some(p=>p.id==='a')})()`,'projeto A na nuvem');await ev('fbLogout()');await waitFor('!FB.on','sair A');await login('B');const b=await ev(`({projects:S.projects,history:S.history})`);assert.ok(!b.projects.some(x=>x.id==='a'));assert.ok(!b.history.some(x=>x.type==='goalArchive'));await ev('fbLogout()');await waitFor('!FB.on','sair B');await login('A');const a=await ev(`({projects:S.projects,history:S.history})`);assert.ok(a.projects.some(x=>x.id==='a'));assert.ok(a.history.some(x=>x.type==='goalArchive'));
+      await fresh();await login('A');await ev(`(()=>{S.projects=[{id:'a',t:'Projeto A',status:'active',start:'',end:'',archived:false,refs:[]}];S.history=[];auditLog('goalArchive');save()})()`);await waitFor(`(()=>{const d=__cloud()['data/users/A/hub-d-core-0'];return d&&JSON.parse(d.s).projects?.some(p=>p.id==='a')})()`,'projeto A na nuvem');await ev('fbLogout()');await waitFor('!FB.on','sair A');await login('B');const b=await ev(`({projects:S.projects,history:S.history})`);assert.ok(!b.projects.some(x=>x.id==='a'));assert.ok(!b.history.some(x=>x.type==='goalArchive'));await ev('fbLogout()');await waitFor('!FB.on','sair B');await login('A');const a=await ev(`({projects:S.projects,history:S.history})`);assert.ok(a.projects.some(x=>x.id==='a'));assert.ok(a.history.some(x=>x.type==='goalArchive'));
     }],
     ['meta arquivada pausa tarefa vinculada recebida depois da mesclagem', async () => {
       await fresh();await login('A');const r=await ev(`(()=>{S.metas=[{id:'g',t:'Meta',ini:T,kr:[],archived:true,pausedTaskIds:[]}];S.tasks=[{id:'remote',t:'Tarefa criada offline',done:false,p:'m',mt:'g',due:T}];const paused=taskPaused(S.tasks[0]),alert=attention().some(x=>x.id==='remote');S.metas[0].archived=false;return {paused,alert,resumed:!taskPaused(S.tasks[0])}})()`);assert.ok(r.paused&&!r.alert&&r.resumed);
@@ -847,7 +848,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
     }],
     ['alteração remota concorrente não é sobrescrita', async () => {
       await fresh(); await login('A'); await addTask('t-base'); await waitCloud('A','t-base');
-      await ev(`(()=>{const get=metaRef.get.bind(metaRef);let once=true;metaRef.get=async()=>{const old=await get();if(once){once=false;const c=__cloud(),m=c['data/users/A/hub-meta'],data=JSON.parse(c['data/users/A/hub-0'].s);data.tasks.push({id:'t-outro',t:'t-outro',done:false});const j=JSON.stringify(data),rev=m.rev+1;c['data/users/A/hub-0']={rev,i:0,s:j};c['data/users/A/hub-meta']={...m,rev,len:j.length};localStorage.setItem('__cloud',JSON.stringify(c))}return old};S.tasks.push({id:'t-aqui',t:'t-aqui',done:false});push()})()`);
+      await ev(`(()=>{const get=metaRef.get.bind(metaRef);let once=true;metaRef.get=async()=>{const old=await get();if(once){once=false;const c=__cloud(),m=c['data/users/A/hub-meta'],data=JSON.parse(c['data/users/A/hub-d-core-0'].s);data.tasks.push({id:'t-outro',t:'t-outro',done:false});const j=JSON.stringify(data),rev=m.rev+1;c['data/users/A/hub-d-core-0']={rev,i:0,s:j};c['data/users/A/hub-meta']={...m,rev,doms:{...m.doms,core:{rev,n:1,len:j.length}}};localStorage.setItem('__cloud',JSON.stringify(c))}return old};S.tasks.push({id:'t-aqui',t:'t-aqui',done:false});push()})()`);
       await waitCloud('A','t-aqui');
       assert.ok((await cloudTasks('A')).includes('t-outro'),'a alteração concorrente deve sobreviver');
     }],
@@ -1016,7 +1017,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
     ['dados locais corrompidos não são substituídos nem enviados', async () => {
       await fresh(); await login('A'); await addTask('t-segura'); await waitCloud('A','t-segura');
       await ev(`localStorage.setItem('hub-v1','{inválido')`);await open();await sleep(2500);
-      const r=await ev(`({raw:localStorage.getItem('hub-v1'),message:document.body.innerText,cloud:__cloud()['data/users/A/hub-0'].s})`);
+      const r=await ev(`({raw:localStorage.getItem('hub-v1'),message:document.body.innerText,cloud:__cloud()['data/users/A/hub-d-core-0'].s})`);
       assert.strictEqual(r.raw,'{inválido');assert.match(r.message,/dados locais.*corrompid/i);assert.match(r.cloud,/t-segura/);
     }],
     ['salvamento recupera espaço de versões antigas quando necessário', async () => {
@@ -1152,19 +1153,19 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       assert.strictEqual(await ev('$(".app").inert'), true, 'hub deveria estar bloqueado');
       assert.ok(await ev('!!document.querySelector("#gate [data-a=fblogin]")'), 'falta o botão Entrar com o Google');
     }],
-    ['2. login libera o hub e grava hub-meta e hub-0', async () => {
+    ['2. login libera o hub e grava hub-meta e domínios na nuvem', async () => {
       await fresh(); await login('A');
       assert.strictEqual(await ev('$("#gate").hidden'), true);
       assert.strictEqual(await ev('$(".app").inert'), false);
       await addTask('t-um'); await waitCloud('A', 't-um');
       const keys = await ev('Object.keys(__cloud())');
-      assert.ok(keys.includes('data/users/A/hub-meta') && keys.includes('data/users/A/hub-0'), 'documentos: ' + keys);
+      assert.ok(keys.includes('data/users/A/hub-meta') && keys.includes('data/users/A/hub-d-core-0'), 'documentos: ' + keys);
     }],
     ['3. mudança de outro aparelho é mesclada', async () => {
       await fresh(); await login('A'); await addTask('t-local'); await waitCloud('A', 't-local');
-      await ev(`(async()=>{const d=firebase.firestore(),c=__cloud(),m=c["data/users/A/hub-meta"],st=JSON.parse(c["data/users/A/hub-0"].s);
+      await ev(`(async()=>{const d=firebase.firestore(),c=__cloud(),m=c["data/users/A/hub-meta"],st=JSON.parse(c["data/users/A/hub-d-core-0"].s);
         st.tasks.push({id:"t-remoto",t:"t-remoto",d:false});const s=JSON.stringify(st),rev=m.rev+1;
-        await d.doc("data/users/A/hub-0").set({rev,i:0,s});await d.doc("data/users/A/hub-meta").set({rev,n:1,dev:"outro",at:"",len:s.length,v:1})})()`);
+        await d.doc("data/users/A/hub-d-core-0").set({rev,i:0,s});await d.doc("data/users/A/hub-meta").set({...m,rev,dev:"outro",doms:{...m.doms,core:{rev,n:1,len:s.length}}})})()`);
       await waitFor('S.tasks.some(t=>t.t==="t-remoto")', 'tarefa remota chegar');
       assert.deepStrictEqual((await localTasks()).sort(), ['t-local', 't-remoto']);
     }],

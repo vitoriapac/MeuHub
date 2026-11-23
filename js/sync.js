@@ -1,6 +1,13 @@
 // sincronização entre aparelhos: mescla, envio/recebimento, Firebase, tela de login e troca de conta
-const SK=['events','notes','tasks','links','inbox','habits','fin','dia','metas','projects','history','revm','rev','revprefs','fm','fpj','goal','focus','cards','frase','frasen','menu','pal','acc','themeMode','profileName','nav','dens','trash','rem','rot','rotPrefs','cap','availability','lnk','reads','sp','spsel','wx','keys','hc','rmo','seeded'];let CH=300000;
+const SK=['events','notes','tasks','links','inbox','habits','fin','dia','diaArchives','metas','projects','history','revm','rev','revprefs','fm','fpj','goal','focus','cards','frase','frasen','menu','pal','acc','themeMode','profileName','nav','dens','trash','rem','rot','rotPrefs','cap','availability','lnk','reads','sp','spsel','wx','keys','hc','rmo','seeded'];let CH=300000;
+const DOMS={
+ core:['events','tasks','inbox','habits','metas','projects','history','rot','rotPrefs','cap','availability','lnk','fm','goal','focus','rem','rev','revm','revprefs'],
+ notes:['notes','links','dia','diaArchives','reads'],
+ fin:['fin','fpj'],
+ prefs:['cards','frase','frasen','menu','pal','acc','themeMode','profileName','nav','dens','trash','sp','spsel','wx','keys','hc','rmo','seeded']
+};
 const pick=()=>{const o={};SK.forEach(k=>{o[k]=S[k]});return o},pickJSON=()=>JSON.stringify(pick());
+const pickDom=d=>{const o={};DOMS[d].forEach(k=>{o[k]=S[k]});return o},pickDomJSON=d=>JSON.stringify(pickDom(d));
 let FRESH=false;try{FRESH=!localStorage.getItem('hub-v1')}catch(e){}
 let SY={};try{SY=JSON.parse(localStorage.getItem('hub-sync')||'{}')}catch(e){}
 const hadSY=!!SY.dev;SY.dev=SY.dev||'d'+uid()+uid();if(!hadSY)SY.p=FRESH?pickJSON():'';SY.rev=SY.rev||0;
@@ -24,7 +31,7 @@ function setSt(s,d){
 const syncPanel=()=>{
  const last=SY.lastAt?new Date(SY.lastAt).toLocaleString('pt-BR'):'ainda não confirmada',pending=LOCAL_CORRUPT?'indisponíveis até recuperar os dados':!SY.last||pickJSON()!==SY.last?'há alterações locais pendentes':'nenhuma alteração pendente';
  const head=`<div class="panel" style="margin-top:var(--space-4)"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 var(--space-2)">${esc(synText())}</p><p class="empty">Última sincronização: ${esc(last)}. Estado das alterações: ${pending}.</p>`;
- const btns=`<div class="bar"><button class="pill dark" data-a="syncnow">Sincronizar agora</button><button class="pill" data-a="syncup">Enviar este aparelho para a nuvem</button><button class="pill" data-a="syncdown">Trazer os dados da nuvem</button><button class="pill" data-a="fbout">Sair da conta</button></div>`;
+ const btns=`<div class="bar"><button class="pill dark" data-a="syncnow">Sincronizar agora</button><button class="pill${ARM==='syncup'?' dark':''}" data-a="syncup">${ARM==='syncup'?'Confirmar: enviar para a nuvem':'Enviar este aparelho para a nuvem'}</button><button class="pill${ARM==='syncdown'?' dark':''}" data-a="syncdown">${ARM==='syncdown'?'Confirmar: trazer da nuvem':'Trazer os dados da nuvem'}</button>${ARM?'<button class="pill" data-a="synccancel">Cancelar</button>':''}<button class="pill" data-a="fbout">Sair da conta</button></div>`;
  if(!FB_CONFIG)return head+'<p class="empty" style="padding:0">A sincronização ainda não foi configurada (veja o README do projeto). Os dados ficam só neste navegador.</p></div>';
  if(FB.err)return head+'<p class="empty" style="padding:0">Sem conexão com o servidor. Suas mudanças ficam neste aparelho e são sincronizadas quando você abrir o site de novo com internet.</p></div>';
  if(DBr)return head+btns+`<p class="empty" style="padding:0">Conectado${FB.email?' como <strong>'+esc(FB.email)+'</strong>':''}. Seus dados ficam guardados na sua conta e só você tem acesso. Alterações feitas em aparelhos diferentes são mescladas item a item. "Enviar" e "Trazer" substituem o outro lado e pedem um segundo clique para confirmar.</p></div>`;
@@ -51,14 +58,33 @@ function remoteFormDirty(){return [...document.querySelectorAll('#main form')].s
 function remoteEditing(){const a=document.activeElement;return !!(a.closest&&a.closest('#main')&&(/INPUT|TEXTAREA|SELECT/.test(a.tagName)||a.isContentEditable))}
 function after(){save();if(remoteEditing()||remoteFormDirty())remoteRenderPending=true;else render()}
 document.addEventListener('focusout',()=>{if(remoteRenderPending)setTimeout(()=>{if(remoteRenderPending&&!remoteEditing()&&!remoteFormDirty())render()},0)});
-async function readRemote(m){const cs=await Promise.all([...Array(m.n)].map((_,i)=>DBr.doc(P+'hub-'+i).get()));if(cs.some(c=>!c.exists||c.data().rev!==m.rev))return null;const rj=cs.map(c=>c.data().s).join('');return{rj,remote:JSON.parse(rj)}}
+async function readRemote(m){
+ if(m&&m.v===2&&m.doms){
+  const remote={},domRevs={},domLast={},domN={};
+  for(const d of Object.keys(DOMS)){
+   const dm=m.doms[d];if(!dm)continue;
+   if(SY.domRevs&&SY.domRevs[d]===dm.rev&&SY.domLast&&SY.domLast[d]){
+    Object.assign(remote,JSON.parse(SY.domLast[d]));
+    domRevs[d]=dm.rev;domLast[d]=SY.domLast[d];domN[d]=dm.n;
+   }else{
+    const cs=await Promise.all([...Array(dm.n)].map((_,i)=>DBr.doc(P+'hub-d-'+d+'-'+i).get()));
+    if(cs.some(c=>!c.exists||c.data().rev!==dm.rev))return null;
+    const dj=cs.map(c=>c.data().s).join('');
+    Object.assign(remote,JSON.parse(dj));
+    domRevs[d]=dm.rev;domLast[d]=dj;domN[d]=dm.n;
+   }
+  }
+  const ordered={};SK.forEach(k=>{if(k in remote)ordered[k]=remote[k]});
+  return{rj:JSON.stringify(ordered),remote:ordered,domRevs,domLast,domN};
+ }
+ const cs=await Promise.all([...Array(m.n)].map((_,i)=>DBr.doc(P+'hub-'+i).get()));if(cs.some(c=>!c.exists||c.data().rev!==m.rev))return null;const rj=cs.map(c=>c.data().s).join('');return{rj,remote:JSON.parse(rj)}}
 async function pullRemote(m,replace){
  const r=await readRemote(m);if(!r)return false;
  const cur=pickJSON(),dirty=cur!==SY.last,fresh=!SY.last&&SY.p&&cur===SY.p;
  if(!LOCAL_CORRUPT&&(replace||(dirty&&!fresh))&&!snapPut('Antes de receber dados de outro aparelho')){setSt('err','não foi possível criar uma versão local');toast('Não foi possível guardar a versão atual. Exporte um backup e libere espaço.');return false}
  if(replace||fresh||!dirty){applyState(r.remote);if(replace)LOCAL_CORRUPT=false;}
  else{const conflicts=[],merged=merge3(SY.last?JSON.parse(SY.last):{},pick(),r.remote,conflicts);if(conflicts.length&&!snapPut('Versão recebida com conflito',0,r.remote)){setSt('err','não foi possível guardar a versão recebida');toast('Não foi possível guardar a versão recebida. Exporte um backup e libere espaço.');return false}applyState(merged);toast(conflicts.length?'O mesmo campo mudou em dois aparelhos. Mantivemos o valor local; as duas versões estão em Backup.':'Alterações de outro aparelho foram mescladas. A versão anterior está em Backup.')}
- SY.rev=m.rev;SY.last=r.rj;SY.n=m.n;SY.p='';saveSY();undoReset();after();return true}
+ SY.rev=m.rev;SY.last=r.rj;SY.n=m.n||0;SY.domRevs=r.domRevs||null;SY.domLast=r.domLast||null;SY.domN=r.domN||null;SY.p='';saveSY();undoReset();after();return true}
 // pedaços de até n caracteres sem separar um emoji (par surrogate): metade solta vira "�" no Firestore
 const chunks=(s,n)=>{const p=[];for(let i=0;i<s.length;){let e=Math.min(i+n,s.length);if(e<s.length&&e-1>i&&/[\uD800-\uDBFF]/.test(s[e-1]))e--;p.push(s.slice(i,e));i=e}return p.length?p:['']};
 async function push(force,skipRec){
@@ -67,12 +93,27 @@ async function push(force,skipRec){
  pushing=true;setSt('sync');
  try{
   let expected=SY.rev;if(!skipRec){const s=await metaRef.get();expected=s.exists?s.data().rev:0;if(s.exists&&s.data().rev>SY.rev){const ok=await pullRemote(s.data());if(!ok){setTimeout(syncSoon,3000);return false}}}
-  const j=pickJSON();if(j===SY.last&&!force){setSt('ok');return true}
-  const rev=Math.max(Date.now(),SY.rev+1),parts=chunks(j,CH),n=parts.length;
+  const j=pickJSON();if(j===SY.last&&!force&&SY.domRevs){setSt('ok');return true}
+  const rev=Math.max(Date.now(),SY.rev+1),doms={},nextRevs={},nextLast={},nextN={},writes=[];
+  for(const d of Object.keys(DOMS)){
+   const dj=pickDomJSON(d),unchanged=!force&&SY.domRevs&&SY.domRevs[d]&&SY.domLast&&SY.domLast[d]===dj;
+   if(unchanged){
+    doms[d]={rev:SY.domRevs[d],n:SY.domN[d],len:dj.length};
+    nextRevs[d]=SY.domRevs[d];nextLast[d]=dj;nextN[d]=SY.domN[d];
+   }else{
+    const parts=chunks(dj,CH),dn=parts.length;
+    doms[d]={rev,n:dn,len:dj.length};
+    nextRevs[d]=rev;nextLast[d]=dj;nextN[d]=dn;
+    for(let i=0;i<dn;i++)writes.push([DBr.doc(P+'hub-d-'+d+'-'+i),{rev,i,s:parts[i]}]);
+   }
+  }
+  const prevN=SY.n||0,prevDomN=SY.domN?{...SY.domN}:{};
   await DBr.runTransaction(async tx=>{const current=await tx.get(metaRef);if(!skipRec&&(current.exists?current.data().rev:0)!==expected){const e=new Error('revisão mudou');e.code='hub-conflict';throw e}
-   for(let i=0;i<n;i++)tx.set(DBr.doc(P+'hub-'+i),{rev,i,s:parts[i]});
-   tx.set(metaRef,{rev,n,dev:SY.dev,at:new Date().toISOString(),len:j.length,v:1})});
-  SY.rev=rev;SY.last=j;SY.n=n;SY.p='';saveSY();setSt(pickJSON()===j?'ok':'sync');
+   writes.forEach(([ref,doc])=>tx.set(ref,doc));
+   tx.set(metaRef,{rev,v:2,dev:SY.dev,at:new Date().toISOString(),len:j.length,doms})});
+  SY.rev=rev;SY.last=j;SY.n=0;SY.domRevs=nextRevs;SY.domLast=nextLast;SY.domN=nextN;SY.p='';saveSY();setSt(pickJSON()===j?'ok':'sync');
+  for(let i=0;i<prevN;i++)DBr.doc(P+'hub-'+i).delete().catch(()=>{});
+  for(const d of Object.keys(DOMS))for(let i=nextN[d];i<(prevDomN[d]||0);i++)DBr.doc(P+'hub-d-'+d+'-'+i).delete().catch(()=>{});
   return true;
  }catch(e){const c=e&&e.code;if(c==='hub-conflict'){setSt('sync');setTimeout(syncSoon,0);return false}if(c==='invalid_argument'&&!SY.last){DEAD=true;setSt('local','sem permissão de gravação')}else{setSt('err',c);setTimeout(syncSoon,c==='quota_exceeded'?3e5:3e4)}return false}
  finally{pushing=false;if(again){again=false;syncSoon()}}
@@ -81,13 +122,14 @@ function syncSoon(){if(!DBr||DEAD)return;clearTimeout(ST);ST=setTimeout(()=>push
 async function handleMeta(snap){
  if(LOCAL_CORRUPT){setSt('err','dados locais corrompidos');return}
  if(!snap.exists){if(snap.metadata&&snap.metadata.fromCache)return;const g=await metaRef.get();if(!g.exists)await push(true);return}
- const m=snap.data();if(m.rev<=SY.rev)return;
+ const m=snap.data();if(m.rev<=SY.rev){if(m.rev===SY.rev&&pickJSON()===SY.last)setSt('ok');return}
  if(!(await pullRemote(m)))setTimeout(()=>metaRef.get().then(handleMeta).catch(()=>{}),2000);else setSt(pickJSON()===SY.last?'ok':'sync')}
 async function syncAct(a){
+ if(a==='synccancel'){ARM=null;if(S.view==='backup')render({save:false});return}
  if(!DBr){toast('Sincronização indisponível neste aparelho');return}
  if(a==='syncnow'){toast(await push()?'Sincronizado':'Não foi possível sincronizar. Tente novamente.');return}
- if(ARM!==a){ARM=a;toast(a==='syncup'?'Clique de novo para substituir a nuvem por este aparelho':'Clique de novo para substituir este aparelho pela nuvem');setTimeout(()=>{if(ARM===a)ARM=null},6000);return}
- ARM=null;
+ if(ARM!==a){ARM=a;toast(a==='syncup'?'Clique de novo para substituir a nuvem por este aparelho':'Clique de novo para substituir este aparelho pela nuvem');if(S.view==='backup')render({save:false});setTimeout(()=>{if(ARM===a){ARM=null;if(S.view==='backup')render({save:false})}},6000);return}
+ ARM=null;if(S.view==='backup')render({save:false});
  if(a==='syncup'){toast(await push(true,true)?'Nuvem atualizada com os dados deste aparelho':'Não foi possível atualizar a nuvem. Tente novamente.')}
  else{const s=await metaRef.get();if(!s.exists){toast('Não há dados na nuvem ainda');return}const ok=await pullRemote(s.data(),true);toast(ok?'Dados da nuvem carregados':'Tente de novo em instantes')}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)push()});
@@ -108,6 +150,7 @@ function fbInit(){
    if(u&&!SY.uid){SY.uid=u.uid;saveSY()}
    FB.ready=true;FB.on=!!u;FB.email=u&&u.email||'';
    if(u){DBr=firebase.firestore();P='data/users/'+u.uid+'/';metaRef=DBr.doc(P+'hub-meta');DEAD=false;setSt('sync');
+    if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
     fbUnsub=metaRef.onSnapshot(sn=>{chain=chain.then(()=>handleMeta(sn)).catch(e=>setSt('err',e&&e.code))},e=>setSt('err',e&&e.code))}
    else{DBr=null;setSt('local')}
    render()})
@@ -131,7 +174,7 @@ function acctSwap(from,to){
  }else{
   ks.forEach(k=>ls.removeItem(k));
  }
- ls.removeItem(SNK);ls.removeItem('hub-acct-'+to);location.reload();
+ ls.removeItem(SNK);ls.removeItem('hub-ui');ls.removeItem('hub-acct-'+to);location.reload();
 }
 async function fbLogout(){if(!FB.auth)return;if(!(await push())){toast('Não foi possível sincronizar. Você continua na conta; tente novamente.');return}try{await FB.auth.signOut();toast('Você saiu da conta. Os dados continuam salvos na nuvem.')}catch(e){toast('Não foi possível sair da conta. Tente novamente.')}}
 /* tela de login: o site só abre depois de entrar (sem FB_CONFIG não há login possível, então abre direto) */

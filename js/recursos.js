@@ -446,15 +446,14 @@ async function findCover(id){
  const q=input.value.trim();if(!q){toast('Informe um título para buscar');return}
  const seq=++RD.seq;RD.lookup={id,q,seq,loading:true,results:[]};
  let el=document.getElementById('cover-results-'+id);if(el)el.innerHTML=coverResults(r);
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
  try{
-  const results=await lookupMediaMeta(r.k||'livro',q,controller.signal,true);
+  const results=await withTimeout(12000,signal=>lookupMediaMeta(r.k||'livro',q,signal,true));
   if(!RD.lookup||RD.lookup.seq!==seq)return;
   RD.lookup.loading=false;RD.lookup.results=results;
  }catch(e){
   if(!RD.lookup||RD.lookup.seq!==seq)return;
   RD.lookup.loading=false;RD.lookup.error='Não foi possível buscar agora. Confira a conexão e tente novamente.';
- }finally{clearTimeout(timer)}
+ }
  el=document.getElementById('cover-results-'+id);if(el)el.innerHTML=coverResults(r);
 }
 function renderNewReadLookup(){
@@ -480,15 +479,14 @@ async function findNewReadMeta(){
  if(kind==='artigo'||kind==='podcast'){toast('Busca automática disponível para livros, filmes e séries');return}
  const seq=++RD.seq;RD.newLookup={q,kind,seq,loading:true,results:[]};RD.draftMeta=null;
  let el=document.getElementById('frd-lookup');if(el)el.outerHTML=renderNewReadLookup();
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
  try{
-  const results=await lookupMediaMeta(kind,q,controller.signal,false);
+  const results=await withTimeout(12000,signal=>lookupMediaMeta(kind,q,signal,false));
   if(!RD.newLookup||RD.newLookup.seq!==seq)return;
   RD.newLookup.loading=false;RD.newLookup.results=results;
  }catch(e){
   if(!RD.newLookup||RD.newLookup.seq!==seq)return;
   RD.newLookup.loading=false;RD.newLookup.error='Não foi possível buscar dados agora. Confira a conexão e tente novamente.';
- }finally{clearTimeout(timer)}
+ }
  el=document.getElementById('frd-lookup');if(el)el.outerHTML=renderNewReadLookup();
 }
 function renderBookSpine(r,i){
@@ -664,7 +662,8 @@ function snapPut(why,minGap,state){
  try{const data=state||pick(),j=JSON.stringify(data),L=snaps();if(L[0]&&L[0].j===j)return true;if(minGap&&L[0]&&Date.now()-L[0].t<minGap)return false;
   const F=data.fin||{};L.unshift({t:Math.max(Date.now(),L[0]?L[0].t+1:0),why,j,c:{tk:(data.tasks||[]).length,ev:(data.events||[]).length,nt:(data.notes||[]).length,tx:(F.tx||[]).length}});
   while(L.length>SNMAX)L.pop();
-  for(;;){try{const s=JSON.stringify(L);localStorage.setItem(SNK,s);if(typeof idbPut==='function')idbPut(SNK,s);return true}catch(e){if(L.length<=(state?2:1))return false;L.pop()}}}catch(e){return false}}
+  if(typeof idbPut==='function')idbPut(SNK,JSON.stringify(L));
+  for(;;){try{localStorage.setItem(SNK,JSON.stringify(L));return true}catch(e){if(L.length<=(state?2:1))return false;L.pop()}}}catch(e){return false}}
 function snapAuto(){if(LOCAL_CORRUPT)return;const has=(S.tasks||[]).length+(S.events||[]).length+(S.notes||[]).length+(S.inbox||[]).length+((S.fin||{}).tx||[]).length+(S.habits||[]).length>0;const L=snaps();if(!has)return;if(L[0]&&Date.now()-L[0].t<12*36e5)return;snapPut('Automática')}
 setTimeout(snapAuto,4000);setInterval(snapAuto,30*60e3);
 function snapRestore(t){
@@ -680,9 +679,20 @@ function snapRestore(t){
  render();toast('Versão de '+snapFmt(t)+' restaurada.'+(wasCorrupt?'':' Os dados anteriores foram guardados como versão.'),!wasCorrupt);
 }
 const snapFmt=t=>new Date(t).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+async function restoreIdbSnaps(){
+ const raw=typeof idbGet==='function'?await idbGet(SNK):null;
+ if(!raw||typeof raw!=='string'){toast('Nenhuma versão encontrada no IndexedDB deste navegador.');return}
+ let list=null;try{list=JSON.parse(raw)}catch(e){}
+ if(!Array.isArray(list)||!list.length){toast('Nenhuma versão válida encontrada no IndexedDB.');return}
+ const cur=snaps(),seen=new Set(cur.map(x=>x&&x.t));
+ const merged=[...cur,...list.filter(x=>x&&typeof x.t==='number'&&typeof x.j==='string'&&!seen.has(x.t))].sort((a,b)=>b.t-a.t).slice(0,SNMAX);
+ if(!merged.length){toast('Nenhuma versão válida encontrada no IndexedDB.');return}
+ while(merged.length){try{localStorage.setItem(SNK,JSON.stringify(merged));break}catch(e){if(merged.length<=1){toast('Sem espaço no navegador para restaurar as versões.');return}merged.pop()}}
+ render({save:false});toast(merged.length+' versão(ões) disponível(is) a partir do IndexedDB.');
+}
 function snapPanel(){
  const L=snaps();
- return `<div class="panel"><h2>Versões automáticas</h2><p class="empty" style="padding:0 0 var(--space-2)">O hub guarda uma versão por dia e antes de trocar seus dados por outros, até ${SNMAX}. Ficam só neste aparelho e não substituem um backup em arquivo.</p>${L.map(x=>`<div class="item"><span class="chip c-b">${ic('clock',14)}</span><div class="t">${snapFmt(x.t)} · ${esc(x.why)}<small>${x.c.tk} tarefas · ${x.c.ev} eventos · ${x.c.nt} notas · ${x.c.tx} lançamentos</small></div><button class="pill" data-a="snaprest" data-id="${x.t}">Restaurar</button></div>`).join('')||'<p class="empty">Nenhuma versão ainda. A primeira é criada sozinha assim que houver dados.</p>'}<div class="bar" style="margin:var(--space-2) 0 0"><button class="pill dark" data-a="snapnow">Salvar versão agora</button></div></div>`}
+ return `<div class="panel"><h2>Versões automáticas</h2><p class="empty" style="padding:0 0 var(--space-2)">O hub guarda uma versão por dia e antes de trocar seus dados por outros, até ${SNMAX}. Ficam só neste aparelho e não substituem um backup em arquivo.</p>${L.map(x=>`<div class="item"><span class="chip c-b">${ic('clock',14)}</span><div class="t">${snapFmt(x.t)} · ${esc(x.why)}<small>${x.c.tk} tarefas · ${x.c.ev} eventos · ${x.c.nt} notas · ${x.c.tx} lançamentos</small></div><button class="pill" data-a="snaprest" data-id="${x.t}">Restaurar</button></div>`).join('')||'<p class="empty">Nenhuma versão ainda. A primeira é criada sozinha assim que houver dados.</p>'}<div class="bar" style="margin:var(--space-2) 0 0"><button class="pill dark" data-a="snapnow">Salvar versão agora</button><button class="pill" data-a="idbsnaps" title="Recupera versões automáticas guardadas no IndexedDB deste navegador">Recuperar versões (IndexedDB)</button></div></div>`}
 /* paleta de comandos */
 let CK=null;
 function ckItems(q){

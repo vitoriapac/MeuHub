@@ -9,7 +9,7 @@ Este documento descreve como o **Meu Hub** é construído por dentro: a divisão
 O Meu Hub segue uma arquitetura **zero-build, local-first e sem dependências de execução (zero-npm)**:
 
 - **Sem etapa de compilação:** os arquivos `.html`, `.css` e `.js` da pasta raiz são servidos exatamente como estão pelo GitHub Pages (`https://vitoriapac.github.io/MeuHub/`) ou por qualquer servidor estático local (`python -m http.server 8080`).
-- **Scripts clássicos em escopo global compartilhado:** em vez de bundlers ou ES Modules (`import`/`export`), os 6 arquivos JavaScript são carregados em sequência determinística no `index.html`. Símbolos globais curtos (`S`, `V`, `PAL`, `render`, `save`, `$`, `esc`, `toast`) funcionam como a API interna entre os módulos.
+- **Scripts clássicos em escopo global compartilhado:** em vez de bundlers ou ES Modules (`import`/`export`), os 8 arquivos JavaScript são carregados em sequência determinística no `index.html`. Símbolos globais curtos (`S`, `V`, `PAL`, `render`, `save`, `$`, `esc`, `toast`) funcionam como a API interna entre os módulos.
 - **Local-first com sincronização em nuvem:** toda leitura e escrita da interface acontece instantaneamente sobre o objeto em memória `S` e no `localStorage` (`hub-v1`). O Firebase Firestore atua como camada de replicação assíncrona em segundo plano, com mescla automática item a item (`merge3`).
 - **Isolamento rigoroso entre contas:** cada conta Google lê e grava apenas em `data/users/<uid>/` no Firestore, e a troca de usuário no mesmo navegador isola o estado local em `hub-acct-<uid>`.
 
@@ -20,12 +20,12 @@ flowchart TB
         Events["Delegação Central de Eventos\n(js/main.js: click, submit, input, change, paste, keydown)"]
         State["Estado em Memória (S)\n+ Histórico Undo/Redo (UH / UR)"]
         LS[("localStorage\nhub-v1, hub-sync, hub-snaps,\nhub-acct-<uid>, hub-wxc")]
-        SW["Service Worker (sw.js)\nCache hub-shell-?v=... + Google Fonts"]
+        SW["Service Worker (sw.js)\nCache meuhub-v?v=... + fontes locais + capas"]
     end
 
     subgraph Cloud["Serviços Externos"]
         Auth["Firebase Auth\n(Login com Google via Pop-up)"]
-        FS[("Cloud Firestore\ndata/users/<uid>/hub-meta\ndata/users/<uid>/hub-0..n")]
+        FS[("Cloud Firestore\ndata/users/<uid>/hub-meta\nhub-d-<dom>-0..n (e arquivos anuais)")]
         Meteo["Open-Meteo API\n(Geocoding + Clima sem chave)"]
         Spotify["Spotify Embed\n(open.spotify.com/embed)"]
     end
@@ -36,7 +36,7 @@ flowchart TB
     State <-->|"leitura imediata / gravação síncrona"| LS
     State <-->|"pull / push (debounce 2s) + merge3()"| FS
     Auth -->|"onAuthStateChanged (uid)"| State
-    SW <-->|"Cache-first (casca) / Stale-while-revalidate (fonte)"| UI
+    SW <-->|"Cache-first (casca e fontes locais)"| UI
     UI <-->|"fetch coordenadas (cache 30 min)"| Meteo
     UI <-->|"iframe persistente fora de #main"| Spotify
 ```
@@ -120,6 +120,9 @@ Esta tabela resume os campos mais relevantes; `DEF_STATE()`, `S`, `SK` e `validB
 | `hub-view-profiles` | Perfis nomeados de cards e menu; não são incluídos em backups nem sincronizados. | Por conta (trocado via `acctSwap`). |
 | `hub-acct-<uid>` | Cópia das chaves da conta anterior (`hub-v1`, `hub-sync`, `hub-history`, `hub-view-profiles`, excluindo `hub-snaps`) ao alternar usuários no navegador. | Persistente por `uid`. |
 | `hub-wxc` | Cache de 30 minutos da resposta meteorológica do Open-Meteo (`{ key, ts, cur, d }`). | Global do navegador. |
+| `hub-ui` | Chaves leves de navegação (`view`, `ftab`, `fvw`, `dvw`, `fmo`, `ddo`), gravadas por `saveUI()` sem serializar `S`. | Por conta (limpa em `acctSwap`). |
+
+Além do `localStorage`, o banco `meuhub-db` no **`IndexedDB`** guarda o espelho de recuperação de `hub-v1`, a lista completa de `hub-snaps` e os arquivos anuais (`fin-archive-<ano>`, `dia-archive-<ano>`), com compactação `gzip` nativa (`CompressionStream`) e gravação assíncrona via `scheduleIdbSync()` (com *flush* garantido em `pagehide` e `visibilitychange`).
 
 ---
 
@@ -127,7 +130,7 @@ Esta tabela resume os campos mais relevantes; `DEF_STATE()`, `S`, `SK` e `validB
 
 ### 4.1. Pipeline de renderização (`render(opts)`)
 
-`render(opts)` em `js/main.js` reconstrói `#main` a partir da busca ou da view `V[S.view]` (onde `dash()` constrói apenas os cards ativos e `financasMes(tab)` apenas a aba ativa), atualiza o menu, Pomodoro, etiquetas, acessibilidade e Spotify, e chama `save()` — exceto quando recebe `{ save: false }` (usado na digitação da busca global `#q` e no ponteiro automático de 1 minuto). `renderKeepDraft()` preserva determinados valores de formulários durante atualizações; a sincronização também adia a atualização visual quando há edição ou formulário alterado.
+`render(opts)` em `js/main.js` reconstrói `#main` a partir da busca ou da view `V[S.view]` (onde `dash()` constrói apenas os cards ativos e `financasMes(tab)` apenas a aba ativa), atualiza o menu, Pomodoro, etiquetas, acessibilidade e Spotify, e chama `save()` — exceto quando recebe `{ save: false }` (usado na navegação entre telas com `saveUI()`, na paginação `pgmore`, na digitação da busca global `#q` e no ponteiro automático de 1 minuto). `renderKeepDraft()` preserva determinados valores de formulários durante atualizações; a sincronização também adia a atualização visual quando há edição ou formulário alterado.
 
 `save()` serializa `S` em `hub-v1`, acompanha desfazer e agenda `syncSoon()` quando o salvamento local permite. O envio compara `pickJSON()` com `SY.last` e não grava no Firestore quando não houve mudança sincronizável. A renderização padrão mantém efeitos de persistência e não deve ser tratada como função pura sem `{ save: false }`.
 
@@ -167,11 +170,12 @@ sequenceDiagram
     AppB->>AppB: S = merge3(base, local, remoto) + render()
 ```
 
-### 5.1. Fragmentação Segura em Pedaços (`chunks`)
-O Firestore impõe limite de 1 MiB por documento. Para suportar anos de diário, notas e finanças sem falhar:
-- O JSON do estado `S` é dividido em blocos de até `CH = 300.000` caracteres (`hub-0`, `hub-1`, ...) gravados em uma transação atômica junto com `hub-meta` (`{ rev, n, dev, at, len, v }`). A transação verifica a revisão observada; se outro aparelho gravou primeiro, o envio é repetido após baixar e mesclar os dados. Pedaços antigos excedentes ficam ignorados e podem ser reutilizados em envios futuros.
-- A função [`chunks(str)`](file:///c:/Users/vitor/Documents/MeuHub/js/sync.js#L71-L74) verifica se o ponto de corte cai em um **high surrogate UTF-16** (`0xD800`–`0xDBFF`). Se cair, recua 1 unidade de código para nunca partir um emoji de 4 bytes ao meio (testado no Cenário 7).
-- O listener em tempo real (`onSnapshot`) escuta **apenas** o documento leve `hub-meta`, economizando leituras da cota gratuita do Firestore.
+### 5.1. Sincronização por Domínio e Fragmentação Segura (`chunks`)
+O Firestore impõe limite de 1 MiB por documento. Para economizar gravações e suportar anos de diário, notas e finanças sem falhar:
+- **Partição por domínio (`v: 2`):** as 43 chaves de `SK` são divididas em 4 domínios independentes (`core`, `notes`, `fin`, `prefs`). Em `push()`, apenas os domínios alterados são fragmentados em blocos de até `CH = 300.000` caracteres (`hub-d-<dom>-0..n`) e gravados em uma transação atômica junto com `hub-meta` (`{ rev, v: 2, dev, at, len, doms }`). Documentos órfãos de `v: 1` (`hub-0..n`) ou chunks excedentes são removidos após a transação.
+- **Compatibilidade retroativa:** `readRemote()` lê tanto `v: 2` (baixando apenas domínios cuja revisão mudou) quanto `v: 1` (`hub-0..n`) legado, reconstruindo o objeto na ordem exata de `SK`.
+- **Preservação de emojis:** [`chunks(str)`](file:///c:/Users/vitor/Documents/MeuHub/js/sync.js) verifica se o ponto de corte cai em um **high surrogate UTF-16** (`0xD800`–`0xDBFF`). Se cair, recua 1 unidade de código para nunca partir um emoji de 4 bytes ao meio (testado no Cenário 7).
+- **Escuta leve e persistência:** `onSnapshot` escuta **apenas** `hub-meta`, e após o login o app solicita `navigator.storage.persist()` para proteger o armazenamento offline.
 
 ### 5.2. Algoritmo de Mescla de Três Vias (`merge3`)
 Quando dois aparelhos editam antes de sincronizar, `merge3(base, local, remoto)` compara cada campo com a última versão sincronizada, armazenada em `hub-sync.last`. Se apenas um lado mudou, essa alteração é mantida. Objetos são mesclados por campo e listas de objetos com `id`, por item; exclusões sem alteração concorrente são propagadas. Para valores ou listas sem IDs alterados dos dois lados, prevalece o valor local. Antes de aplicar uma mescla ou substituição que envolva alterações locais, o aplicativo tenta guardar uma versão neste aparelho; se não conseguir, interrompe a operação e orienta a exportar um backup.
@@ -188,7 +192,7 @@ O Meu Hub funciona como aplicativo instalável (Android, iOS, Windows, macOS e L
 
 1. **[`manifest.webmanifest`](file:///c:/Users/vitor/Documents/MeuHub/manifest.webmanifest):** define `display: "standalone"`, orientação, cores e 5 atalhos de contexto no ícone do app (`Hoje`, `Nova tarefa`, `Novo gasto`, `Agenda` e `Finanças`), que abrem `index.html?v=...` ou `index.html?qa=...` (tratados no final de [`js/main.js`](file:///c:/Users/vitor/Documents/MeuHub/js/main.js)).
 2. **[`sw.js`](file:///c:/Users/vitor/Documents/MeuHub/sw.js):**
-   - **Precache versionado (`CACHE = 'hub-shell-' + VER`):** armazena `index.html`, `css/style.css`, os 6 arquivos `js/*.js`, `manifest.webmanifest` e os ícones de `img/`.
+   - **Precache versionado (`CACHE = 'meuhub-v' + VER`):** armazena `index.html`, `css/style.css`, os 8 arquivos `js/*.js`, `fonts/outfit-*.woff2`, `manifest.webmanifest` e os ícones de `img/`.
    - **Bypass estrito de APIs dinâmicas:** requisições para `googleapis.com`, `gstatic.com`, `firebaseio.com`, `open-meteo.com` e `spotify.com` nunca são interceptadas pelo cache do Service Worker, evitando interferência na autenticação ou nos dados em tempo real.
    - **Cache-first para a casca + fallback de navegação:** permite abrir o app instantaneamente mesmo em modo avião.
 3. **Sincronização da barra de status (`theme-color`):** [`applyTheme()`](file:///c:/Users/vitor/Documents/MeuHub/js/core.js) atualiza dinamicamente `<meta name="theme-color">` com a cor `--bg` da paleta e do tema (claro/escuro) ativos.
@@ -217,7 +221,7 @@ flowchart LR
 ```
 
 1. **Servidor HTTP embutido com injeção de Mock:** entrega todos os arquivos reais do projeto, mas intercepta `js/sync.js` para injetar uma implementação completa em memória/localStorage de `window.firebase` (simulando `auth`, `firestore`, `writeBatch`, `onSnapshot`, latência de rede e falhas offline).
-2. **Controle direto via Chrome DevTools Protocol (CDP):** conecta via `WebSocket` nativo ao navegador headless, escuta `Runtime.exceptionThrown` e recursos ausentes (qualquer erro de JS ou recurso 404 reprova o teste) e executa **246 cenários de ponta a ponta** (12 centrais + regressões):
+2. **Controle direto via Chrome DevTools Protocol (CDP):** conecta via `WebSocket` nativo ao navegador headless, escuta `Runtime.exceptionThrown` e recursos ausentes (qualquer erro de JS ou recurso 404 reprova o teste) e executa **257 cenários de ponta a ponta** (12 centrais + regressões), complementados por `node --test tests/unit.test.js` (**20 testes unitários**):
    - **Cenários 1 a 8:** bloqueio sem login (`#gate`), gravação fragmentada (`hub-meta` + `hub-0`), mescla `merge3` entre dois aparelhos, isolamento na troca de contas `A → B → A`, flush ao sair da conta, modo offline com reconexão posterior, integridade de emojis UTF-16 no `chunks()` e limpeza de legado (`hub-gd`).
    - **Cenário 9:** abertura e renderização das 20 telas do menu, das 6 abas de Finanças, do relatório anual, de todos os cards do Início e da busca global sem erros.
    - **Cenário 10:** auditoria estática de cache-busting (`?v=` idêntico em todos os assets locais e zero arquivos órfãos em `css/` ou `js/`).

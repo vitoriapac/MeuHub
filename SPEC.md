@@ -21,20 +21,20 @@ Painel pessoal (tarefas, agenda, hábitos, notas, finanças, Spotify, clima…) 
 | Área | O que faz |
 |---|---|
 | Login | Tela inicial bloqueia o hub até entrar com Google (Firebase Auth). Sessão fica salva no aparelho até "Sair da conta". Sem `FB_CONFIG`, o site abre direto, só local. |
-| Sincronização | Estado do hub em `data/users/<uid>/hub-0..n` + `hub-meta` no Firestore, em pedaços de 300 mil caracteres. Envio 2 s após a última mudança, com transação que verifica a revisão e grava todos os pedaços junto com `hub-meta`; escuta só `hub-meta`. Mescla de três vias (`merge3`) quando dois aparelhos mudam e reconexão automática quando a internet volta (`online`). |
+| Sincronização | Estado do hub em `data/users/<uid>/` dividido por domínio (`hub-d-<dom>-0..n`, `v: 2`) + `hub-meta` no Firestore (com leitura compatível de `hub-0..n`, `v: 1` e limpeza de documentos órfãos), em pedaços de 300 mil caracteres. Envio 2 s após a última mudança, com transação que verifica a revisão e grava apenas os domínios alterados junto com `hub-meta`; escuta só `hub-meta`. Mescla de três vias (`merge3`) quando dois aparelhos mudam e reconexão automática quando a internet volta (`online`). |
 | Troca de conta | Dados locais da conta anterior guardados em `hub-acct-<uid>` e restaurados quando ela volta. |
 | PWA / Offline | Manifesto (`manifest.webmanifest`), ícones em `img/`, Service Worker (`sw.js`) que guarda a casca e a fonte para abrir sem internet, painel de instalação em Aparência e atalhos de URL (`?v=...`, `?qa=...`). |
 | Menu | Início, Hoje, Rotina, Lembretes, Agenda, Tarefas, Projetos, Metas, Hábitos, Notas, Arquivados, Leituras, Diário, Links, Etiquetas, Finanças, Aparência, Backup, Lixeira, Personalizar menu (20 telas). |
 | Cards do Início | 5 cards ativos por padrão (`linha`, `todo`, `agenda`, `habs`, `fin`) + 10 opcionais (Frase do dia, Spotify, Clima, Produtividade, Links rápidos, Notas recentes, Revisão semanal, Histórico, Humor, Metas). Botão **Companhia** liga/desliga Spotify e Clima juntos com um clique. |
 | Spotify | Link de playlist/álbum/faixa → player oficial embutido (`open.spotify.com/embed`), carregado só ao clicar. |
 | Clima | Busca de cidade ou localização → Open-Meteo (sem chave). Só coordenadas saem do aparelho. |
-| Backup | Baixa/compartilha/importa JSON. A importação válida substitui o estado atual após guardar uma versão local; se não conseguir preservá-la, interrompe a operação. Na recuperação de estado local corrompido não há versão válida a preservar. Há também cópias antes de receber dados de outro aparelho. |
+| Backup | Baixa/compartilha/importa JSON, com diagnóstico de espaço por área e recuperação de cópia local e versões automáticas via `IndexedDB` (`meuhub-db` com compactação `gzip`), além de arquivamento anual para Finanças e Diário (`fin-archive-<ano>` e `dia-archive-<ano>`). A importação válida substitui o estado atual após guardar uma versão local; se não conseguir preservá-la, interrompe a operação. |
 
 ## Stack
 
-- HTML + CSS + JS puro em **scripts clássicos** (`<script src>` em ordem, mesmo escopo global), ~3.200 linhas no total. Sem build, sem npm, sem framework.
+- HTML + CSS + JS puro em **scripts clássicos** (`<script src>` em ordem, mesmo escopo global) em 8 arquivos. Sem build, sem npm, sem framework.
 - Firebase JS SDK **compat 10.12.2** (app, auth, firestore) via `www.gstatic.com`, carregado só no site.
-- Fonte Outfit (Google Fonts). APIs externas: Open-Meteo, Spotify embed.
+- Fonte Outfit local (`fonts/outfit-*.woff2`). APIs externas: Open-Meteo, Spotify embed, Brapi, AwesomeAPI, OpenLibrary, iTunes, Wikipédia.
 - Hospedagem: GitHub Pages, branch `main`, raiz → https://vitoriapac.github.io/MeuHub/
 - Projeto Firebase `meuhub-48efb` (plano Spark, gratuito). Firestore em `southamerica-east1`.
 
@@ -57,7 +57,9 @@ img/               → ícones do aplicativo (SVG, 192, 512, maskable e apple-to
 css/style.css      → toda a aparência (tema claro/escuro por variáveis)
 js/core.js         → estado S, utilidades, telas base (tarefas, agenda, notas, hábitos, temas), atalhos
 js/sync.js         → sincronização, Firebase, tela de login, troca de conta
-js/financas.js     → Finanças inteiras (inclui fluxo de caixa, reserva, divisão de despesas)
+js/financas.js     → Finanças (contas, cartões, lançamentos, fluxo de caixa, reserva, divisão de despesas)
+js/financas-import.js → importação de extratos (CSV, OFX) e categorização automática
+js/financas-invest.js → módulo de investimentos (carteira, cotações, balanceamento, proventos, valuation)
 js/recursos.js     → busca, desfazer, menu, acessibilidade, PWA, lixeira, lembretes, rotina, leituras, paleta, datas
 js/inicio.js       → Início, Spotify, clima, frase do dia, tour
 js/main.js         → telas (V), render(), listeners centrais e inicialização — sempre o último
