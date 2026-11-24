@@ -80,7 +80,7 @@ function createAppSandbox() {
     },
     addEventListener: noop,
     auditClean: (h) => (Array.isArray(h) ? h : []),
-    snaps: () => [],
+    snaps: () => { try { return JSON.parse(localStorage.getItem('hub-snaps') || '[]'); } catch (e) { return []; } },
     SNK: 'hub-snaps',
     AUDIT_KEY: 'hub-history',
     PROFILE_KEY: 'hub-view-profiles',
@@ -104,7 +104,7 @@ function createAppSandbox() {
     vm.runInContext(code, ctx, { filename: file });
   }
   return vm.runInContext(
-    '({ S, SY, saveSY, localStorage, esc, ds, fmt, withTimeout, taskPaused, goalTracks, storageSummary, saveUI, gzipStr, ungzipStr, gzipBin, ungzipVal, idbKey, diaArchiveYear, SK, DOMS, chunks, merge3, norm, num, simulatedCardCycle, simulatePurchase, parseFinNL, parseNL, parseCSV, parseOFX, finInit, applyRules, finArchiveYear, FC, dictCat, dictSub, histCat, invInit, invUsd, invUnitBrl, invValBrl, invParseSheetId, invExtractSheetPrices })',
+    '({ S, SY, save, saveSY, localStorage, esc, ds, fmt, withTimeout, taskPaused, goalTracks, storageSummary, saveUI, gzipStr, ungzipStr, gzipBin, ungzipVal, idbKey, diaArchiveYear, SK, DOMS, chunks, merge3, norm, num, simulatedCardCycle, simulatePurchase, parseFinNL, parseNL, parseCSV, parseOFX, finInit, applyRules, finArchiveYear, FC, dictCat, dictSub, histCat, invInit, invUsd, invUnitBrl, invValBrl, invParseSheetId, invExtractSheetPrices })',
     ctx
   );
 }
@@ -495,5 +495,47 @@ test('financas: novas categorias, desambiguação no dicionário e histórico po
     assert.equal(h.sub, 'Manutenção');
   } finally {
     app.S.fin = JSON.parse(prevFin);
+  }
+});
+
+test('core: save() despeja snapshots antigos ao atingir QuotaExceededError e restaura se falhar', () => {
+  const prevSet = app.localStorage.setItem;
+  const prevSnaps = app.localStorage.getItem('hub-snaps');
+  const prevHub = app.localStorage.getItem('hub-v1');
+  try {
+    app.localStorage.setItem('hub-snaps', JSON.stringify([{ t: 2, d: {} }, { t: 1, d: {} }]));
+    let failCount = 0;
+    app.localStorage.setItem = (k, v) => {
+      if (k === 'hub-v1' && failCount < 1) {
+        failCount++;
+        const err = new Error('quota');
+        err.name = 'QuotaExceededError';
+        throw err;
+      }
+      return prevSet.call(app.localStorage, k, v);
+    };
+    app.S.profileName = 'TesteQuota1';
+    app.save();
+    assert.equal(JSON.parse(app.localStorage.getItem('hub-snaps')).length, 1);
+    assert.equal(JSON.parse(app.localStorage.getItem('hub-v1')).profileName, 'TesteQuota1');
+
+    // Agora falha todas as tentativas de gravar hub-v1: deve restaurar os snapshots originais
+    app.localStorage.setItem = (k, v) => {
+      if (k === 'hub-v1') {
+        const err = new Error('quota');
+        err.name = 'QuotaExceededError';
+        throw err;
+      }
+      return prevSet.call(app.localStorage, k, v);
+    };
+    app.S.profileName = 'TesteQuota2';
+    app.save();
+    assert.equal(JSON.parse(app.localStorage.getItem('hub-snaps')).length, 1);
+  } finally {
+    app.localStorage.setItem = prevSet;
+    if (prevSnaps === null) app.localStorage.removeItem('hub-snaps');
+    else app.localStorage.setItem('hub-snaps', prevSnaps);
+    if (prevHub === null) app.localStorage.removeItem('hub-v1');
+    else app.localStorage.setItem('hub-v1', prevHub);
   }
 });

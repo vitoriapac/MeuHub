@@ -78,10 +78,17 @@ function menuCfg(){const m=S.menu&&Array.isArray(S.menu.groups)?JSON.parse(JSON.
  m.groups.forEach(g=>{g.items=g.items.filter(k=>NAV[k])});const all=new Set(m.groups.flatMap(g=>g.items)),miss=Object.keys(NAV).filter(k=>!all.has(k));
  if(miss.includes('projetos')){(m.groups.find(g=>g.id==='plan')||m.groups[m.groups.length-1]).items.push('projetos');miss.splice(miss.indexOf('projetos'),1)}if(miss.length)(m.groups.find(g=>g.id==='sis')||m.groups[m.groups.length-1]).items.push(...miss);return m}
 function menuEdit(fn){const m=menuCfg();fn(m);S.menu=m}
+function navBadge(k){
+ let n=0;
+ if(k==='tarefas')n=(S.tasks||[]).filter(t=>!t.done&&!taskPaused(t)).length;
+ else if(k==='hoje')n=(S.tasks||[]).filter(t=>!t.done&&!taskPaused(t)&&(t.hd===T||(t.due&&t.due<=T))).length;
+ else if(k==='agenda'&&typeof evOn==='function')n=evOn(T).length;
+ return n>0?`<span class="nbadge" aria-hidden="true">${n>99?'99+':n}</span>`:'';
+}
 function renderMenu(){
  const m=menuCfg(),hid=new Set(m.hidden),bar=new Set(m.bar),col=new Set(S.mcol||[]);
  const html=m.groups.map(g=>{const items=g.items.filter(k=>!hid.has(k));if(!items.length)return '';const c=col.has(g.id);
-  return `<div class="mg"><button class="mgh" data-a="mcol" data-id="${g.id}" aria-expanded="${!c}"><span>${esc(g.n)}</span><i>${c?'▸':'▾'}</i></button>${items.filter(k=>!c||k===S.view).map(k=>`<button class="nav${bar.has(k)?'':' sec'}" data-v="${k}"><b>${NAV[k].i}</b>${NAV[k].n}</button>`).join('')}</div>`}).join('');
+  return `<div class="mg"><button class="mgh" data-a="mcol" data-id="${g.id}" aria-expanded="${!c}"><span>${esc(g.n)}</span><i>${c?'▸':'▾'}</i></button>${items.filter(k=>!c||k===S.view).map(k=>`<button class="nav${bar.has(k)?'':' sec'}" data-v="${k}"><b>${NAV[k].i}</b>${NAV[k].n}${navBadge(k)}</button>`).join('')}</div>`}).join('');
  const nv=$('#nv');if(nv&&nv.dataset.sig!==html){nv.innerHTML=html;nv.dataset.sig=html}
  const button=k=>`<button class="nav${S.view===k?' on':''}" data-v="${k}"${S.view===k?' aria-current="page"':''}><b>${NAV[k].i}</b><span>${NAV[k].n}</span></button>`;
  const mb=$('#mobile-bar'),barHtml=m.groups.flatMap(g=>g.items).filter(k=>bar.has(k)&&!hid.has(k)).map(button).join('')+'<button class="nav more" data-a="more" aria-haspopup="dialog" aria-controls="mobile-menu"><b>⋯</b><span>Mais</span></button>';
@@ -711,6 +718,7 @@ function ckItems(q){
  A('Ações','Alternar tema claro e escuro','moon',()=>{S.themeMode=isDark()?'light':'dark';applyTheme();save()},'escuro noite');
  A('Ações','Salvar versão agora','clock',()=>{toast(snapPut('Manual')?'Versão salva em Backup.':'Não foi possível salvar a versão. Libere espaço neste navegador.');if(S.view==='backup')render()},'backup');
  A('Ações','Desfazer','undo',undo,'voltar');
+ if(typeof DBr!=='undefined'&&DBr&&typeof syncAct==='function')A('Ações','Sincronizar agora','refresh',()=>syncAct('syncnow'),'nuvem sync');
  A('Ações','Rever o tour de boas-vindas','search',()=>tourOpen(0),'ajuda primeiro uso começar');
  if(!isPWA())A('Ações','Instalar aplicativo','save',pwaInstall,'pwa celular tela inicial atalho');
  if(emptyData())A('Ações','Carregar dados de exemplo','plus',exLoad,'demonstração tour');
@@ -723,6 +731,7 @@ function ckItems(q){
   let nhb=0;(S.habits||[]).forEach(h=>{if(nhb>=5)return;if(tok.every(w=>norm(h.n).includes(w))){nhb++;out.push({g:'Itens',l:h.n,ico:'repeat',run:()=>{S.view='habitos';Q='';$('#q').value='';render()},s:2})}});
  }
  const hid=new Set(menuCfg().hidden);Object.keys(NAV).forEach(k=>A('Ir para','Ir para '+NAV[k].n,({dash:'home',hoje:'today',rotina:'sun',avisos:'bell',agenda:'cal',tarefas:'check',projetos:'flag',metas:'flag',habitos:'repeat',notas:'note',diario:'smile',links:'link',etiquetas:'tag',financas:'wallet',aparencia:'spark',backup:'save',lixeira:'trash',arquivados:'note',leituras:'book',menu:'sliders'})[k],go(k),hid.has(k)?'oculto':''));
+ FTABS.forEach(([id,n])=>A('Ir para','Finanças › '+n,'wallet',()=>{$('#side').classList.remove('open');FED=null;S.view='financas';S.fvw='mes';S.ftab=id;Q='';ED=null;$('#q').value='';render()},'financas '+n));
  const ord=tok.length?{'Itens':0,'Ações':1,'Ir para':2,'Criar':3}:{'Ações':0,'Ir para':1},ql=x=>x.g==='Criar'?2:tok.every(t=>norm(x.l).includes(t))?0:1;
  return out.map((x,i)=>({...x,i})).sort((a,b)=>tok.length?ql(a)-ql(b)||ord[a.g]-ord[b.g]||a.s-b.s||a.i-b.i:ord[a.g]-ord[b.g]||a.i-b.i).slice(0,tok.length?14:16)}
 function ckDraw(){

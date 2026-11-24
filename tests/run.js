@@ -8,8 +8,7 @@ const sleep = t => new Promise(r => setTimeout(r, t));
 
 // Firebase simulado: "nuvem" e sessão ficam no localStorage para sobreviver a reloads.
 // Fica numa closure para não colidir com os nomes globais do app.
-const MOCK = `<script>
-(()=>{window.__noSW=1;const ld=k=>JSON.parse(localStorage.getItem(k)||'null'),st=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const MOCK = `(()=>{window.__noSW=1;const ld=k=>JSON.parse(localStorage.getItem(k)||'null'),st=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 const cloud=()=>ld('__cloud')||{},L={};window.__cloud=cloud;
 const snap=p=>{const c=cloud();return{exists:p in c,data:()=>c[p],metadata:{fromCache:false}}};
 const MA={cb:null,onAuthStateChanged(cb){this.cb=cb;setTimeout(()=>cb(ld('__sess')),20)},
@@ -19,8 +18,7 @@ const MDB={runTransaction:async fn=>{const writes=[],tx={get:async ref=>snap(ref
  set:async v=>{const c=cloud();c[p]=JSON.parse(JSON.stringify(v));st('__cloud',c);(L[p]||[]).forEach(f=>f(snap(p)))},
  delete:async()=>{const c=cloud();delete c[p];st('__cloud',c)},
  onSnapshot(cb){(L[p]=L[p]||[]).push(cb);setTimeout(()=>cb(snap(p)));return()=>{L[p]=L[p].filter(x=>x!==cb)}}}}};
-window.firebase={initializeApp(){},auth:Object.assign(()=>MA,{GoogleAuthProvider:function(){}}),firestore:()=>MDB};})();
-</script>`;
+window.firebase={initializeApp(){},auth:Object.assign(()=>MA,{GoogleAuthProvider:function(){}}),firestore:()=>MDB};})();`;
 
 // Lê o site (index.html + css/ + js/ + img/ + PWA) e aplica o Firebase simulado: o mock entra no <body> do
 // index.html e a config/carregador de teste entram no arquivo que tiver FB_CONFIG, seja qual for.
@@ -33,7 +31,8 @@ function sitePages() {
     if (next === site[file]) throw new Error(file + ' mudou: não achei ' + from);
     site[file] = next;
   };
-  swap('/index.html', '<body>\n', '<body>\n' + MOCK + '\n');
+  site['/mock.js'] = MOCK;
+  swap('/index.html', '<body>\n', '<body>\n<script src="mock.js"></script>\n');
   const cfg = Object.keys(site).filter(f => typeof site[f] === 'string' && site[f].includes('const FB_CONFIG='));
   if (cfg.length !== 1) throw new Error('esperava FB_CONFIG em 1 arquivo, achei em: ' + (cfg.join(', ') || 'nenhum'));
   swap(cfg[0], /const FB_CONFIG=(null|\{[^\n]*?\});/, 'const FB_CONFIG={projectId:"teste"};');

@@ -1,5 +1,5 @@
 // Service Worker do Meu Hub: guarda a casca do app e a fonte para abrir sem internet; Firebase e APIs vão direto à rede
-const VER='20261123e',CACHE='meuhub-v'+VER,COVERS='meuhub-covers-v1';
+const VER='20261124',CACHE='meuhub-v'+VER,COVERS='meuhub-covers-v1';
 const ASSETS=[
  './',
  './index.html',
@@ -19,10 +19,15 @@ const ASSETS=[
  './img/icon-maskable.png',
  './img/apple-touch-icon.png',
  './fonts/outfit-latin.woff2',
- './fonts/outfit-latin-ext.woff2'
+ './fonts/outfit-latin-ext.woff2',
+ './fonts/instrument-serif-italic-latin.woff2',
+ './fonts/instrument-serif-italic-latin-ext.woff2'
 ];
 self.addEventListener('install',e=>{
- e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
+ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
+});
+self.addEventListener('message',e=>{
+ if(e.data&&e.data.type==='SKIP_WAITING')self.skipWaiting();
 });
 self.addEventListener('activate',e=>{
  e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE&&k!==COVERS).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));

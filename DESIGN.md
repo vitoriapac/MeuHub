@@ -167,8 +167,9 @@ Tons de céu claro e papel, com tintas pastel por categoria e um lilás de assin
 **Display Font:** Outfit (com system-ui, sans-serif)
 **Body Font:** Outfit
 **Label Font:** Outfit, em maiúsculas e espaçada
+**Editorial Accent Font:** Instrument Serif (itálico 400, hospedada em `fonts/`)
 
-**Character:** uma única família geométrica e arredondada, que conversa com os cantos do sistema. A hierarquia vem do peso (400/500/600) e do tamanho, não de uma segunda fonte. Os números são sempre tabulares (`font-variant-numeric: tabular-nums` no `body`), porque valores e horários precisam alinhar.
+**Character:** `Outfit` conduz toda a interface, os números tabulares (`font-variant-numeric: tabular-nums` no `body`) e os rótulos, conversando com os cantos arredondados do sistema. `Instrument Serif` em itálico entra pontualmente como acento editorial — apenas no nome da saudação do Início e nos subtítulos de página (`.font-ed`, `.sub-ed`) — para trazer leveza e contraste sem competir com a leitura de dados.
 
 ### Hierarchy
 - **Display** (600, clamp 1,75–2,25rem, tracking −1.2px): o título de cada tela e a saudação do Início ("Bom dia! Hoje é…").
@@ -179,7 +180,7 @@ Tons de céu claro e papel, com tintas pastel por categoria e um lilás de assin
 - **Caption** (400, 0,875rem; variantes menores nos chips e navegação): datas, metadados e textos de apoio.
 
 ### Named Rules
-**The One Family Rule.** Só Outfit. A ênfase vem do peso 600 ou do tamanho, nunca de itálico decorativo, de uma segunda fonte ou de cor no texto corrido.
+**The Two-Voice Type Rule.** `Outfit` para tudo que é dado, lista, botão, número e título principal; `Instrument Serif` em itálico apenas para o acento humano da saudação e subtítulos de tela. Nunca usar a serifa em valores, formulários ou texto corrido.
 
 **Escala e acessibilidade.** Os papéis compartilhados usam `--type-small` (0,875rem), `--type-body` (1rem), `--type-title` (1,125rem) e `--type-display` (clamp de 1,75 a 2,25rem). Campos no celular usam pelo menos 16px sem impedir ampliação do texto. Na agenda semanal, nomes dos dias, datas e eventos usam a escala relativa de texto de apoio. Rótulos em gráficos, horários e lombadas podem ter medidas próprias para preservar as coordenadas e devem ser conferidos visualmente; a grade não exige arredondar tamanhos de fonte para múltiplos de 8.
 

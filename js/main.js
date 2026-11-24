@@ -83,7 +83,7 @@ function handleAttOpen(b,id,e){
  if(kind==='sal')document.querySelector('#cash-flow-panel')?.scrollIntoView({block:'start'});
 }
 const CLICK_EARLY={
- 'sw-reload':()=>location.reload(),
+ 'sw-reload':()=>{if(SW_REG&&SW_REG.waiting){SW_RELOADING=true;SW_REG.waiting.postMessage({type:'SKIP_WAITING'})}else location.reload()},
  'att-dismiss':(b,id,e)=>{
   e.preventDefault();
   const key=b.dataset.key,item=attention().find(x=>x.dismissKey===key);
@@ -853,8 +853,14 @@ document.addEventListener('submit',e=>{
 auditMigrate();undoReset();
 {const up=new URLSearchParams(location.search),uv=up.get('v'),uqa=up.get('qa');if(uv&&V[uv])S.view=uv;if(uv||uqa)try{history.replaceState(null,'',location.pathname)}catch(e){}render();if(uqa&&/^(tk|nt|ev|dp|rc)$/.test(uqa))qa(uqa)}
 fbInit();// por último: as respostas do Firebase chamam render() e o resto do app, que precisam já estar carregados
+let SW_REG=null,SW_RELOADING=false;
 if('serviceWorker' in navigator&&!window.__noSW){
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(SW_RELOADING){SW_RELOADING=false;location.reload()}});
  navigator.serviceWorker.register('sw.js').then(reg=>{
+  SW_REG=reg;
+  if(reg.waiting&&navigator.serviceWorker.controller){
+   toast('Nova versão disponível.',false,{a:'sw-reload',label:'Atualizar'});
+  }
   reg.addEventListener('updatefound',()=>{
    const nw=reg.installing;
    if(!nw)return;
