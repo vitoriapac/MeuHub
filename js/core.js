@@ -578,7 +578,7 @@ document.addEventListener('click',e=>{
 });
 let PRIV=false;try{PRIV=localStorage.getItem('hub-priv')==='1'}catch(e){}
 const BRL=v=>PRIV?'R$ •••••':(+v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-const FC=['Moradia','Alimentação','Transporte','Saúde','Lazer','Educação','Assinaturas','Outros'];
+const FC=['Moradia','Alimentação','Transporte','Compras','Saúde','Lazer','Férias','Educação','Assinaturas','Serviços','Pets','Impostos e taxas','Outros'];
 const opts=a=>a.map(c=>`<option>${c}</option>`).join('');
 const bst=p=>p>=100?'o':p>=80?'w':'';
 const finAlerts=(by,month=T.slice(0,7))=>Object.entries(budgetsAt(month)).map(([c,l])=>[c,Math.round((by[c]||0)/l*100)]).filter(x=>x[1]>=80);

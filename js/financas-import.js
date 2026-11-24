@@ -1,15 +1,27 @@
 // importação de extratos (CSV/OFX) e categorização automática por dicionário/histórico
+const CAT_FIRST=[
+ ['mercado_livre','Compras'],['mercadolivre','Compras'],['meli_mais','Assinaturas'],['meli','Compras'],
+ ['uber_eats','Alimentação'],['uber_one','Assinaturas'],['ifood_clube','Assinaturas'],['rappi_prime','Assinaturas'],
+ ['amazon_prime','Assinaturas'],['apple_one','Assinaturas'],['apple_music','Assinaturas'],
+ ['passagem_aerea','Férias'],['passagens_aereas','Férias'],['aluguel_carro','Férias'],['aluguel_de_carro','Férias'],['seguro_viagem','Férias'],
+ ['plano_de_saude','Saúde']
+];
 const CATDIC={
- Alimentação:'mercado* supermerc* padar* acougue* hortifrut* feira restaurante* lanch* pizz* hamburg* ifood ifd rappi almoco jantar cafe cafet* sorvet* churrasc* delivery pagamento_dia supermercado_dia mercado_dia oxxo carrefour assai atacadao pao_de_acucar extra sonda mambo hirota sacolao mcdonalds burger bk outback doceria confeitaria refeicao',
- Transporte:'uber 99 99pop taxi cabify indrive onibus metro cptm bilhete_unico gasolina combustiv* etanol posto ipiranga shell petrobras estacionam* estapar indigo sem_parar veloe conectcar pedagio* passagem rodoviaria buser clickbus latam gol azul',
- Moradia:'aluguel condominio luz energia eletricidade enel cpfl cemig copel celesc coelba celpe equatorial neoenergia light agua saneamento sabesp copasa sanepar cedae embasa corsan internet fibra claro vivo tim oi telecom* algar brisanet gas comgas ultragaz supergasbras iptu reforma leroy_merlin telhanorte sodimac',
- Saúde:'farmac* droga* drogasil pague_menos panvel ultrafarma nissei araujo remedio medicamento consulta medico clinica* dentist* odonto* exame laborat* fleury delboni lavoisier dasa hospital* psicolog* terapia fisioterapia nutricionista plano_de_saude unimed amil sulamerica hapvida notredame academia* smartfit smart_fit bluefit bodytech totalpass gympass wellhub',
- Lazer:'cinema cinemark cinepolis kinoplex uci show teatro ingresso sympla eventim ticketmaster bar pub viagem hotel pousada airbnb booking decolar parque jogo livraria* saraiva leitura',
- Educação:'curso escola colegio faculdad* universid* mensalidade livro apostila udemy alura coursera duolingo kalunga papelaria*',
- Assinaturas:'netflix spotify prime amazon_prime disney hbo max globoplay paramount crunchyroll deezer youtube assinatura assinat* icloud apple google_brasil_pagamentos google_play google_one ebanx pix_automatico anthropic claude openai chatgpt github copilot cursor canva adobe microsoft office dropbox steam playstation xbox nintendo'
+ Alimentação:'mercado* supermerc* minimercado atacarejo padar* acougue* frigorif* peixaria hortifrut* feira emporio restaurante* lanch* pizz* hamburg* ifood ifd rappi almoco jantar cafe cafet* sorvet* churrasc* delivery pagamento_dia supermercado_dia mercado_dia oxxo carrefour assai atacadao pao_de_acucar extra sonda mambo hirota sacolao mcdonalds burger bk outback madero jeronimo starbucks subway habibs giraffas spoleto dominos pizza_hut popeyes kfc coco_bambu china_in_box doceria confeitaria bomboniere cacau_show kopenhagen chocolat* refeicao marmita* quentin* sushi temaki poke bistro ze_delivery cervej* chopp swift vr_refeicao alelo sodexo ticket_restaurante',
+ Transporte:'uber 99 99pop taxi cabify indrive onibus metro* vlt cptm bilhete_unico gasolina combustiv* etanol posto* auto_posto ipiranga shell petrobras ale br_mania estacionam* estapar indigo zona_azul sem_parar veloe conectcar pedagio* passagem rodoviaria buser clickbus oficina mecanica borracharia lava_jato lavagem balsa ferry tembici itau_bike patinete',
+ Moradia:'aluguel quintoandar quinto_andar imobiliaria condominio luz energia eletric* enel cpfl cemig copel celesc coelba celpe equatorial neoenergia light energisa eletropaulo agua saneamento sabesp copasa sanepar cedae embasa corsan cagece internet fibra banda_larga claro vivo tim oi sky telecom* algar brisanet desktop vero gas comgas naturgy ultragaz supergasbras liquigas iptu reforma leroy_merlin telhanorte sodimac cec dicico obramax material_construcao ferragem moveis tokstok tok_stok etna mobly madeiramadeira ortobom diarista faxina limpeza',
+ Compras:'amazon mercadolivre mercado_livre shopee shein aliexpress temu magalu magazine_luiza casas_bahia pontofrio ponto_frio americanas submarino shoptime kabum pichau terabyte fast_shop fastshop apple_store samsung xiaomi motorola eletronic* baseus renner riachuelo cea c_a zara hering marisa pernambucanas youcom farm animale arezzo schutz centauro decathlon netshoes nike adidas puma vans mizuno asics havaianas shopping loja* store boutique roupa* calcado* sapato* tenis bolsa* mochila* relogio* oculos otica joalheria vivara pandora perfum* boticario o_boticario natura sephora eudora beleza_na_web epocacosmeticos presente* brinquedo* ri_happy pbkids lego comercio comercial importacao bazar utilidades daiso miniso le_biscuit camicado imaginarium',
+ Saúde:'farmac* droga* drogasil droga_raia raia pague_menos panvel ultrafarma nissei araujo pacheco venancio onofre bifarma remedio medicamento manipulacao consulta medico clinica* dentist* odonto* exame laborat* fleury delboni lavoisier dasa sabin hermes_pardini hospital* pronto_socorro psicolog* psiquiatr* terapia fisioterapia nutricionista fonoaudiolog* oftalmolog* dermatolog* plano_de_saude unimed amil sulamerica hapvida notredame bradesco_saude porto_saude academia* smartfit smart_fit bluefit bodytech totalpass gympass wellhub crossfit pilates yoga',
+ Lazer:'cinema cinemark cinepolis kinoplex uci show teatro ingresso* sympla eventim ticketmaster ingresse bar pub balada boate choperia karaoke boliche sinuca parque jogo* jogos livraria* saraiva leitura travessa cultura epic_games riot twitch clube',
+ Férias:'viagem viagens hotel hoteis pousada resort hostel airbnb booking decolar hurb 123milhas maxmilhas trivago expedia cvc latam gol azul tap air_france lufthansa united american_airlines copa_airlines aeroporto infraero aerea passagem_aerea passagens_aereas milhas smiles livelo esfera turismo passeio excursao localiza movida unidas hertz rentcars aluguel_carro cruzeiro duty_free cambio wise nomad',
+ Educação:'curso* escola* colegio* faculdad* universid* pos_graduacao mestrado mensalidade livro* apostila* udemy alura coursera duolingo rocketseat origamid ebac descomplica estrategia gran_cursos cultura_inglesa fisk wizard ccaa yazigi kumon kalunga papelaria*',
+ Assinaturas:'netflix spotify prime amazon_prime disney hbo max globoplay paramount crunchyroll deezer tidal youtube assinatura assinat* icloud apple apple_one apple_music google_brasil_pagamentos google_play google_one ebanx pix_automatico anthropic claude openai chatgpt gemini perplexity github copilot cursor vercel netlify heroku aws digitalocean cloudflare canva figma notion adobe microsoft office dropbox onedrive steam playstation xbox nintendo patreon substack medium',
+ Serviços:'salao barbearia cabeleireiro manicure pedicure estetica depilacao massagem spa lavanderia tinturaria correios sedex pac loggi jadlog cartorio despachante tabelionato contador contabilidade advogado advocacia consultoria seguro* porto_seguro azul_seguros tokio_marine mapfre suhai conserto manutencao assistencia_tecnica chaveiro grafica fotografia',
+ Pets:'petshop pet_shop petz cobasi petlove veterinar* vet_* clinica_vet* racao banho_e_tosa tosa',
+ 'Impostos e taxas':'imposto* tributo* iof irpf darf gps inss fgts iss icms ipva detran tarifa* taxa* anuidade juros mora multa* encargo* cesta_servicos pacote_servicos manutencao_conta'
 };
 const catMatch=(d,w)=>w.endsWith('*')?d.includes(' '+w.slice(0,-1)):d.includes(' '+w.replace(/_/g,' ')+' ');
-const dictCat=t=>{const raw=String(t||''),d=' '+norm(raw).replace(/[^a-z0-9]+/g,' ')+' ';for(const[c,w]of Object.entries(CATDIC))for(const k of w.split(' '))if(k&&catMatch(d,k))return c;if(/\bDIA\b/.test(raw)&&!d.includes(' bom dia '))return 'Alimentação';return 'Outros'};
+const dictCat=t=>{const raw=String(t||''),d=' '+norm(raw).replace(/[^a-z0-9]+/g,' ')+' ';for(const[k,c]of CAT_FIRST)if(catMatch(d,k))return c;for(const[c,w]of Object.entries(CATDIC))for(const k of w.split(' '))if(k&&catMatch(d,k))return c;if(/\bDIA\b/.test(raw)&&!d.includes(' bom dia '))return 'Alimentação';return 'Outros'};
 function dictSub(t,k,cat){
  const d=' '+norm(t).replace(/[^a-z0-9]+/g,' ')+' ',has=(...ws)=>ws.some(w=>catMatch(d,w));
  if(k==='in'){
@@ -23,41 +35,74 @@ function dictSub(t,k,cat){
  }
  if(k!=='out')return '';
  if(cat==='Alimentação'){
-  if(has('ifood','rappi','delivery','ifd'))return 'Delivery';
-  if(has('restaurante*','lanch*','pizz*','hamburg*','almoco','jantar','cafe','cafet*','sorvet*','churrasc*','burger','mcdonalds','bk','outback','doceria','confeitaria','refeicao'))return 'Restaurante';
+  if(has('ifood','rappi','delivery','ifd','uber_eats','ze_delivery'))return 'Delivery';
+  if(has('restaurante*','lanch*','pizz*','hamburg*','almoco','jantar','cafe','cafet*','sorvet*','churrasc*','burger','mcdonalds','bk','outback','madero','jeronimo','starbucks','subway','habibs','giraffas','spoleto','dominos','pizza_hut','popeyes','kfc','coco_bambu','china_in_box','doceria','confeitaria','refeicao','sushi','temaki','poke','bistro','bar','chopp'))return 'Restaurante';
   return 'Mercado';
  }
  if(cat==='Transporte'){
   if(has('uber','99','99pop','taxi','cabify','indrive'))return 'App';
-  if(has('gasolina','combustiv*','etanol','posto','ipiranga','shell','petrobras'))return 'Combustível';
-  if(has('onibus','metro','cptm','bilhete_unico','passagem','rodoviaria','buser','clickbus','latam','gol','azul'))return 'Transporte público';
-  if(has('estacionam*','estapar','indigo','pedagio*','sem_parar','veloe','conectcar'))return 'Pedágio e estacionamento';
+  if(has('gasolina','combustiv*','etanol','posto*','auto_posto','ipiranga','shell','petrobras','ale','br_mania'))return 'Combustível';
+  if(has('onibus','metro*','vlt','cptm','bilhete_unico','passagem','rodoviaria','buser','clickbus','balsa','ferry'))return 'Transporte público';
+  if(has('estacionam*','estapar','indigo','zona_azul','pedagio*','sem_parar','veloe','conectcar'))return 'Pedágio e estacionamento';
+  if(has('oficina','mecanica','borracharia','lava_jato','lavagem'))return 'Manutenção';
   return '';
  }
  if(cat==='Moradia'){
-  if(has('claro','vivo','tim','oi','telecom*','internet','fibra','algar','brisanet'))return 'Internet e telefone';
-  if(has('luz','energia','eletricidade','enel','cpfl','cemig','copel','celesc','coelba','celpe','equatorial','neoenergia','light','agua','saneamento','sabesp','copasa','sanepar','cedae','embasa','corsan','gas','comgas','ultragaz','supergasbras'))return 'Contas da casa';
-  if(has('aluguel','condominio','iptu'))return 'Habitação';
+  if(has('claro','vivo','tim','oi','sky','telecom*','internet','fibra','banda_larga','algar','brisanet','desktop','vero'))return 'Internet e telefone';
+  if(has('luz','energia','eletric*','enel','cpfl','cemig','copel','celesc','coelba','celpe','equatorial','neoenergia','light','energisa','eletropaulo','agua','saneamento','sabesp','copasa','sanepar','cedae','embasa','corsan','cagece','gas','comgas','naturgy','ultragaz','supergasbras','liquigas'))return 'Contas da casa';
+  if(has('aluguel','quintoandar','quinto_andar','imobiliaria','condominio','iptu'))return 'Habitação';
+  if(has('diarista','faxina','limpeza','reforma','leroy_merlin','telhanorte','sodimac','moveis','tokstok','tok_stok','etna','mobly','madeiramadeira'))return 'Casa e manutenção';
   return '';
  }
+ if(cat==='Compras'){
+  if(has('renner','riachuelo','cea','c_a','zara','hering','marisa','pernambucanas','youcom','farm','animale','arezzo','schutz','nike','adidas','puma','vans','roupa*','calcado*','sapato*','tenis'))return 'Vestuário';
+  if(has('eletronic*','baseus','kabum','pichau','terabyte','apple_store','samsung','xiaomi','motorola','fast_shop','fastshop'))return 'Eletrônicos';
+  if(has('amazon','mercadolivre','mercado_livre','meli','shopee','shein','aliexpress','temu','magalu','magazine_luiza','americanas','submarino','shoptime'))return 'Online';
+  if(has('camicado','imaginarium','daiso','miniso','le_biscuit','presente*','brinquedo*','ri_happy','pbkids','lego'))return 'Casa e presentes';
+  return 'Lojas';
+ }
  if(cat==='Saúde'){
-  if(has('farmac*','droga*','drogasil','pague_menos','panvel','ultrafarma','nissei','araujo','remedio','medicamento'))return 'Farmácia';
-  if(has('academia*','smartfit','smart_fit','bluefit','bodytech','totalpass','gympass','wellhub'))return 'Academia';
+  if(has('farmac*','droga*','drogasil','droga_raia','raia','pague_menos','panvel','ultrafarma','nissei','araujo','pacheco','venancio','onofre','bifarma','remedio','medicamento','manipulacao'))return 'Farmácia';
+  if(has('academia*','smartfit','smart_fit','bluefit','bodytech','totalpass','gympass','wellhub','crossfit','pilates','yoga'))return 'Academia';
   return 'Consultas e exames';
  }
+ if(cat==='Lazer'){
+  if(has('cinema','cinemark','cinepolis','kinoplex','uci','show','teatro','ingresso*','sympla','eventim','ticketmaster','ingresse'))return 'Cinema e eventos';
+  if(has('bar','pub','balada','boate','choperia','karaoke'))return 'Bares e vida noturna';
+  if(has('livraria*','saraiva','cultura','leitura','travessa','jogo*','jogos','epic_games','riot','twitch'))return 'Livros e jogos';
+  return '';
+ }
+ if(cat==='Férias'){
+  if(has('latam','gol','azul','tap','air_france','lufthansa','united','american_airlines','copa_airlines','passagem_aerea','passagens_aereas','aerea','aeroporto','infraero','smiles','milhas'))return 'Passagens';
+  if(has('hotel','hoteis','pousada','resort','hostel','airbnb','booking','trivago','expedia'))return 'Hospedagem';
+  if(has('decolar','hurb','cvc','turismo','passeio','excursao','localiza','movida','unidas','hertz','rentcars','aluguel_carro','aluguel_de_carro','cruzeiro'))return 'Pacotes e passeios';
+  return '';
+ }
  if(cat==='Assinaturas'){
-  if(has('anthropic','claude','openai','chatgpt','github','copilot','cursor','canva','adobe','microsoft','office','icloud','google_one','dropbox'))return 'IA e software';
+  if(has('anthropic','claude','openai','chatgpt','gemini','perplexity','github','copilot','cursor','vercel','netlify','heroku','aws','digitalocean','cloudflare','canva','figma','notion','adobe','microsoft','office','icloud','google_one','dropbox','onedrive'))return 'IA e software';
   return 'Serviços digitais';
+ }
+ if(cat==='Serviços'){
+  if(has('salao','barbearia','cabeleireiro','manicure','pedicure','estetica','depilacao','massagem','spa'))return 'Beleza e cuidados';
+  if(has('seguro*','porto_seguro','azul_seguros','tokio_marine','mapfre','suhai'))return 'Seguros';
+  if(has('correios','sedex','pac','loggi','jadlog'))return 'Correios e entregas';
+  return '';
+ }
+ if(cat==='Pets'){
+  if(has('veterinar*','vet_*','clinica_vet*'))return 'Veterinário';
+  return 'Pet shop';
+ }
+ if(cat==='Impostos e taxas'){
+  if(has('imposto*','tributo*','iof','irpf','darf','gps','inss','fgts','iss','icms','ipva'))return 'Impostos';
+  return 'Tarifas e juros';
  }
  if(cat==='Outros'){
   if(has('reserva_por_gasto','reserva_programada'))return 'Reserva';
-  if(has('eletronic*','baseus'))return 'Eletrônicos';
-  if(has('comercio','comercial','importacao','loja'))return 'Compras';
   if(has('pix_enviado','pagamento_com_pix'))return 'Pix';
  }
  return '';
 }
-function histCat(t,k,skipId){const nt=norm(t);if(!nt)return null;const x=finInit().tx.find(q=>q.id!==skipId&&q.k===k&&norm(q.t)===nt&&q.cat&&q.cat!=='Outros');return x?{cat:x.cat,sub:x.sub||'',tg:x.tg||'',pj:x.pj||''}:null}
+function histCat(t,k,skipId){const nt=norm(t),nc=norm(cleanDesc(t));if(!nt)return null;const list=finInit().tx.filter(q=>q.id!==skipId&&q.k===k&&q.cat&&q.cat!=='Outros');const x=list.find(q=>norm(q.t)===nt)||(nc.length>=3?list.find(q=>norm(cleanDesc(q.t))===nc):null);return x?{cat:x.cat,sub:x.sub||'',tg:x.tg||'',pj:x.pj||''}:null}
 const ruleCat=t=>(ruleOf({t,v:0,k:'out'})||{}).cat||dictCat(t);
 function cleanDesc(s){const raw=String(s||'').trim(),c=raw.replace(/^(?:pagamento\s+com\s+(?:qr\s+)?pix|pagamento|pix\s+enviado|pix\s+recebido|pix\s+autom[aá]tico|transfer[eê]ncia\s+(?:pix\s+)?recebida|transfer[eê]ncia\s+(?:pix\s+)?enviada)\s+/i,'').trim();return c||raw}
 /* importação de CSV */

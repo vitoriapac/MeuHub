@@ -104,7 +104,7 @@ function createAppSandbox() {
     vm.runInContext(code, ctx, { filename: file });
   }
   return vm.runInContext(
-    '({ S, SY, saveSY, localStorage, esc, ds, fmt, withTimeout, taskPaused, goalTracks, storageSummary, saveUI, gzipStr, ungzipStr, gzipBin, ungzipVal, idbKey, diaArchiveYear, SK, DOMS, chunks, merge3, norm, num, simulatedCardCycle, simulatePurchase, parseFinNL, parseNL, parseCSV, parseOFX, finInit, applyRules, finArchiveYear, invInit, invUsd, invUnitBrl, invValBrl, invParseSheetId, invExtractSheetPrices })',
+    '({ S, SY, saveSY, localStorage, esc, ds, fmt, withTimeout, taskPaused, goalTracks, storageSummary, saveUI, gzipStr, ungzipStr, gzipBin, ungzipVal, idbKey, diaArchiveYear, SK, DOMS, chunks, merge3, norm, num, simulatedCardCycle, simulatePurchase, parseFinNL, parseNL, parseCSV, parseOFX, finInit, applyRules, finArchiveYear, FC, dictCat, dictSub, histCat, invInit, invUsd, invUnitBrl, invValBrl, invParseSheetId, invExtractSheetPrices })',
     ctx
   );
 }
@@ -460,5 +460,40 @@ test('sync: saveSY omite last e domLast do localStorage preservando em memória'
   } finally {
     app.SY.last = prevLast;
     app.SY.domLast = prevDom;
+  }
+});
+
+test('financas: novas categorias, desambiguação no dicionário e histórico por descrição limpa', () => {
+  for (const c of ['Compras', 'Férias', 'Serviços', 'Pets', 'Impostos e taxas']) {
+    assert.ok(app.FC.includes(c), `FC deve incluir ${c}`);
+  }
+  assert.equal(app.dictCat('PAG*MERCADOLIVRE'), 'Compras');
+  assert.equal(app.dictSub('PAG*MERCADOLIVRE', 'out', 'Compras'), 'Online');
+  assert.equal(app.dictCat('Shopee Brasil'), 'Compras');
+  assert.equal(app.dictCat('Renner Shopping'), 'Compras');
+  assert.equal(app.dictSub('Renner Shopping', 'out', 'Compras'), 'Vestuário');
+  assert.equal(app.dictCat('Uber Eats'), 'Alimentação');
+  assert.equal(app.dictCat('Uber One'), 'Assinaturas');
+  assert.equal(app.dictCat('Passagem aerea Latam'), 'Férias');
+  assert.equal(app.dictSub('Passagem aerea Latam', 'out', 'Férias'), 'Passagens');
+  assert.equal(app.dictCat('Airbnb Hospedagem'), 'Férias');
+  assert.equal(app.dictSub('Airbnb Hospedagem', 'out', 'Férias'), 'Hospedagem');
+  assert.equal(app.dictCat('Barbearia Central'), 'Serviços');
+  assert.equal(app.dictCat('Petz Racao'), 'Pets');
+  assert.equal(app.dictCat('IOF compra internacional'), 'Impostos e taxas');
+  assert.equal(app.dictCat('Kalunga'), 'Educação');
+
+  const prevFin = JSON.stringify(app.S.fin);
+  try {
+    app.S.fin = {
+      acc: [{ id: 'main', n: 'Conta principal', ty: 'cc', ini: 0 }],
+      rec: [], recDismiss: [], rules: [], bud: {}, budHist: {}, goals: [], prules: [], split: [], bills: [],
+      tx: [{ id: 'h1', k: 'out', t: 'Joao Silva', v: 50, cat: 'Serviços', sub: 'Manutenção', d: '2026-11-01', ac: 'main' }]
+    };
+    const h = app.histCat('Pagamento com Pix Joao Silva', 'out');
+    assert.equal(h.cat, 'Serviços');
+    assert.equal(h.sub, 'Manutenção');
+  } finally {
+    app.S.fin = JSON.parse(prevFin);
   }
 });

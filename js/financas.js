@@ -580,7 +580,7 @@ function yearSummary(d,pv,cur){
 function relAnual(){
  const F=finInit();genRec();const Y=today.getFullYear()+S.fyr,d=finYear(Y),pv=finYear(Y-1),cur=Y===today.getFullYear(),sal=d.inc-d.out,rate=d.inc>0?Math.round(sal/d.inc*100):null;
  const act=d.ms.map((m,i)=>({i,m,r:m.inc-m.out})).filter(x=>x.m.inc||x.m.out),nAct=act.length||1,best=act.length>1?[...act].sort((a,b)=>b.r-a.r)[0].i:-1,worst=act.length>1?[...act].sort((a,b)=>a.r-b.r)[0].i:-1;
- const cs=Object.keys(d.by).sort((a,b)=>d.by[b]-d.by[a]).slice(0,8),maxr=c=>Math.max(1,...d.ms.map(m=>m.by[c]||0));
+ const cs=Object.keys(d.by).sort((a,b)=>d.by[b]-d.by[a]).slice(0,14),maxr=c=>Math.max(1,...d.ms.map(m=>m.by[c]||0));
  const bigs=d.tx.filter(t=>t.k==='out').sort((a,b)=>b.v-a.v).slice(0,10);
  const fx=d.tx.filter(t=>t.k==='out'&&(t.rc||t.pc)).reduce((a,t)=>a+t.v,0),vr=d.out-fx;
  const agg=o=>{const ks=Object.keys(o).sort((a,b)=>o[b]-o[a]).slice(0,8),mx=Math.max(1,...ks.map(k=>o[k]));return ks.map((k,i)=>`<div class="cat" style="grid-template-columns:minmax(80px,115px) 1fr auto"><span>${k.startsWith('#')?`<button class="chip tgc" data-a="tagv" data-id="${esc(k.slice(1))}">${esc(k)}</button>`:esc(k)}</span><div class="fb"><i style="width:${o[k]/mx*100}%;background:${PAL8[i%8]}"></i></div><small>${BRL(o[k])}</small></div>`).join('')};
