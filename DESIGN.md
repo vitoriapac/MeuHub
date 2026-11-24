@@ -208,7 +208,7 @@ O sistema é **plano por camadas tonais**. A profundidade vem da sequência fund
 
 ## Shapes
 
-A linguagem é de **cantos generosos e pílulas**. Quanto maior a superfície, maior o raio: campos têm 12px, itens 14px, cards de KPI 18px, ícones de estado vazio 20px, painéis 22px, e o menu lateral e o painel de saudação 26px. Botões, chips e a busca são pílulas completas (999px), e botões só de ícone são círculos. As bordas são finas (1px) e só aparecem em campos (Linha de Areia) e em botões secundários (Tinta). Painéis e itens não têm borda.
+A linguagem é de **cantos generosos e pílulas**. Quanto maior a superfície, maior o raio: campos têm 12px, itens 14px, cards de KPI 18px, ícones de estado vazio 20px, painéis 22px, e o menu lateral e o painel de saudação 26px. Botões, chips e a busca são pílulas completas (999px), e botões só de ícone são círculos. As bordas são finas (1px): campos usam Linha de Areia (`--line`), botões secundários usam Tinta (`--ink`), e painéis, cards e itens usam `--card-border` (8% de Tinta no claro, 11% no escuro) para dar definição sem sombra.
 
 ## Components
 
@@ -226,9 +226,11 @@ A linguagem é de **cantos generosos e pílulas**. Quanto maior a superfície, m
 - **Use:** tipo de item ("Tarefa", "Hábitos"), categorias e etiquetas. Os chips classificam, não são clicáveis por padrão.
 
 ### Cards / Containers
-- **Painel:** fundo Painel de Céu, cantos de 22px, padding de 16px, sem borda e sem sombra. O título é um rótulo pequeno em maiúsculas.
-- **Item de lista:** fundo Papel dentro do painel, cantos de 14px, padding de 8px 12px, 8px entre itens.
-- **Painel de saudação** (Início): cantos de 26px, gradiente diagonal suave do Painel para o Painel com 16% do acento. É o único gradiente de superfície, junto com a frase do dia.
+- **Painel:** fundo Painel de Céu, cantos de 22px, padding de 16px, borda sutil `--card-border` e sem sombra. O título é um rótulo pequeno em maiúsculas.
+- **Item de lista:** fundo Papel dentro do painel, cantos de 14px, padding de 8px 12px, borda sutil `--card-border`, 8px entre itens.
+- **Painel de saudação** (Início): cantos de 26px, gradiente suave do Painel com arte impressionista em SVG (`heroArt()`) que muda por período do dia (`manhã`, `tarde`, `noite`) usando as variáveis da paleta ativa, relógio ao vivo (`.hero2-clock`), breadcrumb (`.crumb`) e pílulas de captura rápida inline (`.hero2-qa`).
+- **Card tracejado de criação** (`.dashed-add`): convite visual em Notas e Links para criar itens direto na grade.
+- **Cartões visuais e projeção** (`.cc-card`, `.cc-proj`): em Finanças → Contas e cartões, exibem fatura atual, barra de limite e os próximos 4 meses previstos.
 
 ### Inputs / Fields
 - **Style:** fundo Papel, borda de 1px em Linha de Areia, cantos de 12px, padding de 8px 12px, texto de 1rem.
@@ -246,7 +248,7 @@ A linguagem é de **cantos generosos e pílulas**. Quanto maior a superfície, m
 Os cards do topo do Início: fundo Papel, cantos de 18px, padding de 16px (12px em telas estreitas), um anel de progresso no acento com ícone no centro, rótulo em maiúsculas, número em destaque (22px) e uma linha de tendência de uma semana. Mostram "como está o meu dia" num relance.
 
 ### Empty state (signature)
-Ícone num quadrado de 64px com cantos de 20px, sobre uma pequena cena geométrica (círculos e uma onda) tingida pelo acento. Embaixo vêm uma frase em negrito, uma dica gentil e, quando faz sentido, um botão. O tom segue a voz do produto: "Tudo em dia!", "Seu dia está livre."
+Ícone num quadrado de 64px com cantos de 20px, sobre uma cena SVG com pinceladas curvas tracejadas (`EART`) tingida pelo acento, conversando com a arte do Hero. Embaixo vêm uma frase em negrito, uma dica gentil e, quando faz sentido, um botão. O tom segue a voz do produto: "Tudo em dia!", "Seu dia está livre."
 
 ## Organização das abas
 
@@ -270,5 +272,11 @@ Os cards do topo do Início: fundo Papel, cantos de 18px, padding de 16px (12px 
 - **Don't** parecer painel corporativo: nada de cinza frio, tabelas densas sem respiro ou números brigando por atenção.
 - **Don't** parecer app infantil: nada de cores saturadas fora do acento, ilustrações bobas ou emoji no lugar de ícones.
 - **Don't** parecer neon/gamer: nada de preto puro com brilho, gradientes fortes ou efeitos de luz.
-- **Don't** trazer uma segunda família de fonte ou itálico decorativo.
+- **Don't** usar `Instrument Serif` fora da saudação e dos subtítulos de página (`.font-ed`, `.sub-ed`), nem trazer uma terceira família de fonte.
 - **Don't** colocar bordas grossas ou faixas coloridas laterais em cards e alertas.
+
+## Decisions log
+
+- **2026-11-24 — Segunda fonte editorial (`Instrument Serif` itálico local):** adicionada em `fonts/` (`.woff2`) apenas para o nome na saudação do Início e subtítulos de tela (`.sub-ed`), mantendo `Outfit` e números tabulares em toda a interface e respeitando o CSP `font-src 'self'`.
+- **2026-11-24 — Hero com arte impressionista em SVG + relógio ao vivo:** `heroArt()` usa pinceladas curvas em SVG ligadas exclusivamente às variáveis CSS da paleta ativa (`--s1`, `--s2`, `--pink`, `--blue`, `--yellow`, `--green`) para funcionar nas 5 paletas × claro/escuro sem arquivos raster pesados; `syncHeroClock()` atualiza o horário e o período automaticamente.
+- **2026-11-24 — Refinos de layout e escaneabilidade:** bordas sutis (`--card-border`), breadcrumbs (`.crumb`), badges na sidebar (`.nbadge`), cards tracejados (`.dashed-add`) em Notas/Links, cartões visuais com projeção de 4 faturas em Finanças, *Últimos lançamentos* na Visão Geral e toggle `Lista | Semana` por turnos em Tarefas.

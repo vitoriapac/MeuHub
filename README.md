@@ -14,17 +14,17 @@ Um painel pessoal brasileiro que reúne **planejamento do dia**, **controle fina
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Arquitetura detalhada: carga dos módulos, estado `S`, `localStorage`, mescla de 3 vias (`merge3`), PWA/Service Worker e motor de testes CDP. |
 | **[SPEC.md](SPEC.md)** | Especificação técnica, regras de código, limites operacionais, decisões arquiteturais e os cenários de teste. |
 | **[PRODUCT.md](PRODUCT.md)** | Visão de produto, usos principais, posicionamento, voz da marca e princípios. |
-| **[DESIGN.md](DESIGN.md)** | Sistema de design ("Caderno Solar"), tipografia (`Outfit`), paletas de cores, tokens semânticos e padrões de interface. |
+| **[DESIGN.md](DESIGN.md)** | Sistema de design ("A Escrivaninha Serena"), tipografia (`Outfit` e `Instrument Serif`), paletas de cores, tokens semânticos e padrões de interface. |
 
 ---
 
 ## Principais Funcionalidades
 
 ### 1. Planejamento e Produtividade
-- **Início personalizável:** card opcional para lista de compras fixada, resumo do dia com anel de progresso, gráficos sparkline de 7 dias, linha do tempo interativa (6h–22h), botão **Companhia** (liga/desliga Spotify + Clima com um clique) e 15 cards reordenáveis.
+- **Início personalizável:** painel de saudação com arte por período do dia, relógio atualizado automaticamente e atalhos de captura rápida, card opcional para lista de compras fixada, resumo do dia com anel de progresso, gráficos sparkline de 7 dias, linha do tempo interativa (6h–22h), botão **Companhia** (liga/desliga Spotify + Clima com um clique) e 15 cards reordenáveis.
 - **Hoje e Carga do Dia:** caixa de entrada, revisão semanal com pendências, próximos passos escolhidos nos projetos, notas e metas com data de revisão, além dos hábitos, planejamento individual para a próxima semana, prioridades, alertas e cálculo de capacidade. As sugestões consideram a capacidade e um horário livre; podem ser dispensadas até o próximo carregamento. A captura mantém seus campos ao alternar tipos. Planejar uma tarefa não altera seu prazo; em Tarefas, o planejamento em lote permite selecionar, revisar e desfazer a operação. Tarefas recorrentes são planejadas individualmente. A ação **Adiar para amanhã** altera o prazo para o dia seguinte e retira a tarefa de Hoje.
 - **Rotina (Manhã e Noite):** passo a passo guiado configurável com registro de dias seguidos.
-- **Tarefas, Agenda e Metas:** prioridades, subtarefas, recorrência, captura para caixa de entrada ou tarefa com data planejada independente do prazo, encaixe individual em Hoje e metas com acompanhamento por quantidade ou tarefas. Em Metas, use **Nova meta** para acessar o formulário ao final da página; edição e opções de acompanhamento ficam depois do conteúdo de cada meta; o próximo passo pode ser planejado para hoje sem alterar seu prazo. Na agenda diária, **Ações dos compromissos do dia** reúne edição, exclusão e ações das tarefas em botões maiores, inclusive para eventos curtos ou simultâneos.
+- **Tarefas, Agenda e Metas:** visualização de tarefas em **Lista** ou **Semana por turnos** (Manhã, Tarde, Noite e Qualquer hora) com arrastar e soltar, prioridades, subtarefas, recorrência, captura para caixa de entrada ou tarefa com data planejada independente do prazo, encaixe individual em Hoje e metas com acompanhamento por quantidade ou tarefas. Em Metas, use **Nova meta** para acessar o formulário ao final da página; edição e opções de acompanhamento ficam depois do conteúdo de cada meta; o próximo passo pode ser planejado para hoje sem alterar seu prazo. Na agenda diária, **Ações dos compromissos do dia** reúne edição, exclusão e ações das tarefas em botões maiores, inclusive para eventos curtos ou simultâneos.
 - **Hábitos e Pomodoro:** hábitos diários ou de 1 a 7 vezes por semana, grade de registros e timer Pomodoro (25 min foco / 5 min pausa). Ao mudar a frequência, os registros são preservados e a sequência passa a usar a meta atual. Em Início e Hoje, os indicadores de hábitos diários são separados das metas semanais cumpridas.
 
 ### 2. Finanças Pessoais (6 abas + Relatório Anual)

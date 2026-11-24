@@ -205,6 +205,8 @@ const CLICK_ACTIONS={
  pin:(id,b)=>{const x=S[b.dataset.t].find(y=>y.id===id);if(x)x.pin=!x.pin},
  gotoday:(id)=>{S.view='agenda';S.mode='day';S.dy=Math.round((new Date(id+'T00:00')-new Date(T+'T00:00'))/864e5)},
  mode:(id)=>{S.mode=id;ED=null},
+ tmode:(id)=>{S.tmode=id;ED=null},
+ twk:(id,b)=>{S.wk=b.dataset.n==='0'?0:(S.wk||0)+ +b.dataset.n},
  pick:(id)=>{S.dy=Math.round((new Date(id+'T00:00')-new Date(T+'T00:00'))/864e5);S.mode='day'},
  cap:(id)=>{S.cap=Math.max(1,Math.min(16,(+S.cap||8)+ +id))},
  // Notas & compras
