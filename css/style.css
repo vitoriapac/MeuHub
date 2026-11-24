@@ -18,7 +18,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .logo{font-size:30px;font-weight:600;letter-spacing:-1px;padding:0 var(--space-2) var(--space-4)}
 .logo i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--pink);margin-left:var(--space-1)}
 .nav{display:flex;align-items:center;gap:var(--space-2);background:none;border:0;color:color-mix(in srgb,var(--sideink) 78%,var(--side));padding:var(--space-2) var(--space-3);border-radius:12px;cursor:pointer;text-align:left;width:100%}
-.nav:hover{color:#fff}.nav.on{background:#262522;color:#fff}.nav.on b{color:var(--pink)}
+.nav:hover{color:#fff}.nav.on{background:color-mix(in srgb,var(--pink) 16%,transparent);color:#fff;box-shadow:inset 3px 0 0 var(--pink)}.nav.on b{color:var(--pink)}
 .nav b{width:18px;text-align:center;font-weight:500}
 .sp{flex:1}
 .main{min-width:0}
@@ -148,7 +148,7 @@ html.nt *,html.nt #main{transition:none!important;animation:none!important}
 .lq{display:flex;align-items:center;gap:var(--space-2);background:var(--card);border-radius:14px;padding:var(--space-2) var(--space-2);color:inherit;text-decoration:none;min-width:0}
 .lq .ico{margin:0;width:28px;height:28px;flex:none;font-size:13px}.lq span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .quote{background:linear-gradient(135deg,var(--panel),color-mix(in srgb,var(--nacc,var(--s1)) 20%,var(--panel)))!important}
-.quote blockquote{margin:var(--space-2) 0 0;font-size:20px;line-height:1.35;font-weight:500;position:relative;padding-left:var(--space-8)}
+.quote blockquote{margin:var(--space-2) 0 0;font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-weight:400;font-size:24px;line-height:1.28;position:relative;padding-left:var(--space-8)}
 .quote blockquote::before{content:"\201C";position:absolute;left:0;top:-6px;font-size:44px;line-height:1;color:var(--s1);opacity:.7}
 #main .cards.dashc>.panel:not(.hero):not(.quote){background:color-mix(in srgb,var(--panel) 42%,var(--bg));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--panel) 70%,transparent)}
 .emp .eic{position:relative;width:120px;height:80px;background:none;border-radius:0;margin:0 auto 6px}
@@ -218,6 +218,8 @@ html[data-nav=suave] .side .mgh{color:color-mix(in srgb,var(--ink) 74%,transpare
 .two{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4)}
 .item{display:flex;gap:var(--space-2);align-items:center;background:var(--card);border-radius:14px;padding:var(--space-2) var(--space-3);margin-bottom:var(--space-2)}
 .item .t{flex:1;min-width:0;overflow-wrap:anywhere}
+.item>strong,.item>.x,.item>.pill,.item>label{flex-shrink:0}
+button.item:hover{background:color-mix(in srgb,var(--ink) 4%,var(--card))}
 .item small{color:var(--mute);display:block}
 .x{background:none;border:0;color:var(--mute);cursor:pointer;font-size:18px;line-height:1;padding:var(--space-1)}
 .x:hover{color:var(--ink)}
@@ -512,7 +514,17 @@ html[data-priv="1"] :is(.note .rt,textarea[data-dk],textarea[data-rv],textarea[d
 .note input:not(.in)::placeholder,.note textarea:not(.in)::placeholder{color:rgba(22,22,22,.82);opacity:1}
 /* Refino visual: serifa editorial, bordas sutis, hero com atmosfera, cartões e card tracejado */
 .font-ed{font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-weight:400;letter-spacing:-.01em}
-.sub-ed{font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-weight:400;font-size:.78em;color:var(--mute);margin-left:var(--space-2);letter-spacing:0}
+.sub-ed{font-family:'Instrument Serif',Georgia,serif;font-style:italic;font-weight:400;font-size:.86em;color:var(--mute);margin-left:var(--space-2);letter-spacing:0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .stat{color:var(--ink)}:root:not([data-theme="light"]) .stat.c-p{background:color-mix(in srgb,var(--pink) 18%,var(--card));border-color:color-mix(in srgb,var(--pink) 34%,var(--card-border))}:root:not([data-theme="light"]) .stat.c-b{background:color-mix(in srgb,var(--blue) 18%,var(--card));border-color:color-mix(in srgb,var(--blue) 34%,var(--card-border))}:root:not([data-theme="light"]) .stat.c-y{background:color-mix(in srgb,var(--yellow) 18%,var(--card));border-color:color-mix(in srgb,var(--yellow) 34%,var(--card-border))}:root:not([data-theme="light"]) .stat.c-g{background:color-mix(in srgb,var(--green) 18%,var(--card));border-color:color-mix(in srgb,var(--green) 34%,var(--card-border))}}
+:root[data-theme="dark"] .stat{color:var(--ink)}
+:root[data-theme="dark"] .stat.c-p{background:color-mix(in srgb,var(--pink) 18%,var(--card));border-color:color-mix(in srgb,var(--pink) 34%,var(--card-border))}
+:root[data-theme="dark"] .stat.c-b{background:color-mix(in srgb,var(--blue) 18%,var(--card));border-color:color-mix(in srgb,var(--blue) 34%,var(--card-border))}
+:root[data-theme="dark"] .stat.c-y{background:color-mix(in srgb,var(--yellow) 18%,var(--card));border-color:color-mix(in srgb,var(--yellow) 34%,var(--card-border))}
+:root[data-theme="dark"] .stat.c-g{background:color-mix(in srgb,var(--green) 18%,var(--card));border-color:color-mix(in srgb,var(--green) 34%,var(--card-border))}
+#ffin,#frule{align-items:center}
+#ffin .adv{flex-basis:100%;display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center}
+#ffin:not(.advo) .adv{display:none}
+#frule .grow{min-width:180px}
 .crumb{display:block;font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-bottom:2px}
 .panel,.item,.kpi,.stat{border:1px solid var(--card-border)}
 .panel.hero{border-color:color-mix(in srgb,var(--s1) 34%,transparent)}
