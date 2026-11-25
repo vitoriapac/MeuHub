@@ -2048,7 +2048,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       assert.strictEqual(r.pmOut, 100);
       assert.strictEqual(r.pmInc, 0);
       assert.deepStrictEqual(r.pmBy, { Alimentação: 100 });
-      assert.deepStrictEqual(r.rb, { rb: 1, rcat: 'Outros' });
+      assert.deepStrictEqual(r.rb, { rb: 1, rcat: 'Compras' });
       assert.deepStrictEqual(r.ofxCardFlags, { isCard: true, inv: true, skipCardPay: true, ac: 'card1' });
       assert.strictEqual(r.cardPayTotal, 1);
       assert.strictEqual(r.cardRows, 2);

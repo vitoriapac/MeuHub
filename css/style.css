@@ -218,7 +218,8 @@ html[data-nav=suave] .side .mgh{color:color-mix(in srgb,var(--ink) 74%,transpare
 .two{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4)}
 .item{display:flex;gap:var(--space-2);align-items:center;background:var(--card);border-radius:14px;padding:var(--space-2) var(--space-3);margin-bottom:var(--space-2)}
 .item .t{flex:1;min-width:0;overflow-wrap:anywhere}
-.item>strong,.item>.x,.item>.pill,.item>label{flex-shrink:0}
+.item>strong,.item>.x,.item>.pill,.item>label{flex-shrink:0;max-width:100%}
+@media (max-width:520px){.item>.pill,.item>label{flex-shrink:1;min-width:0;white-space:normal}}
 button.item:hover{background:color-mix(in srgb,var(--ink) 4%,var(--card))}
 .item small{color:var(--mute);display:block}
 .x{background:none;border:0;color:var(--mute);cursor:pointer;font-size:18px;line-height:1;padding:var(--space-1)}
