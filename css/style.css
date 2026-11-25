@@ -13,7 +13,7 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 var(--type-body)/1.5 Outfit,system-ui,sans-serif}
 :where(a){color:var(--ink)}
 button,input,select,textarea{font:inherit;color:inherit}
-.app{display:grid;grid-template-columns:208px 1fr;gap:var(--space-4);padding:var(--space-4);max-width:1280px;margin:0 auto;min-height:100vh}
+.app{display:grid;grid-template-columns:208px 1fr;gap:var(--space-4);padding:var(--space-4);max-width:1440px;margin:0 auto;min-height:100vh}
 .side{background:var(--side);color:var(--sideink);border-radius:26px;padding:var(--space-6) var(--space-4);display:flex;flex-direction:column;gap:var(--space-2);position:sticky;top:18px;height:calc(100vh - 36px)}
 .logo{font-size:30px;font-weight:600;letter-spacing:-1px;padding:0 var(--space-2) var(--space-4)}
 .logo i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--pink);margin-left:var(--space-1)}
@@ -22,6 +22,11 @@ button,input,select,textarea{font:inherit;color:inherit}
 .nav b{width:18px;text-align:center;font-weight:500}
 .sp{flex:1}
 .main{min-width:0}
+#main{--section-gap:var(--space-4)}
+html[data-dens=compacto] #main{--section-gap:var(--space-3)}
+#main > :is(.panel,.cards,.rv4,.notes,.links,.grid,.stack) + :is(.panel,.cards,.rv4,.notes,.links,.grid,.stack){margin-block-start:var(--section-gap)}
+.actions{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-2);min-width:0;max-width:100%}
+#main > .panel > :is(p,.empty){max-inline-size:76ch}
 .top{display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin:var(--space-2) 0 var(--space-4)}
 h1{font-size:var(--type-display);font-weight:500;letter-spacing:-1px;margin:0}
 h2{font-size:var(--type-title);font-weight:500;margin:0 0 var(--space-2)}
@@ -241,7 +246,7 @@ form.bar .in.grow{flex:1;min-width:140px}
 .ev .x{position:absolute;top:4px;right:4px;color:#161616;opacity:.75;font-size:16px}
 .note,.link,.ev:not(.blk),.ntile,.stat{color-scheme:light}
 .note a,.link a,.ev:not(.blk) a{color:#161616}
-.notes{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:var(--space-4)}
+.notes{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:var(--space-4)}
 .note{border-radius:22px;padding:var(--space-4);color:#161616;display:flex;flex-direction:column;gap:var(--space-2);min-height:200px}
 .note input:not(.in):not([type=checkbox]):not([type=radio]),.note textarea:not(.in){background:transparent;border:0;resize:none;width:100%;color:#161616}
 .note input:not(.in):not([type=checkbox]):not([type=radio]){font-weight:600;font-size:17px}
@@ -276,7 +281,7 @@ form.bar .in.grow{flex:1;min-width:140px}
 .book-detail{margin-top:var(--space-4)}.book-detail-head{display:flex;gap:var(--space-4);align-items:flex-start;flex-wrap:wrap}.book-detail-head>div:last-child{flex:1;min-width:180px}.book-cover{display:block;max-width:140px;max-height:210px;object-fit:contain;border-radius:6px}.book-no-cover{width:120px;min-height:165px;display:grid;place-items:center;text-align:center;padding:var(--space-3);background:var(--card);border-radius:8px;color:var(--mute)}.book-quote{margin:var(--space-2) 0;padding:var(--space-2) var(--space-3);border:1px solid color-mix(in srgb,var(--s1) 30%,var(--line));background:var(--panel);border-radius:12px;font-style:italic}.cover-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--space-2)}.cover-result{display:flex;align-items:center;gap:var(--space-2);padding:var(--space-2);background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;text-align:left;cursor:pointer}.cover-result img{width:42px;height:60px;object-fit:contain}.cover-result span{min-width:0;overflow-wrap:anywhere}.cover-result small{display:block;color:var(--mute)}
 .book-no-cover[hidden],.book-cover[hidden],.movie-poster-fallback[hidden]{display:none}
 .note .x{color:#161616}
-.links{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:var(--space-3)}
+.links{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(210px,100%),1fr));gap:var(--space-4)}
 .link{border-radius:20px;padding:var(--space-4);color:#161616;position:relative;display:flex;flex-direction:column;gap:var(--space-2);min-height:96px}
 .link-main{display:block;color:inherit;text-decoration:none;min-width:0;border-radius:12px}
 .link-main:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
@@ -330,7 +335,7 @@ form.bar .in.grow{flex:1;min-width:140px}
 .pill.on{background:color-mix(in srgb,var(--s1) 18%,var(--card));color:var(--ink);border:1.5px solid var(--s1);font-weight:500}
 .day.today h3{background:var(--nacc,#161616);color:var(--nonacc,#fff)}
 .rt input[type=checkbox]{width:16px;height:16px;margin-right:var(--space-2);accent-color:#161616;vertical-align:-2px}
-.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-3);align-content:start}.cards .wide{grid-column:1/-1}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-4);align-content:start}.cards .wide{grid-column:1/-1}
 .revs{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-2);margin-bottom:var(--space-2)}
 .lb{display:block;font-size:var(--type-small);margin-top:var(--space-2);color:var(--mute)}.lb[hidden]{display:none}.ta{width:100%;min-height:72px;resize:vertical;margin-top:var(--space-1);color:var(--ink)}
 .hmap{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,auto);gap:var(--space-1);max-width:100%}
@@ -375,7 +380,7 @@ form.bar .adv{display:none}form.bar.advo .adv{display:contents}
 .mchart{display:flex;gap:var(--space-1);align-items:flex-end;height:100px}.mchart i{flex:1;border-radius:5px 5px 0 0;min-width:0}
 [data-gdep]{width:140px!important}
 .tgc{background:var(--tag-bg);color:#161616;border:0;cursor:pointer;font:inherit;font-size:var(--type-small);padding:var(--space-1) var(--space-2)}
-.rv4{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2)}
+.rv4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space-3)}
 @media (max-width:860px){.rv4{grid-template-columns:repeat(2,1fr)}}
 .syn{pointer-events:none;font-size:var(--type-small);opacity:.85;cursor:default}
 .fs{width:100%;height:auto;display:block}.fs text{fill:var(--mute);font-size:11px;font-family:inherit}
@@ -502,7 +507,16 @@ html[data-priv="1"] :is(.note .rt,textarea[data-dk],textarea[data-rv],textarea[d
 
 #main details:has(> #task-template)>summary,#main details:has(> #bulk-plan)>summary,#main details:has(> #bulk-due)>summary{padding:var(--space-2) 0;cursor:pointer}
 
-.project-actions{display:inline-flex;align-items:center;gap:var(--space-2);flex:none}
+.project-actions{display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;min-width:0;max-width:100%}
+#main .lb + .bar{margin-block-start:var(--space-2)}
+#main :where(details:not(.mnu)) > summary + :where(.bar,.panel,.item,.in,section,form,details){margin-block-start:var(--space-2)}
+#main :where(details:not(.mnu)) + :where(details:not(.mnu),.bar,.lb),#main :where(.lb,.bar,.tgc) + :where(details:not(.mnu)){margin-block-start:var(--space-2)}
+#main .item .t > small + details{margin-block-start:var(--space-2)}
+#main [data-review-guide] > section + section{margin-block-start:var(--space-3)}
+#main [data-review-guide] section > label:last-child{display:block;margin-block-start:var(--space-2)}
+#main :is(#bulk-plan,#bulk-due) > .lb + .bar{margin-block-start:var(--space-3)}
+#main [data-note-filters]{margin-block-start:var(--space-2)}
+.day .event-actions{margin-block-start:var(--space-2)}
 
 .note footer label:has([data-note-review]){min-width:0;max-width:100%}.note footer [data-note-review]{width:100%;min-width:0;max-width:100%}
 

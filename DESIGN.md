@@ -186,10 +186,10 @@ Tons de céu claro e papel, com tintas pastel por categoria e um lilás de assin
 
 ## Layout
 
-- **Estrutura:** grade de duas colunas, com o menu lateral de 208px e o conteúdo, 16px de espaço e de margem, centralizada até 1280px. O menu lateral é uma "folha" fixa com cantos de 26px e a altura da tela.
+- **Estrutura:** grade de duas colunas, com o menu lateral de 208px e o conteúdo, 16px de espaço e de margem, centralizada até 1440px. O menu lateral é uma "folha" fixa com cantos de 26px e a altura da tela.
 - **Ritmo:** base de 8px, com meio passo de 4px para controles compactos; tokens CSS `--space-1` a `--space-8`. Bordas, gráficos, ícones e áreas seguras podem exigir medidas de precisão.
 - **Tokens:** `--space-1` a `--space-8` correspondem a 4, 8, 12, 16, 20, 24, 28 e 32px. Os valores de 4, 12, 20 e 28px são meios passos para situações de maior densidade.
-- **Densidade:** dois modos, confortável (o padrão) e compacto, preservando fontes legíveis e alvos de toque.
+- **Densidade:** dois modos, confortável (o padrão) e compacto. Entre blocos consecutivos, use 16px no confortável e 12px no compacto. Ações de um mesmo grupo usam 8px e quebram linha quando necessário, preservando os alvos de toque.
 - **Celular (até 860px):** o menu lateral vira uma **barra de abas fixa embaixo** (Início, Hoje, Agenda, Tarefas, Notas e Mais), e os mosaicos de cards caem para duas colunas. Até 520px, os grupos viram uma coluna. Os pontos de quebra observados são 520, 860/861, 1100 e 1179px.
 - **Painéis do Início:** mosaico de cards configurável. Alguns cards são largos (Seu dia, Produtividade, Agenda, Notas, Revisão, Histórico, Finanças).
 
@@ -276,6 +276,8 @@ Os cards do topo do Início: fundo Papel, cantos de 18px, padding de 16px (12px 
 - **Don't** colocar bordas grossas ou faixas coloridas laterais em cards e alertas.
 
 ## Decisions log
+
+- **2026-11-25 — Espaçamento e largura:** limite de 1440px no desktop para acomodar as abas financeiras em uma linha e dar espaço às grades. Intervalos de seção e grupos de ações reutilizam a escala existente.
 
 - **2026-11-24 — Segunda fonte editorial (`Instrument Serif` itálico local):** adicionada em `fonts/` (`.woff2`) apenas para o nome na saudação do Início e subtítulos de tela (`.sub-ed`), mantendo `Outfit` e números tabulares em toda a interface e respeitando o CSP `font-src 'self'`.
 - **2026-11-24 — Hero com arte impressionista em SVG + relógio ao vivo:** `heroArt()` usa pinceladas curvas em SVG ligadas exclusivamente às variáveis CSS da paleta ativa (`--s1`, `--s2`, `--pink`, `--blue`, `--yellow`, `--green`) para funcionar nas 5 paletas × claro/escuro sem arquivos raster pesados; `syncHeroClock()` atualiza o horário e o período automaticamente.

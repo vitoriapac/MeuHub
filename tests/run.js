@@ -624,6 +624,29 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
         for(const {view,buttons,missing} of r){assert.ok(!missing,view+' sem cartão');for(const b of buttons){assert.ok(b.w>=44&&b.h>=44,view+' com alvo pequeno');}for(let i=0;i<buttons.length;i++)for(let j=i+1;j<buttons.length;j++){const a=buttons[i],b=buttons[j];assert.ok(a.x+a.w<=b.x||b.x+b.w<=a.x||a.y+a.h<=b.y||b.y+b.h<=a.y,view+' com ações sobrepostas')}}
       } finally {await b.send('Emulation.clearDeviceMetricsOverride')}
     }],
+    ['espaçamento de seções e ações funciona em celular e desktop amplo', async () => {
+      await fresh(); await login('A');
+      try {
+        for(const width of [320,1920]){
+          await b.send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width===320});
+          const r=await ev(`(()=>{
+            S.projects=[{id:'p',t:'Projeto',status:'active',refs:[{id:'tk:t'}]}];
+            S.tasks=[{id:'t',t:'Tarefa vinculada'}];
+            S.notes=[{id:'n',t:'Nota'}];S.view='projetos';render({save:false});
+            const panel=document.querySelector('[data-project]'),form=document.querySelector('#project-create');
+            const gap=form.getBoundingClientRect().top-panel.getBoundingClientRect().bottom;
+            const overflow=document.documentElement.scrollWidth-document.documentElement.clientWidth;
+            S.view='financas';S.fvw='mes';S.ftab='contas';render({save:false});
+            const tabs=[...document.querySelectorAll('.ftabs button')];
+            return {gap,overflow,width:document.querySelector('.app').clientWidth,
+              rows:new Set(tabs.map(t=>Math.round(t.getBoundingClientRect().top))).size,tabCount:tabs.length};
+          })()`);
+          assert.ok(r.gap>=12);assert.equal(r.overflow,0);assert.ok(r.tabCount>=6);
+          if(width===1920){assert.equal(r.width,1440);assert.equal(r.rows,1)}
+          else assert.equal(r.width,320);
+        }
+      } finally {await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
     ['componentes compartilhados usam espaçamento da grade em celular e desktop', async () => {
       await fresh(); await login('A');
       try {
