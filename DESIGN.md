@@ -228,7 +228,7 @@ A linguagem é de **cantos generosos e pílulas**. Quanto maior a superfície, m
 ### Cards / Containers
 - **Painel:** fundo Painel de Céu, cantos de 22px, padding de 16px, borda sutil `--card-border` e sem sombra. O título é um rótulo pequeno em maiúsculas.
 - **Item de lista:** fundo Papel dentro do painel, cantos de 14px, padding de 8px 12px, borda sutil `--card-border`, 8px entre itens.
-- **Painel de saudação** (Início): cantos de 26px, gradiente suave do Painel com arte impressionista em SVG (`heroArt()`) que muda por período do dia (`manhã`, `tarde`, `noite`) usando as variáveis da paleta ativa, relógio ao vivo (`.hero2-clock`), breadcrumb (`.crumb`) e pílulas de captura rápida inline (`.hero2-qa`).
+- **Painel de saudação** (Início): banner horizontal (`.hero2-banner`) com cantos de 26px, borda `--card-border`, gradiente suave do Painel sobre pinturas impressionistas no estilo Van Gogh (`img/hero-manha.jpg`, `img/hero-tarde.jpg`, `img/hero-noite.jpg`) que mudam por período do dia, relógio ao vivo no canto superior direito (`.hero2-clock`), breadcrumb (`.crumb`) e pílulas de captura rápida inline (`.hero2-qa`). Os cards de KPI ficam logo abaixo do banner para deixar a pintura livre à direita.
 - **Card tracejado de criação** (`.dashed-add`): convite visual em Notas e Links para criar itens direto na grade.
 - **Cartões visuais e projeção** (`.cc-card`, `.cc-proj`): em Finanças → Contas e cartões, exibem fatura atual, barra de limite e os próximos 4 meses previstos.
 
