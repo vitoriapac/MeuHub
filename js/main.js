@@ -28,7 +28,7 @@ function render(opts){
  pomoDraw();fillTags();updU();trashSweep();a11y(FK);lkDraw();flashEl();
  {const mn=$('#main');if(mn&&LV!==S.view){LV=S.view;mn.classList.remove('vin');void mn.offsetWidth;mn.classList.add('vin')}}
  if(sameView&&prevScroll>0&&Math.abs(window.scrollY-prevScroll)>4)window.scrollTo({top:prevScroll,behavior:'instant'});
- gateR();spSync();if(S.view==='dash'&&document.querySelector('[data-card=clima]'))wxEnsure();if(S.view==='financas'&&S.ftab==='inv'&&typeof invEnsureQuotes==='function')invEnsureQuotes();
+ gateR();spSync();if(document.querySelector('[data-card=clima]'))wxEnsure();if(S.view==='financas'&&S.ftab==='inv'&&typeof invEnsureQuotes==='function')invEnsureQuotes();
  if(!opts||opts.save!==false)save();
 }
 const PAUSE_GUARD=new Set(['plan','review-plan','snooze','focus','fit','fitday','fit-propose','fit-confirm','rtplan','rtdeadline','dash-done']);
@@ -192,6 +192,22 @@ CLICK_EARLY.syncup=CLICK_EARLY.syncnow;CLICK_EARLY.syncdown=CLICK_EARLY.syncnow;
 ['bulk-preview','bulk-apply','bulk-due-preview','bulk-due-apply'].forEach(k=>{CLICK_EARLY[k]=(b,id,e)=>handleBulkClick(k,b,e)});
 
 const CLICK_ACTIONS={
+ 'context-pin':(id,b)=>{
+  const ref=b.dataset.ref;
+  if(lkItem(ref)&&lkItem(id)?.ty==='nt')lkSet(ref,id,true);
+ },
+ 'context-hide':(id,b)=>{hiddenContextNotes.add(contextNoteKey(b.dataset.ref,id))},
+ 'focus-enter':(id)=>{
+  const t=S.tasks.find(t=>t.id===id&&!t.done&&!taskPaused(t));
+  if(t)focusTask={id,uid:SY.uid};
+ },
+ 'focus-exit':()=>{focusTask=null},
+ 'focus-done':(id)=>{
+  const t=S.tasks.find(t=>t.id===id&&!t.done&&!taskPaused(t));
+  if(t)completeTask(t,true);
+  if(S.fk?.id===id)S.fk=null;
+  focusTask=null;
+ },
  // Agenda & navegação
  nav:(id,b)=>{const n=+b.dataset.n,k={month:'mo',day:'dy'}[S.mode]||'wk';S[k]=n?S[k]+n:0},
  delev:(id)=>{S.events=S.events.filter(x=>x.id!==id)},
@@ -261,7 +277,7 @@ const CLICK_ACTIONS={
  unmt:(id)=>{const t=S.tasks.find(x=>x.id===id);t.mt=''},
  mrn:(id,b)=>{S.mro=b.dataset.n==='0'?0:S.mro+ +b.dataset.n},
  plan:(id)=>{const t=S.tasks.find(x=>x.id===id);t.hd=t.hd===T?'':T},
- 'review-plan':(id)=>{const t=S.tasks.find(x=>x.id===id);if(t&&!t.done)t.hd=ds(add(today,7-((today.getDay()+6)%7)))},
+ 'review-plan':(id,b)=>{const t=S.tasks.find(x=>x.id===id),date=b.dataset.date;if(t&&!t.done&&date&&date>=T&&projectDate(date))t.hd=date},
  'hide-suggestion':(id)=>{dismissedSuggestions.add(T+':'+id)},
  tagv:(id)=>{S.tgsel=id;S.view='etiquetas';Q='';$('#q').value=''},
  snooze:(id)=>{const t=S.tasks.find(x=>x.id===id);t.due=ds(add(today,1));if(t.hd===T)t.hd='';toast('Tarefa adiada para amanhã')},
@@ -342,7 +358,18 @@ const CLICK_ACTIONS={
  delrule:(id)=>{S.fin.rules=S.fin.rules.filter(x=>x.id!==id)},
  rulesapply:()=>{toast(applyRules(false)+' lançamentos atualizados')},
  impgo:()=>{
-  const F=finInit();let n=0;const R=impRows().rows;
+  if(!IMP)return 'stop';
+  const F=finInit();let n=0;const R=impRows().rows,selected=new Set(),keys=new Set(),links=[];
+  for(const [index,choice] of Object.entries(IMP.review||{})){
+   if(!choice.startsWith('tx:'))continue;
+   const row=R.find(r=>r.index===+index),tx=row?.matches.find(x=>'tx:'+x.id===choice);
+   if(!tx||selected.has(tx.id)||keys.has(row.statementKey)||F.tx.some(x=>x.statementKey===row.statementKey)){
+    toast('Confira as associações. Use cada lançamento e cada linha do extrato uma vez.');
+    return 'stop';
+   }
+   selected.add(tx.id);keys.add(row.statementKey);links.push({row,tx});
+  }
+  for(const {row,tx} of links)tx.statementKey=row.statementKey;
   if(IMP.setIni&&IMP.meta&&Number.isFinite(IMP.meta.ini)){
    const acc=F.acc.find(a=>a.id===IMP.ac);
    if(acc)acc.ini=Math.round(IMP.meta.ini*100)/100;
@@ -359,7 +386,7 @@ const CLICK_ACTIONS={
     }
    });
   }
-  const toSave=R.filter(r=>!r.dup||(IMP.include||[]).includes(r.index));
+  const toSave=R.filter(r=>statementImports(r)&&!keys.has(r.statementKey));
   let resAcc=null,genCount=0;
   if(toSave.some(r=>r.resTr)){
    resAcc=F.acc.find(a=>a.id!==IMP.ac&&(a.ty==='inv'||norm(a.n).includes('reserva')));
@@ -367,6 +394,7 @@ const CLICK_ACTIONS={
   }
   toSave.forEach(r=>{
    const tx=r.resTr?{id:uid(),k:'tr',t:r.t,v:r.v,cat:'Transferência',d:r.d,ac:r.resDir==='out'?IMP.ac:resAcc.id,to:r.resDir==='out'?resAcc.id:IMP.ac,imp:1,sub:r.sub,tg:r.tg,pj:r.pj}:{id:uid(),k:r.k,t:r.t,v:r.v,cat:r.cat,d:r.d,ac:IMP.ac,imp:1,sub:r.sub,tg:r.tg,pj:r.pj};
+   tx.statementKey=r.statementKey;
    if(r.ref)tx.ref=r.ref;
    if(r.rb){tx.rb=1;tx.rcat=r.rcat||'Outros'}
    if(r.pc){
@@ -388,7 +416,7 @@ const CLICK_ACTIONS={
    acc.stmtFin=r2(IMP.meta.fin);
    if(IMP.reconcile)acc.ini=r2((+acc.ini||0)+(acc.stmtFin-bal(acc)));
   }
-  toast(n+' lançamentos importados'+(genCount?' · +'+genCount+' parcelas futuras':'')+(R.length-n?', '+(R.length-n)+' possíveis duplicatas ignoradas':'')+(addedRules.length?' · '+addedRules.length+(addedRules.length===1?' regra criada':' regras criadas'):''));
+  toast(n+' lançamentos importados'+(genCount?' · +'+genCount+' parcelas futuras':'')+(links.length?' · '+links.length+' associações':'')+(R.length-n-links.length?' · '+(R.length-n-links.length)+' linhas ignoradas':'')+(addedRules.length?' · '+addedRules.length+(addedRules.length===1?' regra criada':' regras criadas'):''));
   IMP=null;
  },
  impcancel:()=>{IMP=null},
@@ -469,6 +497,9 @@ document.addEventListener('click',e=>{
  else if(!finActE(a,id,b))return;
  trashFlush(TB);
  if(FULL_RENDER_ACTIONS.has(a))render();else renderKeepDraft();
+ if(a==='focus-enter'||a==='focus-exit'||a==='focus-done'){
+  $('#focus-title, #today-title')?.focus();
+ }
  if(a==='rd-open'){const detail=document.querySelector('#book-detail');if(detail){detail.scrollIntoView({block:'nearest',behavior:SMOOTH()});detail.focus({preventScroll:true})}}
  if(a==='ed'||a==='edtx'){window.scrollTo(0,0);const i=document.querySelector('form.bar input');if(i)i.focus()}
  if(a==='edrec'||a==='edbill'){const f=document.querySelector(a==='edrec'?'#frec':'#fbill');if(f){f.scrollIntoView({block:'nearest'});const i=f.querySelector('input');if(i)i.focus()}}
@@ -512,7 +543,27 @@ document.addEventListener('change',e=>{
  if(e.target.dataset.shoppingBudget){const n=S.notes.find(x=>x.id===e.target.dataset.shoppingBudget&&x.kind==='shopping'),v=e.target.value.trim(),amount=num(v);if(n){if(!v)delete n.budget;else if(Number.isFinite(amount)&&amount>=0)n.budget=Math.round(amount*100)/100;else{toast('Informe uma estimativa válida');return}noteTouch(n);renderKeepDraft()}return}
  if(e.target.dataset.shoppingCheck){const n=S.notes.find(x=>x.id===e.target.dataset.shoppingCheck&&x.kind==='shopping'),item=n&&n.items.find(x=>x.id===e.target.dataset.id);if(item){item.done=e.target.checked;noteTouch(n)}renderKeepDraft();return}
  if(e.target.dataset.revshow){S.revprefs=Object.assign({},S.revprefs||{},{[e.target.dataset.revshow]:e.target.checked});render();return}
- if(e.target.id==='bkcheck'){const f=e.target.files[0],m=$('#bkmsg');if(!f)return;const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result),d=j.data||j;if(!validBackup(d))throw 0;if(m)m.textContent='Arquivo compatível: '+d.tasks.length+' tarefas, '+(d.notes||[]).length+' notas, '+(d.metas||[]).length+' metas e '+(d.projects||[]).length+' projetos. A conferência não restaura dados nem garante que a restauração será bem-sucedida.'}catch(x){if(m)m.textContent='Arquivo inválido ou incompatível. Nenhum dado foi alterado.'}};r.onerror=()=>{if(m)m.textContent='Não foi possível ler o arquivo. Nenhum dado foi alterado.'};r.readAsText(f);e.target.value='';return}
+ if(e.target.id==='bkcheck'){
+  const f=e.target.files[0],r=new FileReader(),owner=SY.uid;
+  if(!f)return;
+  const report=(result,message)=>{
+   if(owner!==SY.uid)return;
+   SY.backupCheck={at:Date.now(),result};
+   saveSY();
+   const status=$('[data-backup-check]'),m=$('#bkmsg');
+   if(status)status.textContent=backupCheckStatus();
+   if(m)m.textContent=message;
+  };
+  r.onload=()=>{
+   try{
+    const j=JSON.parse(r.result),d=j.data||j;
+    if(!validBackup(d))throw Error('backup');
+    report('Estrutura compatível','Arquivo compatível: '+d.tasks.length+' tarefas, '+(d.notes||[]).length+' notas, '+(d.metas||[]).length+' metas e '+(d.projects||[]).length+' projetos. Apenas a estrutura foi conferida. A recuperação depende de um teste de restauração.');
+   }catch(x){report('Arquivo incompatível','Arquivo inválido ou incompatível. Nenhum dado foi alterado.')}
+  };
+  r.onerror=()=>report('Falha na leitura','Não foi possível ler o arquivo. Nenhum dado foi alterado.');
+  r.readAsText(f);e.target.value='';return;
+ }
  if(e.target.id==='bkmerge'){if(LOCAL_CORRUPT){const m=$('#bkmsg');if(m)m.textContent='Restaure um arquivo ou traga os dados da nuvem antes de mesclar.';e.target.value='';return}const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{let msg;try{const j=JSON.parse(r.result),d=j.data||j;if(!validBackup(d))throw 0;const previous=JSON.stringify(S),wasCorrupt=LOCAL_CORRUPT;if(!snapPut('Antes de importar mesclando')){const m=$('#bkmsg');if(m)m.textContent='Não foi possível guardar a versão atual. Exporte um backup e libere espaço.';return}const inc={};SK.forEach(k=>{if(k in d)inc[k]=d[k]});if(Array.isArray(inc.links))inc.links=inc.links.filter(l=>l&&safeUrl(l.u)!=='#');applyState(merge3(undefined,pick(),inc));S.seeded=true;if(!save()){S=JSON.parse(previous);LOCAL_CORRUPT=wasCorrupt;applyTheme();applyA11y();undoReset();render();const m=$('#bkmsg');if(m)m.textContent='Não foi possível salvar a importação. Os dados anteriores foram mantidos.';return}render();msg='Backup mesclado com os dados deste aparelho. A versão anterior foi guardada em Versões automáticas.'}catch(x){msg='Arquivo inválido. Escolha um backup gerado por este painel.'}const m=$('#bkmsg');if(m)m.textContent=msg};r.readAsText(f);e.target.value='';return}
  if(e.target.id==='bkfile'){
   const f=e.target.files[0];if(!f)return;
@@ -545,6 +596,12 @@ document.addEventListener('change',e=>{
    const m=$('#bkmsg');if(m)m.textContent=msg;
   };
   r.readAsText(f);return;
+ }
+ if(e.target.dataset.reviewStep){
+  const {wk,reviewStep}=e.target.dataset;
+  (S.rev[wk]=S.rev[wk]||{})['step_'+reviewStep]=e.target.checked;
+  renderKeepDraft();
+  return;
  }
  const cg=e.target.closest('[data-a="ctog"]');if(cg){const L2=cfg();L2.find(y=>y.id===cg.dataset.id).on=cg.checked;S.cards=L2;render();return}
  const c=e.target.closest('[data-a="tog"]');
@@ -650,8 +707,16 @@ const SUBMIT_EARLY={
   try{
    const raw=String(v.amount||'').trim().replace(',','.');
    if(!/^\d+(?:\.\d{1,2})?$/.test(raw))throw Error('valor');
-   const r=simulatePurchase(S.fin,v.account,v.date,Math.round(Number(raw)*100),Number(v.parts),Number(v.rate),T,v.card||'');
-   out.textContent='Período: '+fmt(r.start)+' a '+fmt(r.end)+'. Total da compra: '+BRL(r.total/100)+'. Base: saldo final '+BRL(r.base/100)+'; menor saldo diário '+BRL(r.minBase/100)+'. Com compra: saldo final '+BRL(r.scenario/100)+'; menor saldo diário '+BRL(r.minScenario/100)+'. Impacto da compra no saldo final: '+BRL((r.scenario-r.base)/100)+'.'+(v.card?' Cartão sem conta de pagamento vinculada: usando a conta escolhida apenas nesta simulação. Parcelas: '+r.schedule.map(x=>BRL(x.value/100)+' vence '+fmt(x.d)+' '+x.d.slice(0,4)+' (fecha '+fmt(x.closing)+')').join('; ')+'.':'');
+   const amount=Math.round(Number(raw)*100),args=[S.fin,v.account,v.date,amount];
+   const choice=simulatePurchase(...args,Number(v.parts),Number(v.rate),T,v.card||'');
+   const cash=simulatePurchase(...args,1,0,T,'',choice.end);
+   const summary=(title,r,card)=>`<section class="panel"><h3>${title}</h3>
+   <p>Total da compra: ${BRL(r.total/100)}. Saldo final com compra: ${BRL(r.scenario/100)}. Menor saldo diário: ${BRL(r.minScenario/100)}. Impacto da compra no saldo final: ${BRL((r.scenario-r.base)/100)}.</p>
+   ${card?`<details><summary>Parcelas</summary>${r.schedule.map(x=>`<p>${BRL(x.value/100)} vence ${fmt(x.d)} ${x.d.slice(0,4)} (fecha ${fmt(x.closing)})</p>`).join('')}</details>`:''}
+   ${simulationBudget(v.category,r.schedule)}</section>`;
+   out.innerHTML=`<p>Período: ${fmt(T)} a ${fmt(choice.end)} ${choice.end.slice(0,4)}. Base: saldo final ${BRL(choice.base/100)} e menor saldo diário ${BRL(choice.minBase/100)}.</p>
+   ${v.card?'<p>Cartão sem conta de pagamento vinculada: usando a conta escolhida apenas nesta simulação.</p>':''}
+   <div class="cards">${summary('À vista em conta',cash,false)}${summary(v.card?'Opção no cartão':'Opção configurada',choice,v.card)}</div>`;
   }catch(err){out.textContent='Confira conta, valor, data, parcelas e juros.'}
  },
  'fcsvpaste':(f)=>{if(prepCSV(f.elements.csv.value,'Extrato colado'))render()},
@@ -659,6 +724,17 @@ const SUBMIT_EARLY={
  'bulk-due':(f)=>{f.querySelector('[data-a$="-preview"]').click()}
 };
 const SUBMIT_BY_ID={
+ 'day-replan':(f)=>{
+  const choices=new FormData(f);
+  for(const t of replanTasks()){
+   const action=choices.get(t.id);
+   if(action!=='tomorrow'&&action!=='remove')continue;
+   if(action==='tomorrow')t.hd=ds(add(today,1));
+   else if(t.hd===T)t.hd='';
+   if(t.bk?.d===T)delete t.bk;
+  }
+  toast('Plano atualizado');
+ },
  'availability-form':(f,v)=>{
   const day=String(v.day),start=v.start,end=v.end,all=S.availability||{},current=Array.isArray(all[day])?all[day]:[];
   const valid=/^[0-6]$/.test(day)&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(start)&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(end)&&start<end&&!current.some(w=>start<w.end&&w.start<end);

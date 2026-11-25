@@ -256,6 +256,69 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
     ['sessões de compra preservam itens e permitem compras distintas', async () => {
       await fresh();await login('A');const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',c:'g',items:[{id:'i',t:'Arroz',q:'',qty:2,unit:'kg',estimatedCents:1800,actualCents:1700,done:true}]}];S.fin.tx=[];S.view='notas';render();document.querySelector('[data-a=shopping-expense]').click();let f=document.querySelector('#fqa');const initial=f.elements.v.value;f.requestSubmit();const first=S.fin.tx[0];document.querySelector('[data-a=shopping-expense]').click();f=document.querySelector('#fqa');f.elements.shoppingRepeatConfirmed.checked=true;f.requestSubmit();return {initial,tx:S.fin.tx,firstId:first.id}})()`);assert.strictEqual(r.initial,'34,00');assert.strictEqual(r.tx.length,2);assert.notStrictEqual(r.tx[0].id,r.firstId);assert.deepStrictEqual(r.tx[0].shoppingItems,['i']);
     }],
+    ['evolução MeuHub: replaneja sem alterar prazo e conclui tarefa no modo foco', async () => {
+      await fresh();await login('A');
+      const r=await ev(`(()=>{
+        S.tasks=[{id:'a',t:'Mover',hd:T,due:T,bk:{d:T,h:'15:00'}},{id:'b',t:'Concluir',bk:{d:T,h:'16:00'}}];
+        S.view='hoje';render();
+        const f=document.querySelector('#day-replan');f.elements.a.value='tomorrow';f.requestSubmit();
+        const a=S.tasks.find(t=>t.id==='a'),expected=ds(add(today,1));
+        document.querySelector('[data-a=focus-enter][data-id=b]').click();
+        const focused=document.querySelector('h1').textContent==='Modo foco'&&!S.fk;
+        document.querySelector('[data-a=focus-done]').click();
+        return {a,expected,today:T,focused,done:S.tasks.find(t=>t.id==='b').done,view:document.querySelector('h1').textContent};
+      })()`);
+      assert.equal(r.a.due,r.today);assert.equal(r.a.hd,r.expected);assert.equal(r.a.bk,undefined);
+      assert.ok(r.focused&&r.done);assert.match(r.view,/Hoje/);
+    }],
+    ['evolução MeuHub: retoma revisão e fixa nota na tarefa', async () => {
+      await fresh();await login('A');
+      const r=await ev(`(()=>{
+        S.tasks=[{id:'a',t:'Pesquisar',hd:T,tg:'viagem'}];
+        S.notes=[{id:'n',t:'Roteiro',g:'viagem',reviewDate:T},{id:'old',t:'Arquivada',g:'viagem',archived:true}];
+        S.view='hoje';render();
+        const checkbox=document.querySelector('[data-review-step=tasks]');checkbox.click();
+        const week=checkbox.dataset.wk;
+        const progress=document.querySelector('[data-review-guide] summary').textContent;
+        const context=document.querySelector('[id^=context-]');
+        const visible=context.textContent.includes('Roteiro')&&!context.textContent.includes('Arquivada');
+        context.querySelector('[data-a=context-pin]').click();
+        return {visible,linked:lkOf('tk:a'),saved:S.rev[week].step_tasks===true,progress};
+      })()`);
+      assert.ok(r.visible&&r.saved);assert.deepEqual(r.linked,['nt:n']);assert.match(r.progress,/1 de 4/);
+    }],
+    ['evolução MeuHub: confirma associação do extrato e preserva a despesa', async () => {
+      await fresh();await login('A');
+      const r=await ev(`(()=>{
+        const acc=finInit().acc[0].id;
+        S.fin.tx=[{id:'old',t:'Mercado',k:'out',cat:'Alimentação',ac:acc,d:T,v:42,shopping:'lista'}];
+        const source=['Data;Descrição;Valor',T+';COMPRA TESTE;-42'].join(String.fromCharCode(10));
+        const prepared=prepCSV(source,'Teste');S.view='financas';S.ftab='regras';render();
+        const select=document.querySelector('[data-imp-review]');
+        if(!select)return {prepared,tab:S.ftab,rows:impRows().rows};
+        select.value='tx:old';select.dispatchEvent(new Event('change',{bubbles:true}));
+        document.querySelector('[data-a=impgo]').click();
+        prepCSV(source,'Teste novamente');
+        return {tx:S.fin.tx,dup:impRows().rows[0].dup};
+      })()`);
+      assert.ok(r.dup,JSON.stringify(r));assert.equal(r.tx.length,1);
+      assert.equal(r.tx[0].v,42);assert.equal(r.tx[0].cat,'Alimentação');assert.equal(r.tx[0].shopping,'lista');
+    }],
+    ['evolução MeuHub: compara orçamento e saldo com horizonte comum', async () => {
+      await fresh();await login('A');
+      const r=await ev(`(()=>{
+        S.fin.acc=[{id:'a',n:'Conta',ty:'cc',ini:200}];S.fin.bud={Compras:100};S.fin.tx=[];
+        S.view='financas';render();
+        const f=document.querySelector('#purchase-simulator');
+        f.elements.amount.value='120';f.elements.parts.value='2';f.elements.category.value='Compras';
+        const before=JSON.stringify(S.fin);f.requestSubmit();
+        const output=document.querySelector('[data-simulation-result]');
+        return {options:[...output.querySelectorAll('section')].map(x=>x.textContent),same:before===JSON.stringify(S.fin)};
+      })()`);
+      assert.ok(r.same);assert.equal(r.options.length,2);assert.match(r.options[0],/À vista em conta/);
+      assert.match(r.options[0],/120,00 de/);assert.match(r.options[1],/60,00 de/);
+      assert.ok(r.options.every(x=>/80,00/.test(x)));
+    }],
     ['simulador pela interface não salva nem sincroniza', async () => {
       await fresh();await login('A');const r=await ev(`(()=>{S.view='financas';render();const f=document.querySelector('#purchase-simulator');f.elements.amount.value='120,00';f.elements.parts.value='2';const before=JSON.stringify(S.fin),local=localStorage.getItem('hub-v1'),sync=localStorage.getItem('hub-sync');f.requestSubmit();return {unchanged:before===JSON.stringify(S.fin),local:local===localStorage.getItem('hub-v1'),sync:sync===localStorage.getItem('hub-sync'),text:document.querySelector('[data-simulation-result]').textContent}})()`);assert.ok(r.unchanged&&r.local&&r.sync);assert.match(r.text,/Base: saldo final/);
     }],
