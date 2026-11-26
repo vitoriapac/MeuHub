@@ -130,6 +130,7 @@ async function main() {
   const cloudTasks = uid => ev(cloudTasksExpr(uid));
   const waitCloud = (uid, t) => waitFor(`(${cloudTasksExpr(uid)}||[]).includes(${JSON.stringify(t)})`, `"${t}" na nuvem de ${uid}`);
 
+  const backupDecision = `(async()=>{const end=Date.now()+3000;let button;while(!(button=document.querySelector('[data-a=backup-apply]'))&&Date.now()<end)await new Promise(r=>setTimeout(r,25));if(!button)throw Error('Confirmação do backup ausente: '+document.querySelector('#bkmsg')?.textContent);button.click()})()`;
   const scenarios = [
     ["Hoje mostra próximos passos ativos uma única vez e preserva o prazo", async () => {
       await fresh(); await login('A');
@@ -145,7 +146,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh(); await login('Recovery');
       const file=await ev(`(()=>{const F=finInit(),task={id:'ensaio-task',t:'Revisar orçamento',p:'m'},goal={id:'ensaio-goal',t:'Reforma',ini:T,kr:[]},project={id:'ensaio-project',t:'Reforma',status:'active',nextTask:task.id,refs:[{id:'tk:'+task.id}]},account={id:'ensaio-account',n:'Conta de teste',ty:'cc',ini:100},base={...pick(),tasks:[],metas:[goal],projects:[],fin:{...F,tx:[],acc:[account],rec:[]}};const a={...base,tasks:[{...task,mt:goal.id}],projects:[project]},b={...base,fin:{...base.fin,tx:[{id:'ensaio-expense',k:'out',t:'Material',v:30,d:T,ac:account.id,cat:'Outros'}]}};return JSON.stringify(merge3(base,a,b,[]))})()`);
       await fresh(); await login('Restore');
-      const result=await ev(`(async()=>{S.view='backup';render();const input=document.querySelector('#bkfile'),files=new DataTransfer();files.items.add(new File([${JSON.stringify(file)}],'ensaio.json',{type:'application/json'}));input.files=files.files;input.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));return {status:document.querySelector('#bkmsg').textContent,steps:hoje(),task:S.tasks.find(t=>t.id==='ensaio-task')?.mt,goal:S.metas.find(g=>g.id==='ensaio-goal')?.id,balance:bal(finInit().acc[0])}})()`);
+      const result=await ev(`(async()=>{S.view='backup';render();const input=document.querySelector('#bkfile'),files=new DataTransfer();files.items.add(new File([${JSON.stringify(file)}],'ensaio.json',{type:'application/json'}));input.files=files.files;input.dispatchEvent(new Event('change',{bubbles:true}));await ${backupDecision};return {status:document.querySelector('#bkmsg').textContent,steps:hoje(),task:S.tasks.find(t=>t.id==='ensaio-task')?.mt,goal:S.metas.find(g=>g.id==='ensaio-goal')?.id,balance:bal(finInit().acc[0])}})()`);
       assert.match(result.status,/Backup restaurado/);assert.match(result.steps,/Revisar orçamento/);assert.strictEqual(result.task,result.goal);assert.strictEqual(result.balance,70);
     }],
     ['leituras antigas sem tipo mantêm tratamento de livro na estante', async () => {
@@ -177,7 +178,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
     }],
     ['backup restaura a coleção e suas capas sem afetar backups antigos', async () => {
       await fresh(); await login('A');
-      const r=await ev(`(async()=>{S.reads=[{id:'antigo',t:'Anterior',k:'livro',st:'q'}];S.view='backup';render();const f=document.querySelector('#bkfile'),d=new DataTransfer(),data={tasks:[],events:[],reads:[{id:'book',t:'Livro',k:'livro',st:'f',df:T,cover:240727,coverColor:'#325a72'}]};d.items.add(new File([JSON.stringify(data)],'backup.json',{type:'application/json'}));f.files=d.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(x=>setTimeout(x,150));return {reads:S.reads,ok:validBackup(data)}})()`);
+      const r=await ev(`(async()=>{S.reads=[{id:'antigo',t:'Anterior',k:'livro',st:'q'}];S.view='backup';render();const f=document.querySelector('#bkfile'),d=new DataTransfer(),data={tasks:[],events:[],reads:[{id:'book',t:'Livro',k:'livro',st:'f',df:T,cover:240727,coverColor:'#325a72'}]};d.items.add(new File([JSON.stringify(data)],'backup.json',{type:'application/json'}));f.files=d.files;f.dispatchEvent(new Event('change',{bubbles:true}));await ${backupDecision};return {reads:S.reads,ok:validBackup(data)}})()`);
       assert.strictEqual(r.ok,true);assert.strictEqual(r.reads[0].id,'book');assert.strictEqual(r.reads[0].coverColor,'#325a72');
     }],
     ['estante exibe somente livros concluídos e mostra detalhes pela lombada', async () => {
@@ -202,7 +203,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
     }],
     ['backup restaura rotina, preferências e registros separados', async () => {
       await fresh(); await login('A');
-      const r=await ev(`(async()=>{S.rot={[T]:{m:1,progress:{n:3}}};S.rotPrefs={n:{1:false}};S.dia={[T]:{focus:'Estudar',routine:{m:{m:4},n:{m:5}}}};const data=JSON.parse(JSON.stringify(pick()));S.rot={};S.rotPrefs={};S.dia={};S.view='backup';render();const f=document.querySelector('#bkfile'),files=new DataTransfer();files.items.add(new File([JSON.stringify(data)],'backup.json',{type:'application/json'}));f.files=files.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,150));return {rot:S.rot[T],prefs:S.rotPrefs,day:S.dia[T],msg:document.querySelector('#bkmsg').textContent}})()`);
+      const r=await ev(`(async()=>{S.rot={[T]:{m:1,progress:{n:3}}};S.rotPrefs={n:{1:false}};S.dia={[T]:{focus:'Estudar',routine:{m:{m:4},n:{m:5}}}};const data=JSON.parse(JSON.stringify(pick()));S.rot={};S.rotPrefs={};S.dia={};S.view='backup';render();const f=document.querySelector('#bkfile'),files=new DataTransfer();files.items.add(new File([JSON.stringify(data)],'backup.json',{type:'application/json'}));f.files=files.files;f.dispatchEvent(new Event('change',{bubbles:true}));await ${backupDecision};return {rot:S.rot[T],prefs:S.rotPrefs,day:S.dia[T],msg:document.querySelector('#bkmsg').textContent}})()`);
       assert.strictEqual(r.rot.m,1);assert.strictEqual(r.rot.progress.n,3);assert.strictEqual(r.prefs.n['1'],false);assert.strictEqual(r.day.routine.m.m,4);assert.strictEqual(r.day.routine.n.m,5);assert.match(r.msg,/restaurado/i);
     }],
     ['rascunho da tarefa de amanhã sobrevive ao recarregamento', async () => {
@@ -330,8 +331,8 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
         F.bills=[{id:'bill',n:'Internet',day:16,ac:'a',v:70}];
         const before=(a,b)=>!!($(a).compareDocumentPosition($(b))&Node.DOCUMENT_POSITION_FOLLOWING);
         S.view='financas';S.ftab='contas';render();
-        const order=before('#fin-accounts','#fin-cards')&&before('#fin-cards','.fin-billing-preview')&&before('#fin-fixed','#fin-account-form');
-        const subscriptions=$('#fin-recurring').textContent,upcoming=$('.fin-billing-preview').textContent;
+        const order=before('#fin-accounts','#fin-cards')&&before('#fin-cards','.fin-card-workspace .finance-dues')&&before('#fin-fixed','#fin-account-form');
+        const subscriptions=$('#fin-recurring').textContent,upcoming=$('.fin-card-workspace .finance-dues').textContent;
         const bill=$('#fin-fixed').textContent,pays=!!$('#fin-cards [data-a=payinv]');
         $('[data-a=edbill][data-id=bill]').click();
         const opens=$('#fin-bill-form').open&&$('#fbill [name=n]').value==='Internet';
@@ -878,12 +879,13 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
     }],
     ['restauração de backup preserva meta arquivada e pausa', async () => {
       await fresh();await login('A');await ev(`(()=>{S.tasks=[{id:'t',t:'Tarefa',p:'m',done:false,mt:'g'}];S.metas=[{id:'g',t:'Meta',ini:T,kr:[],archived:true,pausedTaskIds:['t']}];const data=JSON.stringify(pick());S.tasks=[];S.metas=[];S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([data],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+      await ev(backupDecision);
       await waitFor("document.querySelector('#bkmsg')?.textContent.trim()", 'resultado da restauração');
       const r=await ev(`({paused:taskPaused(S.tasks.find(t=>t.id==='t')),archived:S.metas[0]?.archived,msg:document.querySelector('#bkmsg').textContent})`);
       assert.ok(r.paused&&r.archived);assert.match(r.msg,/restaurado/i);
     }],
     ['compras preservam sessão ao arquivar e restaurar lista e backup', async () => {
-      await fresh();await login('A');const r=await ev(`(async()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',c:'g',items:[{id:'i',t:'Arroz',q:'',done:true}]}];S.fin.tx=[{id:'shop_s',k:'out',t:'Compra',v:12,d:T,ac:S.fin.acc[0].id,cat:'Alimentação',shopping:'l',shoppingItems:['i']}];S.view='notas';render();document.querySelector('[data-a=note-archive][data-id=l]').click();const archived=S.notes[0].archived,count=S.fin.tx.length;S.view='arquivados';render();document.querySelector('[data-a=note-archive][data-id=l]').click();const data=JSON.stringify(pick());S.notes=[];S.fin.tx=[];S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([data],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));return {archived,count,note:S.notes[0],tx:S.fin.tx,msg:document.querySelector('#bkmsg').textContent}})()`);assert.ok(r.archived&&!r.note.archived);assert.strictEqual(r.count,1);assert.strictEqual(r.tx.length,1);assert.strictEqual(r.tx[0].shopping,'l');assert.deepStrictEqual(r.tx[0].shoppingItems,['i']);assert.match(r.msg,/restaurado/i);
+      await fresh();await login('A');const r=await ev(`(async()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',c:'g',items:[{id:'i',t:'Arroz',q:'',done:true}]}];S.fin.tx=[{id:'shop_s',k:'out',t:'Compra',v:12,d:T,ac:S.fin.acc[0].id,cat:'Alimentação',shopping:'l',shoppingItems:['i']}];S.view='notas';render();document.querySelector('[data-a=note-archive][data-id=l]').click();const archived=S.notes[0].archived,count=S.fin.tx.length;S.view='arquivados';render();document.querySelector('[data-a=note-archive][data-id=l]').click();const data=JSON.stringify(pick());S.notes=[];S.fin.tx=[];S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([data],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await ${backupDecision};return {archived,count,note:S.notes[0],tx:S.fin.tx,msg:document.querySelector('#bkmsg').textContent}})()`);assert.ok(r.archived&&!r.note.archived);assert.strictEqual(r.count,1);assert.strictEqual(r.tx.length,1);assert.strictEqual(r.tx[0].shopping,'l');assert.deepStrictEqual(r.tx[0].shoppingItems,['i']);assert.match(r.msg,/restaurado/i);
     }],
     ['mesclagem deduplica mesma sessão sem descartar compras independentes', async () => {
       await fresh();await login('A');const r=await ev(`(()=>{const tx={id:'shop_same',k:'out',t:'Compra',v:12,d:T,ac:'main',shopping:'l',shoppingItems:['i']},base={tx:[]},local={tx:[tx,{...tx,id:'shop_a'}]},remote={tx:[tx,{...tx,id:'shop_b'}]},m=merge3(base,local,remote,[]);return m.tx.map(t=>t.id).sort()})()`);assert.deepStrictEqual(r,['shop_a','shop_b','shop_same']);
@@ -922,7 +924,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh();await login('A');const r=await ev(`(()=>{S.history=[];S.tasks=[{id:'t',t:'Tarefa',done:false,p:'m'}];S.view='tarefas';render();undoReset();document.querySelector('[data-a=task-archive][data-id=t]').click();undo();return {archived:!!S.tasks[0].archived,types:auditRead().map(x=>x.type)}})()`);assert.ok(!r.archived);assert.ok(r.types.includes('taskArchive')&&r.types.includes('undo'));
     }],
     ['restaurar backup preserva histórico atual e registra restauração', async () => {
-      await fresh();await login('A');const r=await ev(`(async()=>{S.history=[];auditLog('reviewStart');const old=JSON.parse(JSON.stringify(pick()));S.history=[];auditLog('reviewEnd');S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([JSON.stringify(old)],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));return {types:auditRead().map(x=>x.type),msg:document.querySelector('#bkmsg').textContent}})()`);assert.ok(r.types.includes('reviewStart')&&r.types.includes('reviewEnd')&&r.types.includes('backupRestore'));assert.match(r.msg,/restaurado/i);
+      await fresh();await login('A');const r=await ev(`(async()=>{S.history=[];auditLog('reviewStart');const old=JSON.parse(JSON.stringify(pick()));S.history=[];auditLog('reviewEnd');S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([JSON.stringify(old)],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await ${backupDecision};return {types:auditRead().map(x=>x.type),msg:document.querySelector('#bkmsg').textContent}})()`);assert.ok(r.types.includes('reviewStart')&&r.types.includes('reviewEnd')&&r.types.includes('backupRestore'));assert.match(r.msg,/restaurado/i);
     }],
     ['histórico sincroniza evento recebido de outro aparelho', async () => {
       await fresh();await login('A');await ev(`(()=>{S.history=[];auditLog('reviewStart');save()})()`);await waitFor(`(()=>{const c=__cloud(),d=c['data/users/A/hub-d-core-0'];return d&&JSON.parse(d.s).history?.some(x=>x.type==='reviewStart')})()`,'histórico local na nuvem');await ev(`(async()=>{const db=firebase.firestore(),c=__cloud(),m=c['data/users/A/hub-meta'],st=JSON.parse(c['data/users/A/hub-d-core-0'].s);st.history.push({id:'remote-event',type:'reviewEnd',at:Date.now()});const j=JSON.stringify(st),rev=m.rev+1;await db.doc('data/users/A/hub-d-core-0').set({rev,i:0,s:j});await db.doc('data/users/A/hub-meta').set({...m,rev,dev:'outro',doms:{...m.doms,core:{rev,n:1,len:j.length}}})})()`);await waitFor(`S.history.some(x=>x.id==='remote-event')`,'evento remoto');const r=await ev(`({types:S.history.map(x=>x.type),remote:S.history.filter(x=>x.id==='remote-event').length})`);assert.ok(r.types.includes('reviewStart')&&r.types.includes('reviewEnd'));assert.strictEqual(r.remote,1);
@@ -934,10 +936,10 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh();await login('A');const r=await ev(`(()=>{S.history=[];S.tasks=[{id:'t',t:'Nome privado',done:false,p:'m'}];S.view='tarefas';render();document.querySelector('[data-a=deltk][data-id=t]').click();const bin=S.trash.find(x=>x.id==='tk:t');trashRestore(bin.b);return {tasks:S.tasks.length,events:auditRead()}})()`);assert.strictEqual(r.tasks,1);assert.ok(r.events.some(x=>x.type==='trashRestore'));assert.ok(!JSON.stringify(r.events).includes('Nome privado'));
     }],
     ['backup restaura projetos e arquivo antigo não mantém projetos anteriores', async () => {
-      await fresh();await login('A');const r=await ev(`(async()=>{S.projects=[{id:'p',t:'Projeto',status:'active',start:'',end:'',archived:false,refs:[{id:'tk:t'}]}];S.tasks=[{id:'t',t:'Tarefa',done:false,p:'m'}];const data=JSON.stringify(pick());S.projects=[];S.view='backup';render();async function restore(text){const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([text],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,180))}await restore(data);const saved=JSON.parse(JSON.stringify(S.projects));await restore(JSON.stringify({tasks:[],events:[]}));return {saved,after:S.projects,msg:document.querySelector('#bkmsg').textContent}})()`);assert.strictEqual(r.saved[0].id,'p');assert.deepStrictEqual(r.saved[0].refs,[{id:'tk:t'}]);assert.deepStrictEqual(r.after,[]);assert.match(r.msg,/restaurado/i);
+      await fresh();await login('A');const r=await ev(`(async()=>{S.projects=[{id:'p',t:'Projeto',status:'active',start:'',end:'',archived:false,refs:[{id:'tk:t'}]}];S.tasks=[{id:'t',t:'Tarefa',done:false,p:'m'}];const data=JSON.stringify(pick());S.projects=[];S.view='backup';render();async function restore(text){const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([text],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await ${backupDecision}}await restore(data);const saved=JSON.parse(JSON.stringify(S.projects));await restore(JSON.stringify({tasks:[],events:[]}));return {saved,after:S.projects,msg:document.querySelector('#bkmsg').textContent}})()`);assert.strictEqual(r.saved[0].id,'p');assert.deepStrictEqual(r.saved[0].refs,[{id:'tk:t'}]);assert.deepStrictEqual(r.after,[]);assert.match(r.msg,/restaurado/i);
     }],
     ['backup restaura instâncias de modelos de tarefa independentes', async () => {
-      await fresh();await login('A');const r=await ev(`(async()=>{S.tasks=[];S.view='tarefas';render();document.querySelector('#task-template').requestSubmit();document.querySelector('#task-template').requestSubmit();const expected=S.tasks.map(t=>({id:t.id,sub:t.sub.map(x=>x.id)})),data=JSON.stringify(pick());S.tasks=[];S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([data],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));return {expected,actual:S.tasks.map(t=>({id:t.id,sub:t.sub.map(x=>x.id)})),msg:document.querySelector('#bkmsg').textContent}})()`);assert.deepStrictEqual(r.actual,r.expected);assert.notStrictEqual(r.actual[0].id,r.actual[1].id);assert.notStrictEqual(r.actual[0].sub[0],r.actual[1].sub[0]);assert.match(r.msg,/restaurado/i);
+      await fresh();await login('A');const r=await ev(`(async()=>{S.tasks=[];S.view='tarefas';render();document.querySelector('#task-template').requestSubmit();document.querySelector('#task-template').requestSubmit();const expected=S.tasks.map(t=>({id:t.id,sub:t.sub.map(x=>x.id)})),data=JSON.stringify(pick());S.tasks=[];S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([data],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await ${backupDecision};return {expected,actual:S.tasks.map(t=>({id:t.id,sub:t.sub.map(x=>x.id)})),msg:document.querySelector('#bkmsg').textContent}})()`);assert.deepStrictEqual(r.actual,r.expected);assert.notStrictEqual(r.actual[0].id,r.actual[1].id);assert.notStrictEqual(r.actual[0].sub[0],r.actual[1].sub[0]);assert.match(r.msg,/restaurado/i);
     }],
     ['troca de conta isola projetos e histórico sincronizável', async () => {
       await fresh();await login('A');await ev(`(()=>{S.projects=[{id:'a',t:'Projeto A',status:'active',start:'',end:'',archived:false,refs:[]}];S.history=[];auditLog('goalArchive');save()})()`);await waitFor(`(()=>{const d=__cloud()['data/users/A/hub-d-core-0'];return d&&JSON.parse(d.s).projects?.some(p=>p.id==='a')})()`,'projeto A na nuvem');await ev('fbLogout()');await waitFor('!FB.on','sair A');await login('B');const b=await ev(`({projects:S.projects,history:S.history})`);assert.ok(!b.projects.some(x=>x.id==='a'));assert.ok(!b.history.some(x=>x.type==='goalArchive'));await ev('fbLogout()');await waitFor('!FB.on','sair B');await login('A');const a=await ev(`({projects:S.projects,history:S.history})`);assert.ok(a.projects.some(x=>x.id==='a'));assert.ok(a.history.some(x=>x.type==='goalArchive'));
@@ -970,7 +972,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
     }],
     ['ordenação respeita edição e identifica notas antigas sem data', async () => {
       await fresh(); await login('A');
-      const r=await ev(`(()=>{noteReset();S.notes=[{id:'old',t:'Antiga',b:'',c:'p'},{id:'new',t:'Nova',b:'',c:'p',updatedAt:1000}];S.view='notas';render();const order=nList().map(n=>n.id),text=document.querySelector('[data-lid="nt:old"]').innerText,i=document.querySelector('[data-n=old][data-f=t]');i.value='Editada';i.dispatchEvent(new Event('input',{bubbles:true}));return {order,text,updated:S.notes[0].updatedAt,now:nList()[0].id}})()`);
+      const r=await ev(`(()=>{noteReset();S.notes=[{id:'old',t:'Antiga',b:'',c:'p'},{id:'new',t:'Nova',b:'',c:'p',updatedAt:1000}];S.view='notas';render();const order=nList().map(n=>n.id),card=document.querySelector('[data-lid="nt:old"]');card.querySelector('details.note-tools').open=true;const text=card.innerText;card.querySelector('[data-a=note-edit]').click();const form=document.querySelector('[data-note-edit]');form.elements.t.value='Editada';form.requestSubmit();return {order,text,updated:S.notes[0].updatedAt,now:nList()[0].id}})()`);
       assert.deepStrictEqual(r.order,['new','old']);assert.match(r.text,/Sem data de edição/);assert.ok(r.updated>1000);assert.strictEqual(r.now,'old');
     }],
     ['novas cores de notas mantêm contraste no tema claro e escuro', async () => {
@@ -1048,7 +1050,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh();await login('A');const r=await ev(`(()=>{S.tasks=[{id:'t',t:'Tarefa de exemplo',done:false,p:'m'}];S.view='tarefas';render();const card=document.querySelector('[data-lid="tk:t"]'),settings=document.querySelector('[data-task-settings]'),form=document.querySelector('#ftk');const taskAfter=!!(card.compareDocumentPosition(settings)&Node.DOCUMENT_POSITION_FOLLOWING),formBefore=!!(form.compareDocumentPosition(card)&Node.DOCUMENT_POSITION_FOLLOWING),tools=!!settings.querySelector('#bulk-plan')&&!!settings.querySelector('#bulk-due')&&!!settings.querySelector('#task-template');S.view='menu';render();const menu=document.querySelector('#fmgrp'),profile=document.querySelector('#profile-create');return {taskAfter,formBefore,tools,profileAfter:!!(menu.compareDocumentPosition(profile)&Node.DOCUMENT_POSITION_FOLLOWING)}})()`);assert.ok(r.taskAfter&&r.formBefore&&r.tools&&r.profileAfter);
     }],
     ['componentes móveis mantêm campos legíveis e controles acessíveis', async () => {
-      await fresh();await login('A');await b.send('Emulation.setDeviceMetricsOverride',{width:375,height:720,deviceScaleFactor:1,mobile:true});try{const r=await ev(`(()=>{S.tasks=[{id:'t',t:'Organizar tarefas',done:false,p:'m'}];S.notes=[{id:'n',t:'Nota',b:'',c:'p'},{id:'l',kind:'shopping',t:'Compras',b:'',c:'g',items:[]}];S.view='tarefas';render();const task=document.querySelector('#ftk [name=t]'),form=document.querySelector('#ftk'),width=task.getBoundingClientRect().width/form.getBoundingClientRect().width;S.view='notas';render();const tool=document.querySelector('.tb .x').getBoundingClientRect(),input=document.querySelector('[data-shopping-form] input.in'),cs=getComputedStyle(input);return {width,tool:{w:tool.width,h:tool.height},border:cs.borderTopStyle,background:cs.backgroundColor,overflow:document.documentElement.scrollWidth<=innerWidth}})()`);assert.ok(r.width>.95);assert.ok(r.tool.w>=40&&r.tool.h>=40);assert.strictEqual(r.border,'solid');assert.notStrictEqual(r.background,'rgba(0, 0, 0, 0)');assert.ok(r.overflow)}finally{await b.send('Emulation.clearDeviceMetricsOverride')}
+      await fresh();await login('A');await b.send('Emulation.setDeviceMetricsOverride',{width:375,height:720,deviceScaleFactor:1,mobile:true});try{const r=await ev(`(()=>{S.tasks=[{id:'t',t:'Organizar tarefas',done:false,p:'m'}];S.notes=[{id:'n',t:'Nota',b:'',c:'p'},{id:'l',kind:'shopping',t:'Compras',b:'',c:'g',items:[]}];S.view='tarefas';render();const task=document.querySelector('#ftk [name=t]'),form=document.querySelector('#ftk'),width=task.getBoundingClientRect().width/form.getBoundingClientRect().width;S.view='notas';render();document.querySelector('[data-a=note-edit]').click();const tool=document.querySelector('.tb .x').getBoundingClientRect(),input=document.querySelector('[data-shopping-form] input.in'),cs=getComputedStyle(input);return {width,tool:{w:tool.width,h:tool.height},border:cs.borderTopStyle,background:cs.backgroundColor,overflow:document.documentElement.scrollWidth<=innerWidth}})()`);assert.ok(r.width>.95);assert.ok(r.tool.w>=40&&r.tool.h>=40);assert.strictEqual(r.border,'solid');assert.notStrictEqual(r.background,'rgba(0, 0, 0, 0)');assert.ok(r.overflow)}finally{await b.send('Emulation.clearDeviceMetricsOverride')}
     }],
     ['campo de data da agenda tem espaço para texto ampliado', async () => {
       await fresh();await login('A');await b.send('Emulation.setDeviceMetricsOverride',{width:375,height:720,deviceScaleFactor:1,mobile:true});
@@ -1450,7 +1452,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh();await login('A');const r=await ev(`(()=>{S.metas=[{id:'g',t:'Meta',ini:T,kr:[]}];S.tasks=[{id:'t',t:'Começar',mt:'g',done:false,due:'2030-05-20'}];S.view='metas';render();const b=document.querySelector('[data-next-goal] [data-a=plan]');if(!b)return null;b.click();return S.tasks[0]})()`);assert.ok(r);assert.strictEqual(r.hd,await ev('T'));assert.strictEqual(r.due,'2030-05-20');
     }],
     ['notas destacam fixadas, recentes e para revisitar com filtros recolhíveis', async () => {
-      await fresh();await login('A');const r=await ev(`(()=>{noteReset();S.notes=[{id:'p',t:'Fixada',b:'',c:'g',pin:true,updatedAt:1},{id:'r',t:'Rever',b:'',c:'p',revisit:true,updatedAt:2}];S.view='notas';render();const el=document.querySelector('[data-notes-highlights]');return {text:el&&el.innerText,filters:!!document.querySelector('details[data-note-filters] #note-type')&&!!document.querySelector('details[data-note-filters] #nfil')}})()`);assert.ok(r.filters);assert.match(r.text,/Fixada/);assert.match(r.text,/Rever/);
+      await fresh();await login('A');const r=await ev(`(()=>{noteReset();S.notes=[{id:'p',t:'Fixada',b:'',c:'g',pin:true,updatedAt:1},{id:'r',t:'Rever',b:'',c:'p',revisit:true,updatedAt:2}];S.view='notas';render();const el=document.querySelector('[data-notes-highlights]');el.open=true;return {text:el.innerText,filters:!!document.querySelector('details[data-note-filters] #note-type')&&!!document.querySelector('details[data-note-filters] #nfil')}})()`);assert.ok(r.filters);assert.match(r.text,/Fixada/);assert.match(r.text,/Rever/);
     }],
     ['início apresenta situação de sincronização e backup', async () => {
       await fresh();await login('A');const r=await ev(`(()=>{S.onb=false;S.lastBk=T;S.view='dash';render();const absent=!document.querySelector('[data-safety-summary]');S.view='backup';render();const el=document.querySelector('[data-safety-summary]'),initial=el&&el.innerText;document.querySelector('[data-a=bkexp]').focus();setSt('err','teste');return {absent,focus:document.activeElement===document.querySelector('[data-a=bkexp]'),initial,updated:document.querySelector('[data-safety-summary]').innerText}})()`);assert.ok(r.absent&&r.focus);assert.match(r.initial,/sincroniza/i);assert.match(r.initial,/backup/i);assert.match(r.updated,/falha ao sincronizar/i);
@@ -1759,7 +1761,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh();await login('A');const data=JSON.parse(fs.readFileSync(path.join(ROOT,'tests','fixtures','backup-parcial.json'),'utf8'));const r=await ev(`(()=>{const d=${JSON.stringify(data)},merged=merge3({},d,d,[]);return {valid:validBackup(d),task:merged.tasks[0],habit:merged.habits[0],account:merged.fin.acc[0]}})()`);assert.ok(r.valid);assert.strictEqual(r.task.hd,'2030-01-10');assert.strictEqual(r.habit.perWeek,3);assert.strictEqual(r.account.id,'a');
     }],
     ['fixture de backup antigo restaura hábitos diários e preserva conteúdo', async () => {
-      await fresh();await login('A');const data=fs.readFileSync(path.join(ROOT,'tests','fixtures','backup-antigo-minimo.json'),'utf8');const r=await ev(`(async()=>{S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(data)}],'antigo.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));return {task:S.tasks.find(t=>t.id==='t-antiga'),note:S.notes.find(n=>n.id==='n-antiga'),habit:S.habits.find(h=>h.id==='h-antigo'),message:document.querySelector('#bkmsg').textContent}})()`);assert.match(r.message,/restaurado/i);assert.strictEqual(r.task.due,'2030-01-20');assert.match(r.note.b,/Conteúdo/);assert.strictEqual(r.habit.perWeek,undefined);assert.strictEqual(r.habit.log['2026-11-17'],1);
+      await fresh();await login('A');const data=fs.readFileSync(path.join(ROOT,'tests','fixtures','backup-antigo-minimo.json'),'utf8');const r=await ev(`(async()=>{S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([${JSON.stringify(data)}],'antigo.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await ${backupDecision};return {task:S.tasks.find(t=>t.id==='t-antiga'),note:S.notes.find(n=>n.id==='n-antiga'),habit:S.habits.find(h=>h.id==='h-antigo'),message:document.querySelector('#bkmsg').textContent}})()`);assert.match(r.message,/restaurado/i);assert.strictEqual(r.task.due,'2030-01-20');assert.match(r.note.b,/Conteúdo/);assert.strictEqual(r.habit.perWeek,undefined);assert.strictEqual(r.habit.log['2026-11-17'],1);
     }],
     ['backup válido atual e mínimo continua aceito', async () => {
       await fresh(); await login('A');
@@ -1768,7 +1770,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
     }],
     ['restauração que não consegue salvar mantém estado anterior', async () => {
       await fresh(); await login('A');
-      const r=await ev(`(async()=>{S.focus='Anterior';save();S.view='backup';render();const f=document.querySelector('#bkfile'),d=new DataTransfer();d.items.add(new File([JSON.stringify({tasks:[],events:[],focus:'Novo'})],'backup.json'));f.files=d.files;const orig=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='hub-v1')throw new DOMException('quota','QuotaExceededError');return orig.call(this,k,v)};f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));Storage.prototype.setItem=orig;return {focus:S.focus,saved:JSON.parse(localStorage.getItem('hub-v1')).focus,msg:document.querySelector('#bkmsg').textContent}})()`);
+      const r=await ev(`(async()=>{S.focus='Anterior';save();S.view='backup';render();const f=document.querySelector('#bkfile'),d=new DataTransfer();d.items.add(new File([JSON.stringify({tasks:[],events:[],focus:'Novo'})],'backup.json'));f.files=d.files;const orig=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='hub-v1')throw new DOMException('quota','QuotaExceededError');return orig.call(this,k,v)};f.dispatchEvent(new Event('change',{bubbles:true}));await ${backupDecision};Storage.prototype.setItem=orig;return {focus:S.focus,saved:JSON.parse(localStorage.getItem('hub-v1')).focus,msg:document.querySelector('#bkmsg').textContent}})()`);
       assert.strictEqual(r.focus,'Anterior');assert.strictEqual(r.saved,'Anterior');assert.match(r.msg,/não foi possível salvar/i);
     }],
     ['edição alterada remotamente oferece salvar como novo item', async () => {
@@ -1800,6 +1802,52 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh(); await login('A');
       const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[{id:'i',t:'Arroz',q:'',done:false}]}];S.view='notas';render();document.querySelector('[data-a=shopping-edit]').click();const f=document.querySelector('[data-shopping-edit]');f.querySelector('[name=t]').value='Feijão';S.notes=[];f.requestSubmit();const b=document.querySelector('[data-a=shopping-recover]');if(!b)return null;b.click();return {name:S.notes[0].t,items:S.notes[0].items.map(x=>x.t)}})()`);
       assert.ok(r);assert.strictEqual(r.name,'Mercado');assert.deepStrictEqual(r.items,['Feijão']);
+    }],
+    ['A7 cartões e vencimentos se reorganizam conforme espaço e quantidade', async()=>{
+      await fresh();await login('A');
+      try{for(const width of [375,1024,1440]){
+        await b.send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width===375});
+        const result=await ev(`(()=>[0,1,4].map(count=>{
+          const F=finInit();F.acc=[{id:'main',ty:'cc',n:'Conta',ini:0},...Array.from({length:count},(_,i)=>({id:'card'+i,ty:'card',n:'Cartão '+i,lim:20000,close:28,due:10}))];
+          F.tx=[];F.bills=[{id:'due',n:'Internet',v:95,day:15,ac:'main'}];S.view='financas';S.fvw='mes';S.ftab='contas';S.fmo=0;render({save:false});
+          const cards=$('#fin-cards'),dues=$('.finance-dues'),a=cards.getBoundingClientRect(),d=dues.getBoundingClientRect(),tiles=[...cards.querySelectorAll('.cc-card')];
+          return {count,tiles:tiles.length,side:Math.abs(a.top-d.top)<2&&d.left>a.right,order:!!(cards.compareDocumentPosition(dues)&Node.DOCUMENT_POSITION_FOLLOWING),noOverflow:document.documentElement.scrollWidth<=innerWidth&&tiles.every(t=>t.scrollWidth<=t.clientWidth+1),visible:dues.textContent.includes('Internet')};
+        }))()`);
+        for(const row of result){assert.ok(row.order&&row.noOverflow&&row.visible&&row.tiles===row.count,JSON.stringify(row));assert.strictEqual(row.side,width>=1024&&row.count<=1,JSON.stringify({width,...row}));}
+      }}finally{await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['A8 nota abre em leitura e recupera rascunho local sem sobrescrever outra versão', async()=>{
+      await fresh();await login('A');
+      await ev(`(()=>{S.notes=[{id:'a8',t:'Nota existente',b:'<p><strong>Texto</strong> longo.</p>',c:'p',g:'referência'}];go('notas')})()`);
+      assert.ok(await ev(`$('#main [data-note-reading] strong').textContent==='Texto'&&!$('#main [data-note-edit]')&&!$('.note .tb')`));
+      await ev(`(()=>{$('[data-a=note-edit]').click();const f=$('[data-note-edit]'),body=f.querySelector('[contenteditable]');f.elements.t.value='Rascunho de título';f.elements.t.dispatchEvent(new Event('input',{bubbles:true}));body.innerHTML='<p>Rascunho <b>formatado</b></p>';body.dispatchEvent(new Event('input',{bubbles:true}));go('agenda');go('notas')})()`);
+      await open();await ev(`go('notas');$('[data-a=note-edit]').click()`);
+      assert.ok(await ev(`(()=>{const f=$('[data-note-edit]');return f.elements.t.value==='Rascunho de título'&&f.querySelector('.rt b')?.textContent==='formatado'&&S.notes[0].t==='Nota existente'})()`));
+      await ev(`S.notes[0].t='Título remoto';$('[data-note-edit]').requestSubmit()`);
+      assert.strictEqual(await ev(`S.notes[0].t`),'Título remoto');assert.ok(await ev(`!!$('[data-a=note-save-copy]')`));
+      await ev(`$('[data-a=note-save-copy]').click()`);
+      assert.ok(await ev(`S.notes.some(n=>n.t==='Título remoto')&&S.notes.some(n=>n.id!=='a8'&&n.t.startsWith('Rascunho de título')&&n.b.includes('formatado'))`));
+      await ev(`(()=>{const b=[...document.querySelectorAll('[data-a=note-edit]')].find(button=>button.dataset.id==='a8');b.click();const body=$('[data-note-edit] .rt');body.textContent='Texto ainda em rascunho';body.dispatchEvent(new Event('input',{bubbles:true}));S.notes=S.notes.filter(n=>n.id!=='a8');render()})()`);
+      assert.ok(await ev(`$('[data-note-edit] .rt')?.textContent==='Texto ainda em rascunho'`));
+      await open();await ev(`go('notas');$('[data-note-orphans] [data-a=note-edit]').click()`);
+      assert.ok(await ev(`$('[data-note-edit] .rt').textContent==='Texto ainda em rascunho'`));
+      await ev(`$('[data-note-edit]').requestSubmit();$('[data-a=note-save-copy]').click()`);
+      assert.ok(await ev(`S.notes.some(n=>n.b==='Texto ainda em rascunho')&&!$('[data-note-orphans]')`));
+    }],
+    ['A8 backup separa etapas e exige confirmar antes de mesclar ou restaurar', async()=>{
+      await fresh();await login('A');
+      await ev(`S.tasks=[{id:'old',t:'Tarefa local'}];go('backup')`);
+      assert.deepStrictEqual(await ev(`[...document.querySelectorAll('[data-backup-step] > h2')].map(x=>x.textContent)`),['Fazer cópia','Conferir','Recuperar ou restaurar']);
+      assert.match(await ev(`(()=>{const original=siteSave;try{siteSave=()=>{};$('[data-a=bkexp]').click();render({save:false});return $('#bkmsg').textContent}finally{siteSave=original}})()`),/backup baixado/i);
+      for(const [id,action] of [['bkmerge','Mesclar'],['bkfile','Restaurar']]){
+        await ev(`(()=>{const f=$('#'+${JSON.stringify(id)}),dt=new DataTransfer();dt.items.add(new File([JSON.stringify({tasks:[{id:'new',t:'Tarefa do arquivo'}],events:[]})],'copia.json'));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}))})()`);
+        await waitFor(`!!$('[data-a=backup-apply]')`,'confirmação após ler o arquivo');
+        assert.ok(await ev(`S.tasks.some(t=>t.id==='old')&&!S.tasks.some(t=>t.id==='new')`));
+        assert.match(await ev(`$('[data-a=backup-apply]').textContent`),new RegExp(action,'i'));
+        await ev(`$('[data-a=backup-apply]').click()`);
+        assert.deepStrictEqual(await ev(`S.tasks.map(t=>t.id)`),id==='bkmerge'?['old','new']:['new']);
+        await ev(`S.tasks=[{id:'old',t:'Tarefa local'}];render()`);
+      }
     }],
     ['A5: rascunho de tarefa local sobrevive à navegação, atualização e troca de conta', async () => {
       await fresh();await login('A');await addTask('t-existente');await waitCloud('A','t-existente');
@@ -2101,7 +2149,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
         S.tasks=[];S.notes=[];S.lnk=[];S.sp=[];S.spsel='';S.wx=null;S.rem={};S.cap=8;S.trash=[];
         S.frase='';S.frasen=0;S.nav='suave';S.dens='conf';S.keys=true;S.hc=false;S.rmo='auto';S.projects=[];
         S.view='backup';render();
-        const restore=async txt=>{const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([txt],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(x=>setTimeout(x,180))};
+        const restore=async txt=>{const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([txt],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await ${backupDecision}};
         await restore(full);
         const snap={lnk:S.lnk.length,sp:S.sp.length,spsel:S.spsel,wx:S.wx&&S.wx.city,rem:S.rem.on,cap:S.cap,trash:S.trash.length,frase:S.frase,frasen:S.frasen,nav:S.nav,dens:S.dens,keys:S.keys,hc:S.hc,rmo:S.rmo,projects:S.projects.length,dsHc:document.documentElement.dataset.hc,dsRmo:document.documentElement.dataset.rmo,histReview:S.history.some(e=>e.type==='reviewStart'),histRestore:S.history.some(e=>e.type==='backupRestore')};
         await restore(JSON.stringify({tasks:[],events:[]}));
@@ -2192,7 +2240,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
         finSubmit({k:'out',t:'Compra cafe',v:'15',cat:'',d:T,ac:finInit().acc[0].id});
         const ruleToastImg=!!document.querySelector('#toast img');
         S.notes=[{id:'n1',t:'Nota',b:'',c:'p',updatedAt:Date.now()}];S.view='notas';render();
-        const rt=document.querySelector('.note .rt');rt.focus();
+        document.querySelector('[data-a=note-edit]').click();const rt=document.querySelector('.note .rt');rt.focus();
         const dt=new DataTransfer();dt.setData('text/html','<img src=x onerror="window.__xss=1"><b>ok</b>');dt.setData('text/plain','ok');
         const pe=new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:dt});
         rt.dispatchEvent(pe);
@@ -2322,7 +2370,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
         const f=document.querySelector('#bkfile'),dt=new DataTransfer();
         dt.items.add(new File([data],'backup.json',{type:'application/json'}));
         f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));
-        await new Promise(x=>setTimeout(x,180));
+        await ${backupDecision};
         return {bookCount,posterCount,spineCount,hasDuration:/113 min/.test(detailText),hasQuote:/Clássico nacional/.test(detailText),coverUrl:m1.coverUrl,color:m1.coverColor,okBackup,restoredSeason:S.reads.find(x=>x.id==='s1')?.season,restoredEp:S.reads.find(x=>x.id==='s1')?.episode};
       })()`);
       assert.strictEqual(r.bookCount, 1);

@@ -766,16 +766,16 @@ async function restoreIdbSnaps(){
  const raw=typeof idbGet==='function'?await idbGet(SNK):null;
  if(!raw||typeof raw!=='string'){toast('Nenhuma versão encontrada no IndexedDB deste navegador.');return}
  let list=null;try{list=JSON.parse(raw)}catch(e){}
- if(!Array.isArray(list)||!list.length){toast('Nenhuma versão válida encontrada no IndexedDB.');return}
+ if(!Array.isArray(list)||!list.length){toast('Nenhuma versão válida encontrada neste navegador.');return}
  const cur=snaps(),seen=new Set(cur.map(x=>x&&x.t));
  const merged=[...cur,...list.filter(x=>x&&typeof x.t==='number'&&typeof x.j==='string'&&!seen.has(x.t))].sort((a,b)=>b.t-a.t).slice(0,SNMAX);
- if(!merged.length){toast('Nenhuma versão válida encontrada no IndexedDB.');return}
+ if(!merged.length){toast('Nenhuma versão válida encontrada neste navegador.');return}
  while(merged.length){try{localStorage.setItem(SNK,JSON.stringify(merged));break}catch(e){if(merged.length<=1){toast('Sem espaço no navegador para restaurar as versões.');return}merged.pop()}}
- render({save:false});toast(merged.length+' versão(ões) disponível(is) a partir do IndexedDB.');
+ render({save:false});toast(merged.length+' versão(ões) recuperada(s) deste navegador.');
 }
 function snapPanel(){
  const L=snaps();
- return `<div class="panel"><h2>Versões automáticas</h2><p class="empty" style="padding:0 0 var(--space-2)">O hub guarda uma versão por dia e antes de trocar seus dados por outros, até ${SNMAX}. Ficam só neste aparelho e não substituem um backup em arquivo.</p>${L.map(x=>`<div class="item"><span class="chip c-b">${ic('clock',14)}</span><div class="t">${snapFmt(x.t)} · ${esc(x.why)}<small>${x.c.tk} tarefas · ${x.c.ev} eventos · ${x.c.nt} notas · ${x.c.tx} lançamentos</small></div><button class="pill" data-a="snaprest" data-id="${x.t}">Restaurar</button></div>`).join('')||'<p class="empty">Nenhuma versão ainda. A primeira é criada sozinha assim que houver dados.</p>'}<div class="bar" style="margin:var(--space-2) 0 0"><button class="pill dark" data-a="snapnow">Salvar versão agora</button><button class="pill" data-a="idbsnaps" title="Recupera versões automáticas guardadas no IndexedDB deste navegador">Recuperar versões (IndexedDB)</button></div></div>`}
+ return `<details class="backup-versions" id="backup-versions"><summary>Versões automáticas</summary><p class="empty" style="padding:0 0 var(--space-2)">O hub guarda uma versão por dia e antes de trocar seus dados por outros, até ${SNMAX}. Ficam só neste aparelho e não substituem um backup em arquivo.</p>${L.map(x=>`<div class="item"><span class="chip c-b">${ic('clock',14)}</span><div class="t">${snapFmt(x.t)} · ${esc(x.why)}<small>${x.c.tk} tarefas · ${x.c.ev} eventos · ${x.c.nt} notas · ${x.c.tx} lançamentos</small></div><details class="snapshot-restore"><summary>Restaurar esta versão</summary><p>Substitui os dados atuais pela versão de ${snapFmt(x.t)}.</p><button class="pill" data-a="snaprest" data-id="${x.t}">Confirmar restauração</button></details></div>`).join('')||'<p class="empty">Nenhuma versão ainda. A primeira é criada sozinha assim que houver dados.</p>'}<div class="bar" style="margin:var(--space-2) 0 0"><button class="pill dark" data-a="snapnow">Salvar versão agora</button><button class="pill" data-a="idbsnaps" title="Busca versões automáticas guardadas neste navegador">Buscar versões neste navegador</button></div></details>`}
 /* paleta de comandos */
 let CK=null;
 function ckItems(q){

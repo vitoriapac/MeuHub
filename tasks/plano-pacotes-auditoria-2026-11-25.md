@@ -121,22 +121,28 @@ Preservar a identidade visual, o limite de 1.440 px, a PWA sem etapa de build e 
 
 ## A7 — Grade financeira com poucos cartões
 
-- [ ] Usar a largura já disponível no desktop para aproximar **Cartões e faturas** de **Próximos vencimentos** quando houver espaço e poucos cartões.
-- [ ] Definir distribuição para zero, um e vários cartões. Preservar leitura em uma coluna no celular e ações de pagar, editar e conferir junto do registro.
+- [x] Usar a largura já disponível no desktop para aproximar **Cartões e faturas** de **Próximos vencimentos** quando houver espaço e poucos cartões.
+- [x] Definir distribuição para zero, um e vários cartões. Preservar leitura em uma coluna no celular e ações de pagar, editar e conferir junto do registro.
 
 **Aceite:** no desktop, um cartão não deixa uma área desproporcional ao lado enquanto os vencimentos ficam escondidos abaixo. Com vários cartões ou uma tela estreita, nenhum conteúdo transborda e a ordem de leitura é consistente.
 
 **Verificação:** capturas com zero, um e vários cartões em 375, 1.024 e 1.440 px. Repetir os testes de grade e pagamento de fatura.
 
+**Registro de execução:** em desktop, com zero ou um cartão, Cartões e faturas divide a linha com Próximos vencimentos. Com mais cartões, a grade ocupa a linha inteira e os vencimentos vêm logo depois. No celular, as seções continuam em uma coluna, com as ações de pagar, consultar e editar junto de cada cartão. Conferido em Chromium com zero, um e quatro cartões em 375, 1.024 e 1.440 px e nos cenários de fatura.
+
+
 ## A8 — Leitura de Notas e ações de Backup
 
-- [ ] Em **Notas**, dar prioridade ao título e ao texto em leitura. Mostrar ferramentas de formatação, cor, etiquetas e arquivo ao editar ou nas ações do item. Preservar fixação, busca, listas de compras e modelos.
-- [ ] Em **Backup**, ordenar as ações em **Fazer cópia**, **Conferir** e **Recuperar ou restaurar**. Explicar o efeito de mesclar e restaurar antes da confirmação e reservar termos como IndexedDB para os detalhes técnicos.
-- [ ] Preservar download, dados seletivos, versões automáticas e recuperação após falha. Reaproveitar os rascunhos de A5 quando houver edição aberta em Notas.
+- [x] Em **Notas**, dar prioridade ao título e ao texto em leitura. Mostrar ferramentas de formatação, cor, etiquetas e arquivo ao editar ou nas ações do item. Preservar fixação, busca, listas de compras e modelos.
+- [x] Em **Backup**, ordenar as ações em **Fazer cópia**, **Conferir** e **Recuperar ou restaurar**. Explicar o efeito de mesclar e restaurar antes da confirmação e reservar termos como IndexedDB para os detalhes técnicos.
+- [x] Preservar download, dados seletivos, versões automáticas e recuperação após falha. Reaproveitar os rascunhos de A5 quando houver edição aberta em Notas.
 
 **Aceite:** é possível ler uma nota e distinguir criar cópia, verificar arquivo, mesclar dados e restaurar sem precisar entender o armazenamento interno. Restauração e mescla preservam as proteções existentes.
 
 **Verificação:** fluxos de nota com texto longo, lista de compras, restaurar backup anterior, importar mesclando e falha de armazenamento simulada.
+
+**Registro de execução:** as notas abrem em leitura, com edição e ferramentas sob demanda. O rascunho de texto e metadados fica neste aparelho, separado por conta; mudanças concorrentes podem ser recuperadas em uma nova nota, inclusive se o original tiver sido removido. Backup organiza cópia, conferência e recuperação em etapas. Mesclar e restaurar exigem confirmação, e a versão anterior é preservada quando os dados atuais estão íntegros. A recuperação da cópia local foi testada com uma falha de armazenamento simulada. A validação de A7 e A8 passou em 25 testes unitários e 292 cenários de navegador, com a versão da PWA sincronizada em `20261126a`.
+
 
 ## A9 — Carregamento e renderização da PWA
 

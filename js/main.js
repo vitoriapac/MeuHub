@@ -4,19 +4,18 @@ let PG={},PGV='';
 const NOTE_DRAFTS={};
 
 const TASK_DRAFT_FIELDS=['t','due','p','dur','tg','pj','rc'];
-const taskDraftFallback=new Map();
-const taskDraftKey=()=>JSON.stringify(['hub-draft',SY.uid||null,'task-create']);
-function readTaskDraft(){
- const key=taskDraftKey();
- if(taskDraftFallback.has(key))return taskDraftFallback.get(key);
+const localDraftFallback=new Map();
+const localDraftKey=(form,id)=>JSON.stringify(['hub-draft',SY.uid||null,form,...(id===undefined?[]:[id])]);
+const taskDraftKey=()=>localDraftKey('task-create');
+function readLocalDraft(key){
+ if(localDraftFallback.has(key))return localDraftFallback.get(key);
  try{return JSON.parse(localStorage.getItem(key))}catch(e){return null}
 }
-function writeTaskDraft(draft){
- const key=taskDraftKey();
+function writeLocalDraft(key,draft){
  try{
   if(draft)localStorage.setItem(key,JSON.stringify(draft));else localStorage.removeItem(key);
-  taskDraftFallback.delete(key);return true;
- }catch(e){taskDraftFallback.set(key,draft);return false}
+  localDraftFallback.delete(key);return true;
+ }catch(e){localDraftFallback.set(key,draft);return false}
 }
 function showTaskDraft(form,draft,saved){
  form.querySelector('[data-task-draft]').hidden=!draft;
@@ -34,10 +33,10 @@ function captureTaskDraft(form){
  const date=form.elements.due;
  if(!date.value&&date._dtText?.value)values.dateText=date._dtText.value;
  const draft=Object.keys(values).length?values:null;
- showTaskDraft(form,draft,writeTaskDraft(draft));
+ showTaskDraft(form,draft,writeLocalDraft(taskDraftKey(),draft));
 }
 function restoreTaskDraft(wasOpen){
- const form=$('#ftk'),draft=readTaskDraft();
+ const form=$('#ftk'),draft=readLocalDraft(taskDraftKey());
  if(!form||!draft||typeof draft!=='object')return;
  for(const name of TASK_DRAFT_FIELDS){
   if(typeof draft[name]==='string')form.elements[name].value=draft[name];
@@ -49,7 +48,7 @@ function restoreTaskDraft(wasOpen){
   date._dtText.value=draft.dateText;
   date._dtText.dispatchEvent(new Event('input'));
  }
- showTaskDraft(form,draft,!taskDraftFallback.has(taskDraftKey()));
+ showTaskDraft(form,draft,!localDraftFallback.has(taskDraftKey()));
 }
 for(const type of ['input','change'])document.addEventListener(type,e=>{
  const form=e.target.form;
@@ -74,12 +73,147 @@ function submitTask(form,editing){
  if(editing){
   ED=null;render({save:false});
  }else{
-  writeTaskDraft(null);
+  writeLocalDraft(taskDraftKey(),null);
   form.querySelector('details').open=false;
   renderKeepDraft({save:false});
  }
  (editing?taskEditTrigger(e.id):$('#ftk [name=t]'))?.focus({preventScroll:true});
 }
+
+let backupPending=null,backupMessage='',backupStatusGroup='copy';
+const BACKUP_ACTION={bkmerge:'Mesclar dados',bkfile:'Restaurar dados',local:'Recuperar cópia local'};
+function backupConfirmation(){
+ if(!backupPending?.data)return '';
+ const {source,label}=backupPending,merge=source==='bkmerge';
+ return `<section class="panel backup-confirmation" aria-labelledby="backup-confirm-title"><h3 id="backup-confirm-title" tabindex="-1">Confirmar ${merge?'mesclagem':'restauração'}</h3>
+ <p>${merge?'Os dados serão combinados com os que você já tem.':'Os dados atuais serão substituídos.'} Origem: <strong>${esc(label)}</strong>.</p>
+ <div class="bar"><button class="pill dark" data-a="backup-apply">${BACKUP_ACTION[source]}</button><button class="pill" data-a="backup-cancel">Cancelar</button></div></section>`;
+}
+function backupStatus(group){
+ return `<p class="empty backup-status" data-backup-status="${group}" ${group===backupStatusGroup?'id="bkmsg"':''} role="status">${group===backupStatusGroup?esc(backupMessage):''}</p>`;
+}
+function reportBackup(text,group='recovery'){
+ backupStatusGroup=group;backupMessage=text;
+ const active=$('[data-backup-status="'+group+'"]'),old=$('#bkmsg');
+ if(old&&old!==active){old.removeAttribute('id');old.textContent=''}
+ if(active){active.id='bkmsg';active.textContent=text}
+}
+function drawBackupConfirmation(){
+ const box=$('#backup-confirm');if(box)box.innerHTML=backupConfirmation();
+}
+async function prepareBackup(source,file){
+ const pending={source,label:file?.name||'Cópia automática deste navegador',account:SY.uid};backupPending=pending;
+ reportBackup('');drawBackupConfirmation();
+ if(source==='bkmerge'&&LOCAL_CORRUPT){backupPending=null;reportBackup('Restaure um arquivo ou traga os dados da nuvem antes de mesclar.');return}
+ if(source==='local')reportBackup('Buscando cópia no navegador…');
+ try{
+  const raw=file?await file.text():await idbGet('hub-v1');
+  if(backupPending!==pending||S.view!=='backup'||SY.uid!==pending.account)return;
+  if(!raw){backupPending=null;reportBackup(file?'Arquivo inválido. Escolha um backup gerado pelo Meu Hub.':'Nenhuma cópia automática encontrada neste navegador.');return}
+  const json=JSON.parse(raw),data=json?.data||json;if(!validBackup(data))throw Error('backup');
+  pending.data=data;reportBackup('');drawBackupConfirmation();$('#backup-confirm-title')?.focus();
+ }catch(e){
+  if(backupPending!==pending)return;
+  backupPending=null;reportBackup(file?'Arquivo inválido ou ilegível. Escolha um backup gerado pelo Meu Hub.':'Não foi possível ler a cópia automática deste navegador.');
+ }
+}
+function closeBackupConfirmation(){
+ const source=backupPending?.source;backupPending=null;drawBackupConfirmation();
+ const button=source==='local'?$('[data-a="idbrestore"]'):document.querySelector('[data-a="backup-file"][data-id="'+source+'"]');
+ button?.focus({preventScroll:true});
+}
+function installBackupData(data,source){
+ const merge=source==='bkmerge';
+ if(merge){
+  const incoming=Object.fromEntries(SK.filter(k=>k in data).map(k=>[k,data[k]]));
+  if(Array.isArray(incoming.links))incoming.links=incoming.links.filter(l=>l&&safeUrl(l.u)!=='#');
+  applyState(merge3(undefined,pick(),incoming));S.seeded=true;
+ }else{
+  const def=DEF_STATE(),history=Array.isArray(S.history)?S.history:[];
+  if(source==='local')S={...def,...data,view:'backup'};
+  for(const key of SK)S[key]=data[key]??def[key];
+  for(const key of ['events','notes','tasks','links','inbox','habits','metas','projects','trash','lnk','reads','sp'])if(!Array.isArray(S[key]))S[key]=[];
+  S.links=S.links.filter(l=>l&&safeUrl(l.u)!=='#');
+  for(const key of ['dia','fm','rev','revm','fpj','rem','rot','rotPrefs','revprefs','availability'])if(!S[key]||typeof S[key]!=='object'||Array.isArray(S[key]))S[key]={};
+  if(!S.fin||typeof S.fin!=='object'||Array.isArray(S.fin))S.fin=def.fin;
+  finInit();S.seeded=true;S.onb=!!data.onb;
+  S.history=auditClean([...history,...(Array.isArray(data.history)?data.history:[])]);
+  auditLog('backupRestore');applyTheme();applyA11y();LOCAL_CORRUPT=false;
+ }
+}
+function applyPreparedBackup(){
+ const pending=backupPending;if(!pending?.data||pending.account!==SY.uid||S.view!=='backup')return;
+ const {data,source}=pending,merge=source==='bkmerge',previous=JSON.stringify(S),wasCorrupt=LOCAL_CORRUPT;
+ closeBackupConfirmation();
+ if(wasCorrupt&&merge){reportBackup('Recupere os dados atuais antes de mesclar.');return}
+ if(!wasCorrupt&&!snapPut(merge?'Antes de importar mesclando':'Antes de restaurar uma cópia')){reportBackup('Não foi possível guardar a versão atual. Exporte um backup e libere espaço.');return}
+ try{
+  installBackupData(data,source);
+  if(!save())throw Error('save');
+ }catch(e){
+  S=JSON.parse(previous);LOCAL_CORRUPT=wasCorrupt;applyTheme();applyA11y();undoReset();render({save:false});
+  reportBackup('Não foi possível salvar '+(merge?'a importação':'a restauração')+'. Os dados anteriores foram mantidos.');return;
+ }
+ render({save:false});
+ reportBackup((merge?'Backup mesclado com os dados deste aparelho.':'Backup restaurado.')+(wasCorrupt?'':' A versão anterior foi guardada em Versões automáticas.'));
+}
+
+let NOTE_EDIT='';
+const noteEditKey=id=>localDraftKey('note-edit',id);
+const noteFields=n=>({t:n.t||'',b:rich(n.b),f:n.f||'',g:n.g||''});
+function noteEditor(n){
+ const key=noteEditKey(n.id),draft=readLocalDraft(key)?.changes,current=noteFields(n),base={...current},value={...current};
+ for(const name of Object.keys(current)){
+  const field=draft?.[name];
+  if(typeof field?.value==='string'&&typeof field.base==='string'){base[name]=field.base;value[name]=field.value}
+ }
+ return `<form data-note-edit="${esc(n.id)}" data-note-base="${esc(JSON.stringify(base))}" data-note-color="${esc(n.c||'p')}">
+ <label class="lb">Título<input class="in" name="t" value="${esc(value.t)}"></label>
+ ${tbar()}<div class="rt" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Texto da nota" data-ph="Escreva sua nota…" data-n="${esc(n.id)}" data-f="b">${rich(value.b)}</div>
+ <div class="bar"><label class="lb">Pasta<input class="in" name="f" list="folders" value="${esc(value.f)}"></label><label class="lb">Etiquetas<input class="in" name="g" list="alltags" value="${esc(value.g)}"></label></div>
+ <p class="note-draft-status" data-note-draft-status role="status">${draft?noteDraftMessage(!localDraftFallback.has(key)):''}</p>
+ <div class="bar"><button class="pill dark">Salvar nota</button><button type="button" class="pill" data-a="note-close" data-id="${esc(n.id)}">Fechar editor</button><button type="button" class="pill" data-a="note-discard" data-id="${esc(n.id)}" ${draft?'':'hidden'}>Descartar rascunho</button><button type="button" class="pill" data-a="note-save-copy" hidden>Salvar como nova nota</button></div></form>`;
+}
+const noteDraftMessage=saved=>saved?'Rascunho salvo neste aparelho.':'Rascunho disponível enquanto esta página estiver aberta.';
+function noteChanges(form){
+ const base=JSON.parse(form.dataset.noteBase),values={t:form.elements.t.value,b:clean(form.querySelector('.rt').innerHTML),f:form.elements.f.value,g:form.elements.g.value};
+ return Object.fromEntries(Object.entries(values).filter(([name,value])=>value!==base[name]).map(([name,value])=>[name,{base:base[name],value}]));
+}
+function captureNoteDraft(form){
+ const changes=noteChanges(form),dirty=Object.keys(changes).length>0;
+ const original={...JSON.parse(form.dataset.noteBase),c:form.dataset.noteColor};
+ const saved=writeLocalDraft(noteEditKey(form.dataset.noteEdit),dirty?{original,changes}:null);
+ form.querySelector('[data-note-draft-status]').textContent=dirty?noteDraftMessage(saved):'';
+ form.querySelector('[data-a="note-discard"]').hidden=!dirty;
+}
+function noteEditButton(id){
+ return [...document.querySelectorAll('[data-a="note-edit"]')].find(b=>b.dataset.id===id);
+}
+function closeNoteEditor(id,discard=false){
+ if(discard)writeLocalDraft(noteEditKey(id),null);
+ NOTE_EDIT='';render({save:false});noteEditButton(id)?.focus({preventScroll:true});
+}
+function submitNoteEditor(form,asCopy=false){
+ const id=form.dataset.noteEdit,n=S.notes.find(x=>x.id===id&&x.kind!=='shopping');
+ const changes=noteChanges(form),current=n&&noteFields(n),status=form.querySelector('[data-note-draft-status]');
+ if(!asCopy&&(!n||Object.entries(changes).some(([name,{base,value}])=>current[name]!==base&&current[name]!==value))){
+  captureNoteDraft(form);status.textContent=n?'A nota mudou em outro lugar. Você pode salvar sua edição em uma nova nota.':'A nota original foi removida. Você pode salvar sua edição em uma nova nota.';
+  form.querySelector('[data-a="note-save-copy"]').hidden=false;return;
+ }
+ if(!Object.keys(changes).length&&!asCopy){closeNoteEditor(id,true);return}
+ const values=Object.fromEntries(Object.entries(changes).map(([name,field])=>[name,field.value]));
+ const previous=S.notes;
+ const saved={...n,...(asCopy?JSON.parse(form.dataset.noteBase):{}),...values,updatedAt:Date.now()};
+ if(asCopy){Object.assign(saved,{id:uid(),t:(saved.t||'Nota sem título')+' (cópia)',pin:false,archived:false,revisit:false,reviewDate:'',c:n?.c||'p'});S.notes=[saved,...previous]}
+ else S.notes=previous.map(note=>note===n?saved:note);
+ if(!save()){S.notes=previous;captureNoteDraft(form);status.textContent='Não foi possível salvar a nota. Sua edição continua aberta.';return}
+ writeLocalDraft(noteEditKey(id),null);closeNoteEditor(saved.id);
+}
+function makeNote(folder=''){
+ const id=uid();noteReset();S.notes.unshift({id,t:'',b:'',f:folder,g:'',c:COL[S.notes.length%4],updatedAt:Date.now()});NOTE_EDIT=noteEditKey(id);
+ return S.notes[0];
+}
+function focusNoteEditor(){document.querySelector('[data-note-edit] [name=t]')?.focus()}
 
 const noteDraftKey=f=>f.dataset.shoppingForm?'new:'+f.dataset.shoppingForm:f.dataset.shoppingEdit?'edit:'+f.dataset.shoppingEdit+':'+f.dataset.item:f.dataset.accEdit?'fin-account:'+f.dataset.accEdit:f.dataset.partAdjust?'fin-part:'+f.dataset.partAdjust:f.dataset.partRefund?'fin-refund:'+f.dataset.partRefund:'';
 function restoreNoteDrafts(){document.querySelectorAll('#main form[data-shopping-form],#main form[data-shopping-edit]').forEach(f=>{const v=NOTE_DRAFTS[noteDraftKey(f)];if(v){Object.entries(v).forEach(([k,x])=>{if(f.elements[k])f.elements[k].value=x});if(['qty','unit','estimated','actual'].some(k=>v[k])){const d=f.querySelector('.shop-extra');if(d)d.open=true}}})}
@@ -136,6 +270,7 @@ function revealFinanceTab(tabs=$('#main .ftabs')){
 window.addEventListener('resize',()=>revealFinanceTab());
 function render(opts){
  dayPending=false;remoteRenderPending=false;
+ if(S.view!=='backup'||Q){backupPending=null;backupMessage='';backupStatusGroup='copy'}
  const sameView=PGV===S.view,prevScroll=sameView?window.scrollY:0;
  if(!sameView){PG={};PGV=S.view}
  const openDetailsIds=sameView?[...document.querySelectorAll('#main details[open][id]')].map(d=>d.id):[];
@@ -261,7 +396,11 @@ const CLICK_EARLY={
  more:()=>{$('#mobile-sync').textContent=$('#syn').innerText;$('#mobile-menu').showModal()},
  'close-mobile-menu':()=>$('#mobile-menu').close(),
  'dismiss-digest':()=>dismissDailySummary(),
- 'task-draft-discard':()=>{writeTaskDraft(null);$('#task-create-options').open=false;render({save:false});$('#ftk [name=t]').focus({preventScroll:true})},
+ 'note-edit':(b,id)=>{NOTE_EDIT=noteEditKey(id);renderKeepDraft({save:false});focusNoteEditor()},
+ 'note-close':(b,id)=>{captureNoteDraft(b.form);closeNoteEditor(id)},
+ 'note-discard':(b,id)=>closeNoteEditor(id,true),
+ 'note-save-copy':b=>submitNoteEditor(b.form,true),
+ 'task-draft-discard':()=>{writeLocalDraft(taskDraftKey(),null);$('#task-create-options').open=false;render({save:false});$('#ftk [name=t]').focus({preventScroll:true})},
  'mobile-theme':()=>$('#theme').click(),
  adv:(b)=>{const f=b.closest('form');f.classList.toggle('advo');b.textContent=f.classList.contains('advo')?'Menos opções':'Mais opções'},
  'tx-new':()=>{const d=$('#tx-new');if(d){d.open=true;d.querySelector('[name=t]')?.focus()}},
@@ -342,7 +481,10 @@ const CLICK_EARLY={
  syncnow:(b,id,e,a)=>{e.preventDefault();syncAct(a)},
  bkexp:(b,id,e)=>{e.preventDefault();exportBk()},
  bkshr:(b,id,e)=>{e.preventDefault();shareBk()},
- idbrestore:(b,id,e)=>{e.preventDefault();restoreIdbBk()},
+ idbrestore:()=>prepareBackup('local'),
+ 'backup-file':(b,id)=>document.getElementById(id)?.click(),
+ 'backup-apply':()=>applyPreparedBackup(),
+ 'backup-cancel':()=>{closeBackupConfirmation();reportBackup('Operação cancelada. Nenhum dado foi alterado.')},
  'profile-switch':(b,id,e)=>{e.preventDefault();try{profileSwitch(id);render();toast('Perfil aplicado')}catch(err){toast(esc(err.message||'Não foi possível aplicar o perfil'))}}
 };
 CLICK_EARLY['bulk-due-cancel']=CLICK_EARLY['bulk-cancel'];
@@ -400,13 +542,13 @@ const CLICK_ACTIONS={
  },
  'shopping-item-del':(id,b)=>{const n=S.notes.find(x=>x.id===id&&x.kind==='shopping');if(n){n.items=n.items.filter(x=>x.id!==b.dataset.item);noteTouch(n)}},
  'shopping-clear':(id)=>{const n=S.notes.find(x=>x.id===id&&x.kind==='shopping');if(n){if(SCLEAR===id){n.items=n.items.filter(x=>!x.done);noteTouch(n);SCLEAR=null}else{SCLEAR=id;toast('Clique novamente em Limpar comprados para confirmar');setTimeout(()=>{if(SCLEAR===id)SCLEAR=null},6000)}}},
- addnote:()=>{const folder=S.nf||'';noteReset();S.notes.unshift({id:uid(),t:'',b:'',f:folder,g:'',c:COL[S.notes.length%4],updatedAt:Date.now()})},
+ addnote:()=>makeNote(S.nf||''),
  'note-archive':(id)=>{const n=S.notes.find(x=>x.id===id);if(n){n.archived=!n.archived;auditLog(n.archived?'archive':'restore')}},
  'note-revisit':(id)=>{const n=S.notes.find(x=>x.id===id);if(n){n.revisit=!n.revisit;if(!n.revisit)n.reviewDate='';noteTouch(n)}},
  'note-copy':(id)=>{const n=S.notes.find(x=>x.id===id&&x.kind!=='shopping');if(n){noteReset();S.notes.unshift({...n,id:uid(),t:(n.t||'Sem título')+' (cópia)',pin:false,archived:false,revisit:false,reviewDate:'',updatedAt:Date.now()})}},
  delnote:(id)=>{if(S.notes.some(x=>x.id===id))auditLog('noteDelete');S.notes=S.notes.filter(x=>x.id!==id)},
  color:(id)=>{const n=S.notes.find(x=>x.id===id);n.c=COL[(COL.indexOf(n.c)+1)%4]},
- tpl:(id)=>{const t=TPL.find(x=>x.k===id),folder=S.nf||'';noteReset();S.notes.unshift({id:uid(),t:t.t.replace('{d}',dlbl()),b:t.b,f:folder,g:t.g,c:t.c,updatedAt:Date.now()})},
+ tpl:(id)=>{const t=TPL.find(x=>x.k===id);if(t){const n=makeNote(S.nf||'');Object.assign(n,{t:t.t.replace('{d}',dlbl()),b:t.b,g:t.g,c:t.c})}},
  nf:(id)=>{S.nf=S.nf===id?'':id},
  ng:(id)=>{S.ng=S.ng===id?'':id},
  tgnote:(id)=>{S.view='notas';S.nf='';S.ng=id},
@@ -673,6 +815,7 @@ document.addEventListener('click',e=>{
  else if(!finActE(a,id,b))return;
  trashFlush(TB);
  if(FULL_RENDER_ACTIONS.has(a))render();else renderKeepDraft();
+ if(a==='addnote'||a==='tpl')focusNoteEditor();
  if(cancelledTask)taskEditTrigger(cancelledTask)?.focus({preventScroll:true});
  if(a==='focus-enter'||a==='focus-exit'||a==='focus-done'){
   $('#focus-title, #today-title')?.focus();
@@ -728,9 +871,8 @@ document.addEventListener('change',e=>{
    if(owner!==SY.uid)return;
    SY.backupCheck={at:Date.now(),result};
    saveSY();
-   const status=$('[data-backup-check]'),m=$('#bkmsg');
-   if(status)status.textContent=backupCheckStatus();
-   if(m)m.textContent=message;
+   document.querySelectorAll('[data-backup-check]').forEach(status=>{status.textContent=backupCheckStatus()});
+   if(S.view==='backup')reportBackup(message,'check');
   };
   r.onload=()=>{
    try{
@@ -742,38 +884,8 @@ document.addEventListener('change',e=>{
   r.onerror=()=>report('Falha na leitura','Não foi possível ler o arquivo. Nenhum dado foi alterado.');
   r.readAsText(f);e.target.value='';return;
  }
- if(e.target.id==='bkmerge'){if(LOCAL_CORRUPT){const m=$('#bkmsg');if(m)m.textContent='Restaure um arquivo ou traga os dados da nuvem antes de mesclar.';e.target.value='';return}const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{let msg;try{const j=JSON.parse(r.result),d=j.data||j;if(!validBackup(d))throw 0;const previous=JSON.stringify(S),wasCorrupt=LOCAL_CORRUPT;if(!snapPut('Antes de importar mesclando')){const m=$('#bkmsg');if(m)m.textContent='Não foi possível guardar a versão atual. Exporte um backup e libere espaço.';return}const inc={};SK.forEach(k=>{if(k in d)inc[k]=d[k]});if(Array.isArray(inc.links))inc.links=inc.links.filter(l=>l&&safeUrl(l.u)!=='#');applyState(merge3(undefined,pick(),inc));S.seeded=true;if(!save()){S=JSON.parse(previous);LOCAL_CORRUPT=wasCorrupt;applyTheme();applyA11y();undoReset();render();const m=$('#bkmsg');if(m)m.textContent='Não foi possível salvar a importação. Os dados anteriores foram mantidos.';return}render();msg='Backup mesclado com os dados deste aparelho. A versão anterior foi guardada em Versões automáticas.'}catch(x){msg='Arquivo inválido. Escolha um backup gerado por este painel.'}const m=$('#bkmsg');if(m)m.textContent=msg};r.readAsText(f);e.target.value='';return}
- if(e.target.id==='bkfile'){
-  const f=e.target.files[0];if(!f)return;
-  const r=new FileReader();
-  r.onload=()=>{
-   let msg;
-   try{
-    const j=JSON.parse(r.result),d=j.data||j;if(!validBackup(d))throw 0;
-    const previous=JSON.stringify(S),wasCorrupt=LOCAL_CORRUPT;
-    if(!LOCAL_CORRUPT&&!snapPut('Antes de restaurar um arquivo')){const m=$('#bkmsg');if(m)m.textContent='Não foi possível guardar a versão atual. Exporte um backup e libere espaço.';return}
-    const def=DEF_STATE(),prevHistory=Array.isArray(S.history)?S.history:[];
-    SK.forEach(k=>{
-     const val=d[k];
-     if(val===undefined)S[k]=def[k];
-     else if(val===null)S[k]=(k==='cards'||k==='menu'||k==='wx')?null:def[k];
-     else S[k]=val;
-    });
-    ['events','notes','tasks','links','inbox','habits','metas','projects','trash','lnk','reads','sp'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});
-    S.links=S.links.filter(l=>l&&safeUrl(l.u)!=='#');
-    ['dia','fm','rev','revm','fpj','rem','rot','rotPrefs','revprefs','availability'].forEach(k=>{if(!S[k]||typeof S[k]!=='object'||Array.isArray(S[k]))S[k]={}});
-    if(!S.fin||typeof S.fin!=='object'||Array.isArray(S.fin))S.fin=def.fin;
-    finInit();
-    S.seeded=true;S.onb=!!d.onb;
-    S.history=auditClean([...prevHistory,...(Array.isArray(d.history)?d.history:[])]);
-    auditLog('backupRestore');
-    applyTheme();applyA11y();LOCAL_CORRUPT=false;
-    if(!save()){S=JSON.parse(previous);LOCAL_CORRUPT=wasCorrupt;applyTheme();applyA11y();undoReset();render();const m=$('#bkmsg');if(m)m.textContent='Não foi possível salvar a restauração. Os dados anteriores foram mantidos.';return}
-    render();msg='Backup restaurado.'+(wasCorrupt?'':' A versão anterior foi guardada em Versões automáticas.');
-   }catch(x){msg='Arquivo inválido. Escolha um backup gerado por este painel.'}
-   const m=$('#bkmsg');if(m)m.textContent=msg;
-  };
-  r.readAsText(f);return;
+ if(e.target.id==='bkmerge'||e.target.id==='bkfile'){
+  const file=e.target.files[0];if(file)prepareBackup(e.target.id,file);e.target.value='';return;
  }
  if(e.target.dataset.reviewStep){
   const {wk,reviewStep}=e.target.dataset;
@@ -802,7 +914,8 @@ document.addEventListener('paste',e=>{
  ed.dispatchEvent(new Event('input',{bubbles:true}));
 });
 document.addEventListener('input',e=>{
- const t=e.target;
+ const t=e.target,editor=t.closest?.('[data-note-edit]');
+ if(editor){captureNoteDraft(editor);return}
  if(t.form){const k=noteDraftKey(t.form);if(k&&t.name)(NOTE_DRAFTS[k]=NOTE_DRAFTS[k]||{})[t.name]=t.value}
  if(t.id==='note-search'){const pos=t.selectionStart;NQ=t.value;PG.nt=30;renderKeepDraft({save:false});const i=$('#note-search');if(i)i.setSelectionRange(pos,pos);return}
  if(t.dataset.rm){const k=t.dataset.mo;(S.revm[k]=S.revm[k]||{})[t.dataset.rm]=t.value;save();return}
@@ -1125,7 +1238,8 @@ const SUBMIT_BY_DATA=[
 ];
 document.addEventListener('submit',e=>{
  e.preventDefault();
- const f=e.target,early=SUBMIT_EARLY[f.id];if(early){early(f);return}
+ const f=e.target;if(f.dataset.noteEdit){submitNoteEditor(f);return}
+ const early=SUBMIT_EARLY[f.id];if(early){early(f);return}
  const v=Object.fromEntries(new FormData(f));
  if(SUBMIT_BY_ID[f.id]&&SUBMIT_BY_ID[f.id](f,v)==='stop')return;
  for(const [key,fn] of SUBMIT_BY_DATA){if(f.dataset[key]&&fn(f,v)==='stop')return}
