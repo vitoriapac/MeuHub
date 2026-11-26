@@ -4,7 +4,7 @@
 
 ## Platform
 
-web (PWA instalável no celular e no computador)
+web
 
 ## Users
 
@@ -34,13 +34,15 @@ Apps separados (Notion, Todoist, uma planilha de gastos) não conseguem oferecer
 
 - É aberto logo de manhã para planejar o dia e revisitado ao longo do dia para capturas rápidas (tarefas, gastos).
 - Muitas vezes fica aberto numa aba do computador como companhia de fundo (Spotify, clima).
-- É usado no computador e no celular; 375 px de largura é um tamanho suportado.
-- Às vezes é aberto sem internet. Nesse caso, o Service Worker entrega a casca em cache, o hub abre com os dados locais e reconecta automaticamente quando a conexão volta.
+- É usado no navegador e como PWA instalável no celular e no computador. A interface foi revisada de 320 a 1.440 px, incluindo texto ampliado.
+- Às vezes é aberto sem internet. Depois de carregar a PWA e entrar neste aparelho, a navegação e os dados locais ficam disponíveis offline. As artes dos três turnos ficam em cache e a sincronização retoma quando a conexão volta.
 
 ## Capabilities and Constraints
 
 - **Áreas:** Início (resumo, linha do tempo, modo Companhia e cards), Hoje, Rotina, Lembretes, Agenda, Tarefas, Metas, Hábitos, Notas, Diário, Links, Etiquetas, Finanças, Aparência, Backup, Lixeira, Leituras e Personalizar menu.
-  - As Finanças têm visão geral, análises, lançamentos, orçamentos e metas, contas e recorrentes, regras e importação.
+  - As Finanças têm visão geral, investimentos, análises, lançamentos, orçamentos e metas, contas e recorrentes, regras e importação. O fechamento mensal limita a destinação à sobra disponível.
+  - Hoje dá destaque ao próximo compromisso e às tarefas prioritárias. Em telas estreitas, o menu recolhe os atalhos excedentes em **Mais**.
+  - Rascunhos da captura em Tarefas e da edição em Notas ficam neste aparelho, separados por conta. Backup separa cópia, conferência e recuperação, com confirmação antes de mesclar ou restaurar.
   - Também existem busca global, paleta de comandos (Ctrl+K), desfazer/refazer e captura rápida.
 - **Cards do Início:** 5 cards ativos por padrão (`linha`, `todo`, `agenda`, `habs`, `fin`), botão **Companhia** para alternar Spotify + Clima com um clique, e mais 8 cards opcionais (Frase do dia, Produtividade, Links rápidos, Notas recentes, Revisão semanal, Histórico, Humor e Metas).
 - **Contas e sincronização:**

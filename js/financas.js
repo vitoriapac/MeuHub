@@ -186,10 +186,15 @@ function sumAbated(list){
  list.forEach(t=>{if(t.k==='in'&&t.rb){const c=t.rcat||'Outros',ab=Math.min(by[c]||0,t.v);if(ab>0){by[c]=r2(by[c]-ab);if(by[c]<=0)delete by[c];out=r2(out-ab);inc=r2(inc-ab)}}});
  return{inc,out,by};
 }
+const financeMonthDate=(offset=S.fmo)=>new Date(today.getFullYear(),today.getMonth()+offset,1);
+function monthTransactions(period,account=S.fac){
+ return finInit().tx.filter(t=>t.d.slice(0,7)===period&&(!account||accId(t)===account||t.to===account))
+  .sort((a,b)=>a.d===b.d?0:a.d<b.d?1:-1);
+}
 function finMonth(o,all,account=S.fac){
- const F=finInit(),f=new Date(today.getFullYear(),today.getMonth()+(o==null?S.fmo:o),1),p=ds(f).slice(0,7),ok=t=>all||!account||accId(t)===account||t.to===account;
- const tx=F.tx.filter(t=>t.d.slice(0,7)===p&&ok(t)).sort((a,b)=>b.d.localeCompare(a.d)),{inc,out,by}=sumAbated(tx);
- return{f,p,tx,inc,out,by}}
+ const f=financeMonthDate(o??S.fmo),p=ds(f).slice(0,7),tx=monthTransactions(p,all?'':account);
+ return{f,p,tx,...sumAbated(tx)};
+}
 function series(n,base,all){const a=[];for(let i=n-1;i>=0;i--){const m=finMonth(base-i,all);a.push({f:m.f,inc:m.inc,out:m.out})}return a}
 const cwid=w=>innerWidth>860?Math.round(w*1.5):w;
 function barsSvg(a){
@@ -436,8 +441,11 @@ function filteredTx(tx){
 function txListHtml(tx){
  const q=norm(FQ.trim()),kd=S.fkd||'',fc=S.fcat||'',hasF=!!(q||kd||fc||FRECON||FTAG||S.fac);
  const L=filteredTx(tx);
- const sum=L.reduce((s,t)=>s+(t.k==='in'?t.v:t.k==='out'?-t.v:0),0),allOut=L.length&&L.every(t=>t.k==='out'),allIn=L.length&&L.every(t=>t.k==='in');
- const stxt=ANALYSIS_CUT&&fc?`Despesas líquidas: <strong>${BRL(sumAbated(L).out)}</strong>`:allOut?'Total: <strong>'+BRL(L.reduce((s,t)=>s+t.v,0))+'</strong>':allIn?'Total: <strong class="pos">+ '+BRL(L.reduce((s,t)=>s+t.v,0))+'</strong>':L.length?'Saldo filtrado: <strong class="'+(sum<0?'neg':'pos')+'">'+BRL(sum)+'</strong>':'';
+ let stxt='';
+ if(hasF&&L.length){
+  const sum=L.reduce((s,t)=>s+(t.k==='in'?t.v:t.k==='out'?-t.v:0),0),allOut=L.every(t=>t.k==='out'),allIn=L.every(t=>t.k==='in');
+  stxt=ANALYSIS_CUT&&fc?`Despesas líquidas: <strong>${BRL(sumAbated(L).out)}</strong>`:allOut?'Total: <strong>'+BRL(L.reduce((s,t)=>s+t.v,0))+'</strong>':allIn?'Total: <strong class="pos">+ '+BRL(L.reduce((s,t)=>s+t.v,0))+'</strong>':L.length?'Saldo filtrado: <strong class="'+(sum<0?'neg':'pos')+'">'+BRL(sum)+'</strong>':'';
+ }
  const bulkHtml=L.length?`<details data-tx-bulk style="margin-top:var(--space-2)"><summary class="pill" style="display:inline-block;cursor:pointer">Edição em lote (${L.length} ${L.length===1?'lançamento listado':'lançamentos listados'})</summary><form class="bar" id="ftxbulk" style="margin-top:var(--space-2)"><select class="in" name="cat" aria-label="Nova categoria em lote"><option value="">Manter categoria</option>${FC.map(c=>`<option value="${c}">${c}</option>`).join('')}</select><input class="in" name="sub" list="subl" placeholder="Nova subcategoria (opcional)" aria-label="Nova subcategoria em lote"><input class="in" name="tg" list="alltags" placeholder="Adicionar etiqueta (opcional)" aria-label="Adicionar etiqueta em lote"><select class="in" name="ac" aria-label="Nova conta em lote"><option value="">Manter conta</option>${accOpts('')}</select><label><input type="checkbox" name="createRules" value="1"> Criar regras para as descrições</label><button class="pill dark" data-tx-bulk-submit data-label="Aplicar aos ${L.length} listados">Aplicar aos ${L.length} listados</button><button type="button" class="pill${TXBULKDEL?' dark':''}" data-a="txbulkdel">${TXBULKDEL?'Confirmar: excluir os '+L.length+' listados':'Excluir os '+L.length+' listados'}</button>${TXBULKDEL?'<button type="button" class="pill" data-a="txbulkcancel">Cancelar</button>':''}<div data-reserve-review tabindex="-1"></div></form></details>`:'';
  return (hasF?`<p class="empty" style="padding:0 0 var(--space-2)">Mostrando <strong>${L.length}</strong> de ${tx.length} lançamentos${stxt?' · '+stxt:''}${ANALYSIS_CUT?' · realizados até '+fmt(ANALYSIS_CUT):''}. <button class="pill" data-a="fclr">Limpar filtros</button></p>`:'')
  +(L.length?txTable(L.slice(0,pgN(FLK(),80))):emp('fin',hasF?'Nenhum lançamento combina com os filtros aplicados.':'Nenhum lançamento neste mês.',hasF?'Limpar filtros':'Novo lançamento',hasF?'data-a="fclr"':'data-a="tx-new"'))
@@ -506,20 +514,22 @@ function recentTxPanel(tx){
 function financasMes(tab){
  const F=finInit();genRec();if(FED&&!F.tx.some(t=>t.id===FED))FED=null;if(RED&&!F.rec.some(r=>r.id===RED))RED=null;if(BED&&!F.bills.some(b=>b.id===BED))BED=null;
  tab=FTABS.some(x=>x[0]===tab)?tab:(FTABS.some(x=>x[0]===S.ftab)?S.ftab:'lanc');
- const {f,tx,inc,out,by}=finMonth(),sal=inc-out,al=finAlerts(by,ds(f).slice(0,7)),e=FED?F.tx.find(t=>t.id===FED):null,k0=e?e.k:'out';
- const {inc:realIn,out:realOut}=sumAbated(tx.filter(t=>t.d<=T));
+ const f=financeMonthDate(),period=ds(f).slice(0,7),e=FED?F.tx.find(t=>t.id===FED):null,k0=e?e.k:'out';
+ const tx=['geral','lanc','orc'].includes(tab)?monthTransactions(period):[];
  const selA=S.fac?F.acc.find(a=>a.id===S.fac):null;
  const del=(a,id,l)=>`<button class="x" data-a="${a}" data-id="${esc(id)}" aria-label="${l}">×</button>`;
  const head=`<div class="top${tab==='lanc'?' tx-heading':''}"><div><span class="crumb">MEU HUB / FINANÇAS</span><h1>${tab==='lanc'?'Lançamentos':`Finanças<span class="sub-ed">${FTABS.find(([id])=>id===tab)[1]}</span>`}</h1></div><div style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap">${vwToggle()}${tab==='lanc'?'':`<select class="in" data-fac="1" aria-label="Filtrar por conta"><option value="">Todas as contas</option>${accOpts(S.fac)}</select>`}<span style="display:inline-flex;gap:var(--space-2);align-items:center"><button class="pill" data-a="fmn" data-n="-1" aria-label="Mês anterior">‹</button><strong>${MES[f.getMonth()]} ${f.getFullYear()}</strong><button class="pill" data-a="fmn" data-n="1" aria-label="Próximo mês">›</button></span><button class="pill${S.fmo===0?' current-month':''}" data-a="fmn" data-n="0">Este mês</button></div></div>`;
- const monthlySummary=tab==='geral'?financeOverviewBalance(F,selA,f,inc,out,realIn,realOut,al):'';
+ let monthlySummary='';
  const formHtml=(tab==='geral'||tab==='lanc'||!!e)?`<form class="bar k${k0}${e?' advo':''}" id="ffin" style="margin-top:var(--space-3)"><select class="in" name="k" aria-label="Tipo"><option value="out" ${k0==='out'?'selected':''}>Despesa</option><option value="in" ${k0==='in'?'selected':''}>Receita</option><option value="tr" ${k0==='tr'?'selected':''}>Transferência</option></select><label class="lb capture-label grow">Descrição<input class="in grow" name="t" placeholder="Descrição (ex.: mercado 85,90 ontem)" value="${e?esc(e.t):''}" required></label><label class="lb capture-label">Valor<input data-fin-private class="in" name="v" type="text" inputmode="decimal" autocomplete="off" placeholder="Valor" value="${e?e.v:''}" style="width:120px"></label><select class="in" name="cat" aria-label="Categoria">${catOpts(e&&e.cat)}</select>${F.acc.length>1?`<select class="in" name="ac" aria-label="Conta ou cartão">${accOpts(e&&accId(e))}</select>`:''}<span class="adv"><input class="in" type="date" name="d" value="${e?e.d:T}" required aria-label="Data">${F.acc.length>1?'':`<select class="in" name="ac" aria-label="Conta ou cartão">${accOpts(e&&accId(e))}</select>`}<select class="in f-to" name="to" aria-label="Conta de destino">${accOpts(e&&e.to)}</select><input class="in" name="sub" list="subl" placeholder="Subcategoria" value="${e?esc(e.sub||''):''}" aria-label="Subcategoria">${subList()}<input class="in" name="tg" list="alltags" placeholder="Etiquetas" value="${e?esc(e.tg||''):''}" aria-label="Etiquetas"><input class="in" name="pj" list="pjl" placeholder="Projeto (opcional)" value="${e?esc(e.pj||''):''}" aria-label="Projeto">${pjList()}<input class="in f-pc" name="pc" type="number" min="1" value="1" title="Parcelas" aria-label="Parcelas" style="width:90px" ${e?'disabled':''}>${e?'<label class="lb" style="margin:0"><input type="checkbox" name="applySame" value="1"> Aplicar aos demais com mesma descrição e criar regra</label>':''}</span><button class="pill dark">${e?'Salvar alterações':'Lançar'}</button><button type="button" class="pill" data-a="adv">${e?'Menos opções':'Mais opções'}</button>${e?'<button type="button" class="pill" data-a="fcancel">Cancelar</button>':''}</form>`:'';
  const tabsHtml=`<div class="bar ftabs" role="group" aria-label="Seções das Finanças">${FTABS.map(x=>`<button class="pill ${x[0]===tab?'on':''}" aria-pressed="${x[0]===tab}" data-a="ftab" data-id="${x[0]}">${x[1]}</button>`).join('')}</div>`;
  let body='';
  if(tab==='geral'){
+  const {inc,out,by}=sumAbated(tx),realized=tx.filter(t=>t.d<=T),{inc:realIn,out:realOut}=sumAbated(realized);
+  monthlySummary=financeOverviewBalance(F,selA,f,inc,out,realIn,realOut,finAlerts(by,period));
   body=`<div class="finance-overview wide">${overviewDues(selA)}${monthCashPanel(f,selA)}</div>
   ${commitmentsPanel()}
-  ${recentTxPanel(tx.filter(t=>t.d<=T))}
-  ${overviewCategories(tx.filter(t=>t.d<=T))}
+  ${recentTxPanel(realized)}
+  ${overviewCategories(realized)}
   ${summaryPanel()}${nextIncomePanel()}`;
  }else if(tab==='inv'){
   body=invPanel();
@@ -614,7 +624,7 @@ document.addEventListener('change',async e=>{
  if(i.name==='k'&&i.form&&i.form.id==='ffin'){i.form.classList.remove('kout','kin','ktr');i.form.classList.add('k'+i.value)}
  if(i.name==='ty'&&i.form&&i.form.id==='facc')i.form.classList.toggle('facard',i.value==='card');
 });
-document.addEventListener('input',e=>{const i=e.target;if(i.form?.dataset.partAdjust||i.form?.dataset.partRefund)previewPart(i.form);if(i.form?.dataset.recSchedule)previewRecurring(i.form);if(i.form?.id==='fin-installment'&&['v','pc','d'].includes(i.name))previewInstallment(i.form);if(i&&i.id==='fq'){FQ=i.value;TXBULKDEL=false;const el=$('#txlist');if(el)el.innerHTML=txListHtml(finMonth().tx)}if(i&&i.name==='v'&&i.form&&i.form.id==='fbud'){const el=i.form.querySelector('[data-budget-preview]'),v=num(i.value);if(el)el.textContent=i.value.trim()?(Number.isFinite(v)&&v>0?'Valor interpretado: '+BRL(v):'Informe um valor maior que zero.'):''}if(i&&i.form&&i.form.dataset.accEdit&&['close','due'].includes(i.name))accountImpact(i.form)});
+document.addEventListener('input',e=>{const i=e.target;if(i.form?.dataset.partAdjust||i.form?.dataset.partRefund)previewPart(i.form);if(i.form?.dataset.recSchedule)previewRecurring(i.form);if(i.form?.id==='fin-installment'&&['v','pc','d'].includes(i.name))previewInstallment(i.form);if(i&&i.id==='fq'){FQ=i.value;TXBULKDEL=false;const el=$('#txlist');if(el)el.innerHTML=txListHtml(monthTransactions(ds(financeMonthDate()).slice(0,7)))}if(i&&i.name==='v'&&i.form&&i.form.id==='fbud'){const el=i.form.querySelector('[data-budget-preview]'),v=num(i.value);if(el)el.textContent=i.value.trim()?(Number.isFinite(v)&&v>0?'Valor interpretado: '+BRL(v):'Informe um valor maior que zero.'):''}if(i&&i.form&&i.form.dataset.accEdit&&['close','due'].includes(i.name))accountImpact(i.form)});
 
 /* ===== Integração das finanças com o resto do painel ===== */
 function projData(){

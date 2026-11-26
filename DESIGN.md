@@ -169,7 +169,7 @@ Tons de céu claro e papel, com tintas pastel por categoria e um lilás de assin
 **Label Font:** Outfit, em maiúsculas e espaçada
 **Editorial Accent Font:** Instrument Serif (itálico 400, hospedada em `fonts/`)
 
-**Character:** `Outfit` conduz toda a interface, os números tabulares (`font-variant-numeric: tabular-nums` no `body`) e os rótulos, conversando com os cantos arredondados do sistema. `Instrument Serif` em itálico entra pontualmente como acento editorial — apenas no nome da saudação do Início e nos subtítulos de página (`.font-ed`, `.sub-ed`) — para trazer leveza e contraste sem competir com a leitura de dados.
+**Character:** `Outfit` conduz toda a interface, os números tabulares (`font-variant-numeric: tabular-nums` no `body`) e os rótulos, conversando com os cantos arredondados do sistema. `Instrument Serif` em itálico entra pontualmente como acento editorial — no nome da saudação do Início, nos subtítulos de página (`.font-ed`, `.sub-ed`) e nas citações breves do cartão Frase do dia (`.quote blockquote`) — para trazer leveza e contraste sem competir com a leitura de dados.
 
 ### Hierarchy
 - **Display** (600, clamp 1,75–2,25rem, tracking −1.2px): o título de cada tela e a saudação do Início ("Bom dia! Hoje é…").
@@ -180,7 +180,7 @@ Tons de céu claro e papel, com tintas pastel por categoria e um lilás de assin
 - **Caption** (400, 0,875rem; variantes menores nos chips e navegação): datas, metadados e textos de apoio.
 
 ### Named Rules
-**The Two-Voice Type Rule.** `Outfit` para tudo que é dado, lista, botão, número e título principal; `Instrument Serif` em itálico apenas para o acento humano da saudação e subtítulos de tela. Nunca usar a serifa em valores, formulários ou texto corrido.
+**The Two-Voice Type Rule.** `Outfit` para tudo que é dado, lista, botão, número e título principal; `Instrument Serif` em itálico para a saudação, os subtítulos de tela e as citações breves do cartão Frase do dia. Valores, formulários e parágrafos usam Outfit.
 
 **Escala e acessibilidade.** Os papéis compartilhados usam `--type-small` (0,875rem), `--type-body` (1rem), `--type-title` (1,125rem) e `--type-display` (clamp de 1,75 a 2,25rem). Campos no celular usam pelo menos 16px sem impedir ampliação do texto. Na agenda semanal, nomes dos dias, datas e eventos usam a escala relativa de texto de apoio. Rótulos em gráficos, horários e lombadas podem ter medidas próprias para preservar as coordenadas e devem ser conferidos visualmente; a grade não exige arredondar tamanhos de fonte para múltiplos de 8.
 
@@ -228,7 +228,7 @@ A linguagem é de **cantos generosos e pílulas**. Quanto maior a superfície, m
 ### Cards / Containers
 - **Painel:** fundo Painel de Céu, cantos de 22px, padding de 16px, borda sutil `--card-border` e sem sombra. O título é um rótulo pequeno em maiúsculas.
 - **Item de lista:** fundo Papel dentro do painel, cantos de 14px, padding de 8px 12px, borda sutil `--card-border`, 8px entre itens.
-- **Painel de saudação** (Início): banner horizontal (`.hero2-banner`) com cantos de 26px, borda `--card-border`, gradiente suave do Painel sobre pinturas impressionistas no estilo Van Gogh (`img/hero-manha.jpg`, `img/hero-tarde.jpg`, `img/hero-noite.jpg`) que mudam por período do dia, relógio ao vivo no canto superior direito (`.hero2-clock`), breadcrumb (`.crumb`) e pílulas de captura rápida inline (`.hero2-qa`). Os cards de KPI ficam logo abaixo do banner para deixar a pintura livre à direita.
+- **Painel de saudação** (Início): banner horizontal (`.hero2-banner`) com cantos de 26px, borda `--card-border`, gradiente suave do Painel sobre pinturas impressionistas no estilo Van Gogh (WebP de 720 e 1.440 px, com variantes de manhã, tarde e noite) que mudam por período do dia, relógio ao vivo no canto superior direito (`.hero2-clock`), breadcrumb (`.crumb`) e pílulas de captura rápida inline (`.hero2-qa`). Os cards de KPI ficam logo abaixo do banner para deixar a pintura livre à direita.
 - **Card tracejado de criação** (`.dashed-add`): convite visual em Notas e Links para criar itens direto na grade.
 - **Cartões visuais e projeção** (`.cc-card`, `.cc-proj`): em Finanças → Contas e recorrentes, exibem a fatura do ciclo selecionado, barra de limite e os próximos 4 meses previstos.
 
@@ -272,6 +272,7 @@ Os cards do topo do Início: fundo Papel, cantos de 18px, padding de 16px (12px 
 - **Do** reservar o lilás cheio para uma ação principal por área, o item ativo e o progresso (The One Lilac Rule).
 - **Do** usar o contorno de 2px em Tinta, afastado 2px, como foco de todo controle novo.
 - **Do** respeitar "menos movimento" e o alto contraste (`data-hc`) que já existem em Aparência.
+- **Do** limitar `Instrument Serif` à saudação, aos subtítulos e às citações breves de Frase do dia.
 - **Do** manter números tabulares e os formatos brasileiros (R$ 1.234,56 e dd/mm/aaaa).
 
 ### Don't:
@@ -280,10 +281,11 @@ Os cards do topo do Início: fundo Papel, cantos de 18px, padding de 16px (12px 
 - **Don't** parecer painel corporativo: nada de cinza frio, tabelas densas sem respiro ou números brigando por atenção.
 - **Don't** parecer app infantil: nada de cores saturadas fora do acento, ilustrações bobas ou emoji no lugar de ícones.
 - **Don't** parecer neon/gamer: nada de preto puro com brilho, gradientes fortes ou efeitos de luz.
-- **Don't** usar `Instrument Serif` fora da saudação e dos subtítulos de página (`.font-ed`, `.sub-ed`), nem trazer uma terceira família de fonte.
 - **Don't** colocar bordas grossas ou faixas coloridas laterais em cards e alertas.
 
 ## Decisions log
+
+- **2026-11-26 · Revisão A1–A10.** Hoje e Tarefas mostram o conteúdo prioritário antes das ferramentas. A Agenda semanal enquadra a data consultada. Em Finanças, o extrato mantém filtros e escopo junto da lista e a grade aproxima cartões e vencimentos quando há espaço. Notas separa leitura e edição, e Backup organiza cópia, conferência e recuperação. As artes responsivas preservam o enquadramento e todos os turnos offline. O cartão Frase do dia é a exceção tipográfica para citações breves.
 
 - **2026-11-25 — Espaçamento e largura:** limite de 1440px no desktop para acomodar as abas financeiras em uma linha e dar espaço às grades. Intervalos de seção e grupos de ações reutilizam a escala existente.
 

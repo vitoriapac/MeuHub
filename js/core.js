@@ -675,7 +675,6 @@ const safeUrl=u=>/^(https?:|mailto:)/i.test(String(u).trim())?String(u).trim():'
 let dayPending=false;function newDay(){const n=new Date();if(ds(n)!==T){today=n;T=ds(n);dayPending=true}if(!dayPending||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)||document.activeElement.isContentEditable)return;dayPending=false;render()}
 document.addEventListener('blur',e=>{if(dayPending&&!(e.target.form&&/^(text|search|number|textarea)$/i.test(e.target.type||'')&&e.target.value.trim()))setTimeout(newDay,0)},true);setInterval(newDay,6e4);document.addEventListener('visibilitychange',()=>{if(!document.hidden)newDay()});
 const DIAF=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'],MESF=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
-const saud=()=>{const h=new Date().getHours();return h<12?'Bom dia':h<18?'Boa tarde':'Boa noite'};
 const grp=t=>t.done?3:t.due&&t.due<T?0:t.due===T?1:2;
 const gh=(L,i)=>{const g=grp(L[i]);return i&&grp(L[i-1])===g?'':`<h2 class="gh${g===0?' late':''}">${['Atrasadas','Hoje','Próximas e sem prazo','Concluídas'][g]}</h2>`};
 document.addEventListener('click',e=>{
@@ -687,7 +686,8 @@ document.addEventListener('click',e=>{
  f.querySelector('[name=t]').focus();window.scrollTo({top:0,behavior:SMOOTH()});
 });
 let PRIV=false;try{PRIV=localStorage.getItem('hub-priv')==='1'}catch(e){}
-const BRL=v=>PRIV?'R$ •••••':(+v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fmtBRL=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
+const BRL=v=>PRIV?'R$ •••••':fmtBRL.format(+v||0);
 const FC=['Moradia','Alimentação','Transporte','Compras','Saúde','Lazer','Férias','Educação','Assinaturas','Serviços','Pets','Impostos e taxas','Reserva','Outros'];
 const opts=a=>a.map(c=>`<option>${c}</option>`).join('');
 const bst=p=>p>=100?'o':p>=80?'w':'';

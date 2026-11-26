@@ -25,7 +25,7 @@ window.firebase={initializeApp(){},auth:Object.assign(()=>MA,{GoogleAuthProvider
 function sitePages() {
   const roots = ['index.html', 'manifest.webmanifest', 'sw.js'].filter(f => fs.existsSync(path.join(ROOT, f)));
   const files = [...roots, ...['css', 'js', 'img', 'fonts'].flatMap(d => fs.existsSync(path.join(ROOT, d)) ? fs.readdirSync(path.join(ROOT, d)).map(f => d + '/' + f) : [])];
-  const site = Object.fromEntries(files.map(f => ['/' + f, /\.(png|woff2)$/.test(f) ? fs.readFileSync(path.join(ROOT, f)) : fs.readFileSync(path.join(ROOT, f), 'utf8')]));
+  const site = Object.fromEntries(files.map(f => ['/' + f, /\.(jpe?g|png|webp|woff2)$/.test(f) ? fs.readFileSync(path.join(ROOT, f)) : fs.readFileSync(path.join(ROOT, f), 'utf8')]));
   const swap = (file, from, to) => {
     const next = site[file].replace(from, to);
     if (next === site[file]) throw new Error(file + ' mudou: não achei ' + from);
@@ -42,7 +42,7 @@ function sitePages() {
   return site;
 }
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml; charset=utf-8', '.png': 'image/png', '.woff2': 'font/woff2' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml; charset=utf-8', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.png': 'image/png', '.woff2': 'font/woff2' };
 function serve(site) {
   const srv = http.createServer((req, res) => {
     const p = req.url.split('?')[0];
@@ -1802,6 +1802,63 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh(); await login('A');
       const r=await ev(`(()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',f:'',g:'',c:'g',items:[{id:'i',t:'Arroz',q:'',done:false}]}];S.view='notas';render();document.querySelector('[data-a=shopping-edit]').click();const f=document.querySelector('[data-shopping-edit]');f.querySelector('[name=t]').value='Feijão';S.notes=[];f.requestSubmit();const b=document.querySelector('[data-a=shopping-recover]');if(!b)return null;b.click();return {name:S.notes[0].t,items:S.notes[0].items.map(x=>x.t)}})()`);
       assert.ok(r);assert.strictEqual(r.name,'Mercado');assert.deepStrictEqual(r.items,['Feijão']);
+    }],
+    ['A9 Início usa arte responsiva e decodifica os três turnos', async()=>{
+      await fresh();await login('A');
+      try{for(const width of [375,1440]){
+        await b.send('Emulation.setDeviceMetricsOverride',{width,height:850,deviceScaleFactor:1,mobile:width===375});
+        for(const [hour,period] of [[8,'manha'],[14,'tarde'],[21,'noite']]){
+          const result=await ev(`(async()=>{const OriginalDate=Date;try{window.Date=class extends OriginalDate{constructor(...args){super(...(args.length?args:[2026,10,26,${hour}]))}};S.view='dash';render({save:false});const img=$('.hero2-img');await img.decode();return {path:new URL(img.currentSrc).pathname,width:img.naturalWidth,period:img.parentElement.dataset.period}}finally{window.Date=OriginalDate}})()`);
+          assert.strictEqual(result.period,period);assert.match(result.path,new RegExp('hero-'+period+'-(720|1440)\\.webp$'));assert.ok(result.width>0);
+        }
+      }}finally{await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['A9 extrato preserva ordem, filtros e edições ao pesquisar em histórico longo', async()=>{
+      await fresh();await login('A');
+      const result=await ev(`(()=>{
+        today=new Date(2026,10,26,12);T=ds(today);const f=finInit(),day=ds(add(today,-1));f.acc=[{id:'main',n:'Conta do banco',ty:'cc',ini:0},{id:'c',n:'Crédito',ty:'card',ini:0}];
+        f.tx=[{id:'first',t:'Café da tarde',cat:'Outros',d:T,v:49.9,ac:'main',k:'out'},{id:'next',t:'Mercado',cat:'Alimentação',d:day,v:49.9,ac:'main',k:'out',tg:'Feira'},{id:'other',t:'Compra cartão',cat:'Outros',d:T,v:49.9,ac:'c',k:'out'}];
+        for(let i=0;i<5000;i++)f.tx.push({id:'past'+i,t:'Histórico '+i,d:'2021-01-15',v:1,ac:'main',k:'out'});
+        S.view='financas';S.fvw='mes';S.ftab='lanc';S.fmo=0;S.fac='main';S.fcat='';S.fkd='';FQ='';render({save:false});
+        const search=value=>{const i=$('#fq');i.value=value;i.dispatchEvent(new Event('input',{bubbles:true}));return [...document.querySelectorAll('[data-tx-row]')].map(e=>e.dataset.txRow)};
+        const amount=search('49,9'),accent=search('cafe'),tag=search('feira'),account=search('banco');f.tx[0].t='Café atualizado';const edited=search('atualizado');
+        return {amount,accent,tag,account,edited};})()`);
+      assert.deepStrictEqual(result,{amount:['first','next'],accent:['first'],tag:['next'],account:['first','next'],edited:['first']});
+    }],
+    ['A9 service worker instala, atualiza e abre os três turnos sem rede', async()=>{
+      const pages=sitePages(),latest=pages['/sw.js'].match(/const VER='([^']+)'/)[1],previous='a9previous';
+      const current={
+        html:pages['/index.html'],
+        worker:pages['/sw.js'].replace('const ASSETS=[','const ASSETS=[\n "./mock.js",'),
+      };
+      const serveVersion=(version)=>{
+        pages['/']=pages['/index.html']=current.html.replaceAll(latest,version);
+        pages['/sw.js']=current.worker.replaceAll(latest,version);
+      };
+      pages['/mock.js']=pages['/mock.js'].replace('__noSW=1','__noSW=0');serveVersion(previous);
+      const pwa=await serve(pages),client=await launch();
+      try{
+        await client.send('Network.enable');
+        await client.send('Page.navigate',{url:'http://127.0.0.1:'+pwa.address().port+'/'});
+        await client.waitFor(`typeof FB==='object'&&FB.ready&&navigator.serviceWorker.controller`,'primeira instalação');
+        await client.ev(`window.__next='pwa';fbLogin()`);await client.waitFor(`FB.on`,'entrar no aparelho');
+        await client.ev(`S.tasks=[{id:'kept',t:'Tarefa disponível offline'}];save();push()`);
+        serveVersion(latest);
+        await client.ev(`navigator.serviceWorker.getRegistration().then(r=>r.update())`);
+        await client.waitFor(`!!SW_REG?.waiting&&!!$('[data-a=sw-reload]')`,'atualização em espera');
+        await client.ev(`$('[data-a=sw-reload]').click()`);
+        await client.waitFor(`typeof FB==='object'&&FB.ready&&document.querySelector('script[src*="main.js"]').src.endsWith('v=${latest}')`,'carregar versão nova');
+        await client.waitFor(`caches.keys().then(list=>list.includes('meuhub-v${latest}')&&!list.includes('meuhub-v${previous}'))`,'substituir cache antigo');
+        await client.ev(`localStorage.setItem('__offline','1')`);
+        await client.send('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:0,uploadThroughput:0});
+        await client.send('Page.reload',{});
+        await client.waitFor(`typeof FB==='object'&&FB.ready&&$('#gate').hidden`,'reabrir sem rede');
+        for(const [hour,period,greeting] of [[8,'manha','Bom dia'],[14,'tarde','Boa tarde'],[21,'noite','Boa noite']]){
+          const art=await client.ev(`(async()=>{const Clock=Date;try{window.Date=class extends Clock{constructor(...args){super(...(args.length?args:[2026,10,26,${hour}]))}};syncHeroClock();const image=$('.hero2-img');await image.decode();return {decoded:image.naturalWidth>0&&image.currentSrc.includes('hero-${period}-'),heading:$('.hero2 h1').textContent}}finally{window.Date=Clock}})()`);
+          assert.ok(art.decoded,'banner offline de '+period);assert.ok(art.heading.startsWith(greeting),art.heading);
+        }
+        assert.ok(await client.ev(`S.tasks.some(t=>t.id==='kept')`));
+      }finally{client.close();pwa.close()}
     }],
     ['A7 cartões e vencimentos se reorganizam conforme espaço e quantidade', async()=>{
       await fresh();await login('A');

@@ -146,22 +146,72 @@ Preservar a identidade visual, o limite de 1.440 px, a PWA sem etapa de build e 
 
 ## A9 — Carregamento e renderização da PWA
 
-- [ ] Medir transferência, cache frio e quente e renderização do extrato com os mesmos cenários da auditoria. Os três banners somavam cerca de 3 MB em disco. No ensaio inicial, Lançamentos teve medianas de 39 ms com 100 registros adicionais e 77 ms com 5.000.
-- [ ] Otimizar os banners para as larguras reais, preservando enquadramento e legibilidade. Medir se há ganho ao reduzir o precache inicial. Se as outras imagens forem carregadas depois, conservar uma apresentação coerente nas trocas de turno sem rede.
-- [ ] Perfilar o extrato com histórico longo e atacar o gargalo medido. Avaliar o carregamento de scripts sob demanda somente depois de medir o ganho e os efeitos sobre navegação, atalhos e abertura offline.
+- [x] Medir transferência, cache frio e quente e renderização do extrato com os mesmos cenários da auditoria. Os três banners somavam cerca de 3 MB em disco. No ensaio inicial, Lançamentos teve medianas de 39 ms com 100 registros adicionais e 77 ms com 5.000.
+- [x] Otimizar os banners para as larguras reais, preservando enquadramento e legibilidade. Medir se há ganho ao reduzir o precache inicial. Se as outras imagens forem carregadas depois, conservar uma apresentação coerente nas trocas de turno sem rede.
+- [x] Perfilar o extrato com histórico longo e atacar o gargalo medido. Avaliar o carregamento de scripts sob demanda somente depois de medir o ganho e os efeitos sobre navegação, atalhos e abertura offline.
 
 **Aceite:** a comparação mostra quanto foi reduzido em bytes e tempo sob as mesmas condições, com ganho verificável na carga inicial ou na renderização do extrato. Instalação, atualização da versão anterior e reabertura offline permanecem funcionais.
 
 **Verificação:** medições antes/depois, teste de instalação a frio, atualização com cache anterior, reabertura offline e capturas de manhã, tarde e noite.
 
+**Comparação de transferência.** Chromium local com Firebase simulado, área de 375 px e DPR 2. A instalação foi medida em perfil novo com latência simulada de 40 ms e download de 10 Mbit/s. Os tempos de instalação e reabertura são faixas observadas em duas rodadas por versão, sem generalização para aparelhos reais.
+
+| Métrica | `7cedfcf` | A9 |
+| --- | ---: | ---: |
+| Artes no pré-cache | 3.003.255 B | 640.716 B (−78,7%) |
+| Pré-cache completo no ensaio | 3.931.327 B | 1.570.844 B (−60,0%) |
+| Transferência da primeira arte da manhã | 1.045.208 B | 62.710 B |
+| Primeira abertura até o service worker assumir o controle e a arte decodificar | 1.950–2.098 ms | 1.211–1.356 ms |
+| Reabertura com cache quente, até a arte decodificar | 137–218 ms | 138–160 ms |
+| Transferência da arte com cache quente | 0 B | 0 B |
+
+**Extrato.** O perfil de CPU com desaceleração de 4× apontou a ordenação dentro de `finMonth`, a formatação monetária por registro e a filtragem durante a digitação. A9 reaproveita um formatador monetário, ordena datas ISO diretamente e evita calcular totais e alertas em telas que não os exibem. A busca lê o estado atual e mantém a ordem, os filtros e a paginação.
+
+| Mediana de duas rodadas por versão, 17 operações por rodada | `7cedfcf` | A9 |
+| --- | ---: | ---: |
+| Abrir o extrato com 100 registros | 53,7 ms | 52,9 ms |
+| Abrir o extrato com 5.000 registros | 70,4 ms | 52,0 ms |
+| Pesquisar com 100 registros | 20,1 ms | 23,0 ms |
+| Pesquisar com 5.000 registros | 58,6 ms | 56,4 ms |
+
+A medição inclui JavaScript e layout, com Chromium a 375 px sem desaceleração nas rodadas cronometradas. O teste com 5.000 registros concentra lançamentos no período consultado. Os valores de 39 e 77 ms da auditoria original descrevem outro ensaio. A comparação acima usa a mesma carga de teste nas duas versões. A busca variou entre rodadas. Os scripts somavam cerca de 710 kB no pré-cache de referência, incluindo o simulador de teste. Adiar módulos exigiria alterar dependências entre os scripts comuns usados na captura, nos atalhos e no login. O ganho medido veio das artes e do recálculo do extrato.
+
+**Ciclo da PWA.** Instalação a frio no service worker real, atualização de `20261126a` para `20261126b` pela ação **Atualizar**, substituição do cache antigo e reabertura sem rede com uma tarefa já salva. As artes de manhã, tarde e noite foram decodificadas sem conexão. A saudação acompanha o relógio e a arte durante a troca de turno. O teste automatizado de atualização usa duas versões locais consecutivas e Firebase simulado.
+
+
 ## A10 — Integração, revisão visual e documentação
 
-- [ ] Atualizar `PRODUCT.md`, `DESIGN.md` e `README.md` segundo as decisões implementadas. Normalizar a plataforma como `web` e decidir se o uso de Instrument Serif nas citações é uma exceção editorial a documentar.
-- [ ] Rever as telas em 320, 375, 430, 768, 1.024 e 1.440 px. Incluir texto a 200%, temas claro e escuro, Céu e Safira, teclado, conjunto vazio, dados preenchidos e recuperação após erro.
-- [ ] Repetir a auditoria Impeccable e Craft com os mesmos percursos. Testar aparelho físico, leitor de tela e Firebase real se estiverem disponíveis e registrar a cobertura efetiva.
-- [ ] Rodar `node --test tests/unit.test.js`, `node tests/run.js`, `node scripts/bump-version.js --check` e `git diff --check`. Atualizar a versão da PWA quando CSS ou JavaScript mudarem.
+- [x] Atualizar `PRODUCT.md`, `DESIGN.md` e `README.md` segundo as decisões implementadas. Normalizar a plataforma como `web` e decidir se o uso de Instrument Serif nas citações é uma exceção editorial a documentar.
+- [x] Rever as telas em 320, 375, 430, 768, 1.024 e 1.440 px. Incluir texto a 200%, temas claro e escuro, Céu e Safira, teclado, conjunto vazio, dados preenchidos e recuperação após erro.
+- [x] Repetir a auditoria Impeccable e Craft com os mesmos percursos. Testar aparelho físico, leitor de tela e Firebase real se estiverem disponíveis e registrar a cobertura efetiva.
+- [x] Rodar `node --test tests/unit.test.js`, `node tests/run.js`, `node scripts/bump-version.js --check` e `git diff --check`. Atualizar a versão da PWA quando CSS ou JavaScript mudarem.
 
 **Aceite:** os problemas prioritários da auditoria têm regressões cobertas, a documentação descreve o comportamento real, e a revisão final indica a evidência de cada pacote e as verificações que ficaram pendentes.
+
+**Revisões independentes.** A avaliação visual de Impeccable e Craft passou de 27/40 para 33/40 no mesmo rubric de heurísticas. A avaliação técnica ficou em 15/20 frente aos 13/20 da linha de base, com nota 3 em acessibilidade, desempenho, temas, responsividade e integridade. São avaliações da amostra, sem equivalência com certificação de acessibilidade.
+
+- **Cobertura visual e técnica:** 2.496 estados em Chromium, cruzando 26 superfícies, 6 larguras (320, 375, 430, 768, 1.024 e 1.440 px), Céu e Safira, claro e escuro, 100% e 200% de texto e dados vazios ou fictícios. Nenhuma exceção de renderização, rolagem horizontal na raiz acima de 1 px ou quebra nos rótulos visíveis da barra. Os avaliadores conferiram teclado e recuperação nos fluxos críticos.
+- **Detector:** a varredura estática de referência desta rodada encontrou 10 avisos e 123 observações. Em sete estados renderizados, registrou 16 sinais, principalmente painéis aninhados e seleção lateral. Foram observados também comprimentos de linha no Backup. A hora atual em Hoje mediu entre 6,33:1 e 8,96:1 nas combinações avaliadas.
+
+| Pacote | Evidência revisitada |
+| --- | --- |
+| A0 | Cenários com dados fictícios, backup antigo e extrato longo disponíveis para repetir a auditoria. |
+| A1 | Dois envios mantiveram apenas um crédito de R$ 1.760,50. O estorno devolveu o caixa a zero e preservou o histórico. |
+| A2 | Campo monetário mascarado em repouso, revelado no foco e mascarado novamente ao sair. |
+| A3 | Gaveta Mais abriu por Enter e devolveu o foco ao fechar. Resumo ficou dentro do conteúdo em 320 px a 200%. |
+| A4 | Contraste medido nos quatro pares de tema e paleta. Títulos semanais e rótulos dos formulários passaram na regressão. |
+| A5 | Rascunho de tarefa sobreviveu à troca de aba. Os testes verificaram recarga, conta distinta, atualização remota e falha de gravação. |
+| A6 | Dia atual inteiro no trilho semanal. Tarefas, próximos compromissos e extrato aparecem antes das ferramentas de apoio. |
+| A7 | Vencimentos ao lado da grade com um cartão no desktop. Pagamento e conciliação preservados nos testes de fatura. |
+| A8 | Leitura de nota, rascunho recuperado em conflito, confirmação de Backup e retorno de foco no cancelamento. Arquivo inválido preservou os dados. |
+| A9 | Redução do pré-cache e ciclo de atualização da PWA com origem anterior, arte dos três turnos e dados locais offline. |
+
+**Limites da revisão.** Em 320 px a 200% de texto, os controles ainda empurram o primeiro grupo de Tarefas e a Agenda semanal para depois de 1.100 px. No menu móvel padrão, Finanças fica em **Mais** e pode ser configurado como atalho. A revisão usou teclado, toque simulado e árvore de acessibilidade do navegador. Aparelho físico, leitor de tela e conta Firebase real ficaram fora do ensaio.
+
+**Documentação integrada.** `PRODUCT.md` usa `web` como plataforma. `DESIGN.md` preserva o uso de Instrument Serif nas citações breves de Frase do dia como exceção editorial. `README.md` descreve os fluxos de Finanças, rascunhos, Backup e funcionamento offline.
+
+**Validação final.** Passaram 25 testes unitários e 295 cenários de navegador. A PWA está sincronizada em `20261126b` e `git diff --check` passou.
+
 
 ## Pontos de controle
 

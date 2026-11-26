@@ -63,7 +63,7 @@ function track(){if(ULast===null)return;const cur=pickJSON();if(cur===ULast)retu
  UTime=now;ULast=cur;UR=[];updU()}
 function undo(){if(!UH.length){toast('Nada para desfazer');return}const prev=UH.pop();UR.push(ULast);const history=S.history;applyState(JSON.parse(prev));S.history=history;auditLog('undo');ULast=pickJSON();UTime=0;toast('Desfeito. Ctrl+Shift+Z refaz.');render()}
 function redo(){if(!UR.length){toast('Nada para refazer');return}const nx=UR.pop();UH.push(ULast);const history=S.history;applyState(JSON.parse(nx));S.history=history;auditLog('redo');ULast=pickJSON();UTime=0;toast('Refeito.');render()}
-function genRec(){const clean=pickJSON()===ULast,n=genRec0();if(n&&clean)ULast=pickJSON();return n}
+function genRec(){if(!finInit().rec.length)return 0;const clean=pickJSON()===ULast,n=genRec0();if(n&&clean)ULast=pickJSON();return n}
 document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const k=e.key.toLowerCase();if(k!=='z'&&k!=='y')return;const t=e.target;if(/INPUT|TEXTAREA|SELECT/.test(t.tagName)||t.isContentEditable)return;e.preventDefault();if(k==='y'||e.shiftKey)redo();else undo()});
 undoReset();
 

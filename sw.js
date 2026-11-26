@@ -1,5 +1,5 @@
 // Service Worker do Meu Hub: guarda a casca do app e a fonte para abrir sem internet; Firebase e APIs vão direto à rede
-const VER='20261126a',CACHE='meuhub-v'+VER,COVERS='meuhub-covers-v1';
+const VER='20261126b',CACHE='meuhub-v'+VER,COVERS='meuhub-covers-v1';
 const ASSETS=[
  './',
  './index.html',
@@ -18,9 +18,12 @@ const ASSETS=[
  './img/icon-512.png',
  './img/icon-maskable.png',
  './img/apple-touch-icon.png',
- './img/hero-manha.jpg',
- './img/hero-tarde.jpg',
- './img/hero-noite.jpg',
+ './img/hero-manha-720.webp',
+ './img/hero-manha-1440.webp',
+ './img/hero-tarde-720.webp',
+ './img/hero-tarde-1440.webp',
+ './img/hero-noite-720.webp',
+ './img/hero-noite-1440.webp',
  './fonts/outfit-latin.woff2',
  './fonts/outfit-latin-ext.woff2',
  './fonts/instrument-serif-italic-latin.woff2',
