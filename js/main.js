@@ -2,7 +2,7 @@
 /* paginação: listas longas mostram um bloco e o resto sob demanda */
 let PG={},PGV='';
 const NOTE_DRAFTS={};
-const noteDraftKey=f=>f.dataset.shoppingForm?'new:'+f.dataset.shoppingForm:f.dataset.shoppingEdit?'edit:'+f.dataset.shoppingEdit+':'+f.dataset.item:'';
+const noteDraftKey=f=>f.dataset.shoppingForm?'new:'+f.dataset.shoppingForm:f.dataset.shoppingEdit?'edit:'+f.dataset.shoppingEdit+':'+f.dataset.item:f.dataset.accEdit?'fin-account:'+f.dataset.accEdit:f.dataset.partAdjust?'fin-part:'+f.dataset.partAdjust:f.dataset.partRefund?'fin-refund:'+f.dataset.partRefund:'';
 function restoreNoteDrafts(){document.querySelectorAll('#main form[data-shopping-form],#main form[data-shopping-edit]').forEach(f=>{const v=NOTE_DRAFTS[noteDraftKey(f)];if(v){Object.entries(v).forEach(([k,x])=>{if(f.elements[k])f.elements[k].value=x});if(['qty','unit','estimated','actual'].some(k=>v[k])){const d=f.querySelector('.shop-extra');if(d)d.open=true}}})}
 const pgN=(k,d)=>PG[k]||d;
 const FLK=()=>'fl'+S.fmo+'|'+(S.fcat||'')+'|'+(S.fkd||'')+'|'+FQ+'|'+(S.fac||'')+'|'+(S.ftab||'')+'|'+FTAG;
@@ -584,7 +584,7 @@ function validBackup(d){
  if(d.projects&&d.projects.some(p=>!str(p.id)||!str(p.t)||!['active','done'].includes(p.status)||!optional(p,'archived',v=>typeof v==='boolean')||!optional(p,'budget',v=>typeof v==='number'&&Number.isFinite(v)&&v>=0)||!optional(p,'nextTask',str)||!optional(p,'start',v=>v===''||date(v))||!optional(p,'end',v=>v===''||date(v))||!list(p.refs)||p.refs.some(r=>!str(r.id)||!/^(tk|mt|nt|tx):[^:]+$/.test(r.id))))return false;
  if(d.metas&&d.metas.some(x=>!Array.isArray(x.kr)||!optional(x,'archived',v=>typeof v==='boolean')||!optional(x,'reviewDate',v=>v===''||date(v))||!optional(x,'pausedTaskIds',v=>Array.isArray(v)&&v.every(str))))return false;
  if(d.reads&&d.reads.some(r=>!optional(r,'st',x=>['q','a','f','p'].includes(x))||!optional(r,'cover',x=>Number.isSafeInteger(x)&&x>0)||!optional(r,'coverUrl',x=>typeof x==='string'&&(x===''||/^https:\/\/[^\s"'<>]+$/i.test(x)))||!optional(r,'coverColor',x=>typeof x==='string'&&/^#[0-9a-f]{6}$/i.test(x))||!optional(r,'pages',x=>Number.isInteger(x)&&x>=0)||!optional(r,'page',x=>Number.isInteger(x)&&x>=0)||!optional(r,'year',x=>Number.isInteger(x)&&x>=1800&&x<=2100)||!optional(r,'mins',x=>Number.isInteger(x)&&x>=1&&x<=10000)||!optional(r,'season',x=>Number.isInteger(x)&&x>=1&&x<=999)||!optional(r,'episode',x=>Number.isInteger(x)&&x>=0&&x<=9999)||!optional(r,'episodes',x=>Number.isInteger(x)&&x>=1&&x<=9999)||!optional(r,'rereads',x=>Number.isInteger(x)&&x>=0&&x<=1000)||!optional(r,'tg',str)||!optional(r,'quotes',x=>list(x)&&x.every(q=>str(q.id)&&str(q.text)&&optional(q,'ref',str)))||!optional(r,'df',x=>x===''||date(x))))return false;
- if(d.fin){if(!optional(d.fin,'primary',str)||!optional(d.fin,'inv',obj)||!optional(d.fin,'recDismiss',x=>Array.isArray(x)&&x.every(str)))return false;for(const k of ['tx','acc','rec','rules','goals','prules','split','bills'])if(d.fin[k]!=null&&!list(d.fin[k]))return false;if(d.fin.bud!=null&&!obj(d.fin.bud))return false;if(d.fin.budHist!=null&&(!obj(d.fin.budHist)||Object.values(d.fin.budHist).some(c=>!obj(c)||Object.entries(c).some(([m,v])=>!/^\d{4}-(0[1-9]|1[0-2])$/.test(m)||(v!==null&&(typeof v!=='number'||!Number.isFinite(v)||v<=0))))))return false;if(d.fin.tx&&d.fin.tx.some(x=>!optional(x,'shoppingReviewed',str)||!optional(x,'rb',v=>v===1||typeof v==='boolean')||!optional(x,'rcat',str)||!optional(x,'ref',str)||!date(x.d)||x.v===null||x.v===''||!Number.isFinite(+x.v)))return false}
+ if(d.fin){if(!optional(d.fin,'closings',x=>list(x)&&x.every(closingRecordValid)&&new Set(x.map(e=>e.id)).size===x.length)||!optional(d.fin,'closingRetained',x=>obj(x)&&Object.values(x).every(Number.isSafeInteger))||!optional(d.fin,'primary',str)||!optional(d.fin,'inv',obj)||!optional(d.fin,'recDismiss',x=>Array.isArray(x)&&x.every(str)))return false;for(const k of ['tx','acc','rec','rules','goals','prules','split','bills'])if(d.fin[k]!=null&&!list(d.fin[k]))return false;if(d.fin.bud!=null&&!obj(d.fin.bud))return false;if(d.fin.budHist!=null&&(!obj(d.fin.budHist)||Object.values(d.fin.budHist).some(c=>!obj(c)||Object.entries(c).some(([m,v])=>!/^\d{4}-(0[1-9]|1[0-2])$/.test(m)||(v!==null&&(typeof v!=='number'||!Number.isFinite(v)||v<=0))))))return false;if(d.fin.tx&&d.fin.tx.some(x=>!optional(x,'shoppingReviewed',str)||!optional(x,'rb',v=>v===1||typeof v==='boolean')||!optional(x,'rcat',str)||!optional(x,'ref',str)||!date(x.d)||x.v===null||x.v===''||!Number.isFinite(+x.v)))return false}
  return true}
 document.addEventListener('change',e=>{
  if(e.target.id==='profile-name'){S.profileName=e.target.value.trim().slice(0,60);render();return}
@@ -802,6 +802,7 @@ const SUBMIT_BY_ID={
  },
  'project-create':submitProjectForm,
  ffin:(f,v)=>finSubmit(v),
+ fclosemonth:closeMonthSubmit,
  'fin-installment':(f,v)=>{
   if(!v.t.trim()||!finInit().acc.some(a=>a.id===v.ac)||!installmentPlan(v).length){toast('Confira a descrição, a conta, a data e o valor das parcelas');return 'stop'}
   finSubmit({...v,k:'out',parseDate:false});f.closest('details').open=false;
@@ -904,6 +905,7 @@ const SUBMIT_BY_ID={
  }
 };
 const SUBMIT_BY_DATA=[
+ ['closeReverse',f=>closeMonthReverse(f.dataset.closeReverse)],
  ['partAdjust',(f,v)=>{
   const t=finInit().tx.find(x=>x.id===f.dataset.partAdjust&&x.pc),amount=r2(num(v.v));
   if(!t||!editableInstallment(t)||!Number.isFinite(amount)||amount<=0||!v.d||v.d<T){toast('Confira o valor e a nova data da parcela');return 'stop'}

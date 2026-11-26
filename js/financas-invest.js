@@ -203,7 +203,7 @@ function invLoadPreset(){
  ];
 }
 function invCompute(inv){
- const usd=invUsd(inv),aporte=Math.max(0,+inv.cfg.aporte||0),cash=+inv.cfg.cash||0;
+ const usd=invUsd(inv),aporte=Math.max(0,+inv.cfg.aporte||0),cash=closingCashBalance(inv);
  const assets=inv.assets||[],classes=inv.classes||[];
  const gross=r2(assets.reduce((s,a)=>s+invValBrl(a,usd),0));
  const assetCost=r2(assets.reduce((s,a)=>s+(+a.cost>0?(+a.qty||0)*(+a.cost)*(a.cur==='USD'?usd:1):invValBrl(a,usd)),0));
@@ -285,10 +285,10 @@ function invMacroPanel(inv,M){
  <div class="panel c4"><h2>Rebalanceamento Macro</h2><p class="empty" style="padding:0 0 var(--space-2)">Distribuição sugerida do aporte de <strong>${BRL(M.aporte)}</strong> conforme as metas abaixo:</p><div style="overflow-x:auto"><table class="yt"><thead><tr><th scope="col">Segmento</th><th scope="col">Total</th><th scope="col">% Atual</th><th scope="col">% Ideal</th><th scope="col">Dif.</th><th scope="col">Ação</th><th scope="col">Aportar</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 function invSettingsFields(inv,M){
- return `<div class="bar" style="margin:0 0 var(--space-2)"><label class="lb" style="margin:0">Aporte do mês (R$)<input class="in" data-inv-cfg="aporte" inputmode="decimal" value="${M.aporte.toFixed(2).replace('.',',')}" style="width:120px"></label><label class="lb" style="margin:0">Cotação Dólar (R$)<input class="in" data-inv-cfg="usd" inputmode="decimal" value="${M.usd.toFixed(2).replace('.',',')}" style="width:110px"></label><label class="lb" style="margin:0">Caixa / Dividendos (R$)<input class="in" data-inv-cfg="cash" inputmode="decimal" value="${M.cash.toFixed(2).replace('.',',')}" style="width:130px"></label><label class="lb" style="margin:0">Total Investido / Custo (R$)<input class="in" data-inv-cfg="costTotal" inputmode="decimal" value="${(+inv.cfg.costTotal||0)?(+inv.cfg.costTotal).toFixed(2).replace('.',','):''}" placeholder="Automático" style="width:140px"></label></div>`;
+ return `<div class="bar" style="margin:0 0 var(--space-2)"><label class="lb" style="margin:0">Aporte do mês (R$)<input data-fin-private class="in" data-inv-cfg="aporte" inputmode="decimal" value="${M.aporte.toFixed(2).replace('.',',')}" style="width:120px"></label><label class="lb" style="margin:0">Cotação Dólar (R$)<input data-fin-private class="in" data-inv-cfg="usd" inputmode="decimal" value="${M.usd.toFixed(2).replace('.',',')}" style="width:110px"></label><label class="lb" style="margin:0">Caixa / Dividendos (R$)<input data-fin-private class="in" data-inv-cfg="cash" inputmode="decimal" value="${M.cash.toFixed(2).replace('.',',')}" style="width:130px"></label><label class="lb" style="margin:0">Total Investido / Custo (R$)<input data-fin-private class="in" data-inv-cfg="costTotal" inputmode="decimal" value="${(+inv.cfg.costTotal||0)?(+inv.cfg.costTotal).toFixed(2).replace('.',','):''}" placeholder="Automático" style="width:140px"></label></div>`;
 }
 function invAssetForm(inv){
- return `<form class="bar" id="finvasset" style="margin:var(--space-3) 0 0"><input class="in" name="ticker" placeholder="Ticker (ex.: WEGE3)" required style="width:130px"><input class="in grow" name="name" placeholder="Nome / Setor (opcional)"><select class="in" name="cls" aria-label="Classe">${inv.classes.map(c=>`<option value="${esc(c.id)}">${esc(c.n)}</option>`).join('')}</select><input class="in" name="price" inputmode="decimal" placeholder="Cotação" required style="width:100px"><input class="in" name="qty" inputmode="decimal" placeholder="Qtd" value="0" style="width:90px"><input class="in" name="target" type="number" step="1" min="0" max="100" placeholder="% Alvo" value="10" style="width:90px"><select class="in" name="cur" aria-label="Moeda"><option value="BRL">BRL (R$)</option><option value="USD">USD (US$)</option></select><button class="pill dark">Adicionar ativo</button></form>`;
+ return `<form class="bar" id="finvasset" style="margin:var(--space-3) 0 0"><input class="in" name="ticker" placeholder="Ticker (ex.: WEGE3)" required style="width:130px"><input class="in grow" name="name" placeholder="Nome / Setor (opcional)"><select class="in" name="cls" aria-label="Classe">${inv.classes.map(c=>`<option value="${esc(c.id)}">${esc(c.n)}</option>`).join('')}</select><input data-fin-private class="in" name="price" inputmode="decimal" placeholder="Cotação" required style="width:100px"><input data-fin-private class="in" name="qty" inputmode="decimal" placeholder="Qtd" value="0" style="width:90px"><input class="in" name="target" type="number" step="1" min="0" max="100" placeholder="% Alvo" value="10" style="width:90px"><select class="in" name="cur" aria-label="Moeda"><option value="BRL">BRL (R$)</option><option value="USD">USD (US$)</option></select><button class="pill dark">Adicionar ativo</button></form>`;
 }
 function invAssetsPanel(inv,M){
  const F=finInit(),cf=(inv.cfg.clsFilter||''),showRadar=inv.cfg.showRadar!==false;
@@ -297,11 +297,11 @@ function invAssetsPanel(inv,M){
   const vis=c.items.filter(x=>showRadar||(+x.a.qty||0)>0||(+x.a.target||0)>0);
   if(!vis.length)return '';
   const rows=vis.map(({a,aVal,aUnitBrl,uBrl,curPct,tgtPct,diffPct,buy,aAporte,newQty})=>{
-   const buyForm=INV_BUY===a.id?`<tr><td colspan="10"><form class="bar" id="finvbuy" data-id="${esc(a.id)}" style="margin:var(--space-1) 0"><input class="in" name="qty" inputmode="decimal" value="${newQty>0?newQty:1}" required style="width:100px" aria-label="Quantidade comprada"><input class="in" name="price" inputmode="decimal" value="${(+a.price||0)}" required style="width:100px" aria-label="Cotação unitária (${a.cur})"><label><input type="checkbox" name="useCash"> Usar Caixa / Div</label><select class="in" name="ac" aria-label="Debitar conta"><option value="">Não debitar conta</option>${F.acc.filter(x=>x.ty!=='card').map(x=>`<option value="${esc(x.id)}">${esc(x.n)}</option>`).join('')}</select><button class="pill dark">Confirmar aporte</button><button type="button" class="pill" data-a="inv-buy-cancel">Cancelar</button></form></td></tr>`:'';
+   const buyForm=INV_BUY===a.id?`<tr><td colspan="10"><form class="bar" id="finvbuy" data-id="${esc(a.id)}" style="margin:var(--space-1) 0"><input data-fin-private class="in" name="qty" inputmode="decimal" value="${newQty>0?newQty:1}" required style="width:100px" aria-label="Quantidade comprada"><input data-fin-private class="in" name="price" inputmode="decimal" value="${(+a.price||0)}" required style="width:100px" aria-label="Cotação unitária (${a.cur})"><label><input type="checkbox" name="useCash"> Usar Caixa / Div</label><select class="in" name="ac" aria-label="Debitar conta"><option value="">Não debitar conta</option>${F.acc.filter(x=>x.ty!=='card').map(x=>`<option value="${esc(x.id)}">${esc(x.n)}</option>`).join('')}</select><button class="pill dark">Confirmar aporte</button><button type="button" class="pill" data-a="inv-buy-cancel">Cancelar</button></form></td></tr>`:'';
    return `<tr>
     <th scope="row" style="text-align:left"><strong>${esc(a.ticker)}</strong>${a.cur==='USD'?' <span class="chip c-y">US$</span>':''}<small style="display:block;font-weight:400">${esc(a.name||'')}</small></th>
-    <td><input class="in" data-inv-price="${esc(a.id)}" inputmode="decimal" value="${(+a.price||0)}" aria-label="Cotação de ${esc(a.ticker)}" style="width:88px">${a.cur==='USD'?`<small style="display:block">${BRL(uBrl)}</small>`:''}</td>
-    <td><input class="in" data-inv-qty="${esc(a.id)}" inputmode="decimal" value="${(+a.qty||0)}" aria-label="Quantidade de ${esc(a.ticker)}" style="width:82px"></td>
+    <td><input data-fin-private class="in" data-inv-price="${esc(a.id)}" inputmode="decimal" value="${(+a.price||0)}" aria-label="Cotação de ${esc(a.ticker)}" style="width:88px">${a.cur==='USD'?`<small style="display:block">${BRL(uBrl)}</small>`:''}</td>
+    <td><input data-fin-private class="in" data-inv-qty="${esc(a.id)}" inputmode="decimal" value="${(+a.qty||0)}" aria-label="Quantidade de ${esc(a.ticker)}" style="width:82px"></td>
     <td>${BRL(aVal)}</td>
     <td>${invFmtPct(curPct)}</td>
     <td><input class="in" type="number" step="1" min="0" max="100" data-inv-target="${esc(a.id)}" value="${tgtPct}" aria-label="% Alvo ${esc(a.ticker)}" style="width:68px"></td>
@@ -337,7 +337,7 @@ function invProventosPanel(inv){
  const leftHtml=`<p style="margin:0">${allY?'Total acumulado':'Total de '+yr}: <strong>${BRL(yrTot)}</strong> · Média mensal (${list.length} ${list.length===1?'mês':'meses'}): <strong>${BRL(yrAvg)}</strong> · Acumulado geral: <strong>${BRL(allTot)}</strong>.</p>
   ${bars}
   ${list.length?`<div style="overflow-x:auto"><table class="yt"><thead><tr><th scope="col">Mês</th><th scope="col">Proventos</th><th scope="col">Δ em R$</th><th scope="col">Δ em %</th><th scope="col"></th></tr></thead><tbody>${tRows}</tbody></table></div>`:'<p class="empty">Nenhum provento registrado neste período.</p>'}
-  <form class="bar" id="finvdiv" style="margin:var(--space-2) 0 0"><label class="lb" style="margin:0">Mês<input class="in" type="month" name="ym" value="${T.slice(0,7)}" required></label><label class="lb" style="margin:0">Valor recebido (R$)<input class="in" name="v" inputmode="decimal" placeholder="Ex.: 17,57" required style="width:120px"></label><label><input type="checkbox" name="addCash" checked> Somar ao Caixa/Div</label><label><input type="checkbox" name="addTx"> Lançar em Receitas (Rendimentos)</label><button class="pill dark">Salvar provento</button></form>`;
+  <form class="bar" id="finvdiv" style="margin:var(--space-2) 0 0"><label class="lb" style="margin:0">Mês<input class="in" type="month" name="ym" value="${T.slice(0,7)}" required></label><label class="lb" style="margin:0">Valor recebido (R$)<input data-fin-private class="in" name="v" inputmode="decimal" placeholder="Ex.: 17,57" required style="width:120px"></label><label><input type="checkbox" name="addCash" checked> Somar ao Caixa/Div</label><label><input type="checkbox" name="addTx"> Lançar em Receitas (Rendimentos)</label><button class="pill dark">Salvar provento</button></form>`;
  return `<div class="panel wide">
   <div class="top" style="margin:0 0 var(--space-2)"><h2 style="margin:0">Proventos Pagos e Crescimento</h2><div class="bar" style="margin:0">${years.map(y=>`<button type="button" class="pill ${!allY&&yr===y?'on':''}" data-a="inv-yr" data-id="${y}">${y}</button>`).join('')}<button type="button" class="pill ${allY?'on':''}" data-a="inv-yr" data-id="all">Tudo</button></div></div>
   ${mapaHtml?`<div class="two" style="gap:var(--space-4)"><div>${leftHtml}</div><div>${mapaHtml}</div></div>`:leftHtml}
@@ -358,21 +358,21 @@ function invToolsPanel(inv,M){
   const mg=(graham>0&&p>0)?((graham/p-1)*100):0;
   return `<tr>
    <th scope="row" style="text-align:left"><strong>${esc(a.ticker)}</strong><small style="display:block;font-weight:400">${BRL(p)}</small></th>
-   <td><input class="in" data-inv-div12="${esc(a.id)}" inputmode="decimal" value="${d12||''}" placeholder="0,00" style="width:78px" aria-label="Dividendos 12m ${esc(a.ticker)}"></td>
-   <td><input class="in" data-inv-ceil="${esc(a.id)}" inputmode="decimal" value="${rate}" style="width:60px" aria-label="Taxa teto % ${esc(a.ticker)}"></td>
+   <td><input data-fin-private class="in" data-inv-div12="${esc(a.id)}" inputmode="decimal" value="${d12||''}" placeholder="0,00" style="width:78px" aria-label="Dividendos 12m ${esc(a.ticker)}"></td>
+   <td><input data-fin-private class="in" data-inv-ceil="${esc(a.id)}" inputmode="decimal" value="${rate}" style="width:60px" aria-label="Taxa teto % ${esc(a.ticker)}"></td>
    <td><strong>${teto>0?BRL(teto):'—'}</strong>${teto>0&&p>0?` <span class="chip ${p<=teto?'c-g':''}">${p<=teto?'Abaixo do teto':'Acima'}</span>`:''}</td>
-   <td><input class="in" data-inv-lpa="${esc(a.id)}" inputmode="decimal" value="${lpa||''}" placeholder="0,00" style="width:72px" aria-label="LPA ${esc(a.ticker)}"></td>
-   <td><input class="in" data-inv-vpa="${esc(a.id)}" inputmode="decimal" value="${vpa||''}" placeholder="0,00" style="width:72px" aria-label="VPA ${esc(a.ticker)}"></td>
+   <td><input data-fin-private class="in" data-inv-lpa="${esc(a.id)}" inputmode="decimal" value="${lpa||''}" placeholder="0,00" style="width:72px" aria-label="LPA ${esc(a.ticker)}"></td>
+   <td><input data-fin-private class="in" data-inv-vpa="${esc(a.id)}" inputmode="decimal" value="${vpa||''}" placeholder="0,00" style="width:72px" aria-label="VPA ${esc(a.ticker)}"></td>
    <td><strong>${graham>0?BRL(graham):'—'}</strong>${mg!==0&&graham>0?` <small>(${mg>0?'+':''}${Math.round(mg)}%)</small>`:''}</td>
   </tr>`;
  }).join('');
- const simRes=INV_SIM?`<div class="item" data-inv-sim-result style="margin-top:var(--space-2)"><div class="t"><strong>Em ${INV_SIM.years} anos (${INV_SIM.rate}% a.a.): ${BRL(INV_SIM.finalVal)}</strong><small>Do seu bolso: ${BRL(INV_SIM.contributed)} · Juros compostos: <strong class="pos">+${BRL(INV_SIM.interest)}</strong> · Renda passiva estimada (~${INV_SIM.rate}% a.a.): <strong>${BRL(INV_SIM.monthlyPassive)}/mês</strong>${INV_SIM.goalMsg?' · '+esc(INV_SIM.goalMsg):''}</small></div></div>`:'';
+ const simRes=INV_SIM?`<div class="item" data-inv-sim-result style="margin-top:var(--space-2)"><div class="t"><strong>Em ${INV_SIM.years} anos (${INV_SIM.rate}% a.a.): ${BRL(INV_SIM.finalVal)}</strong><small>Do seu bolso: ${BRL(INV_SIM.contributed)} · Juros compostos: <strong class="pos">+${BRL(INV_SIM.interest)}</strong> · Renda passiva estimada (~${INV_SIM.rate}% a.a.): <strong>${BRL(INV_SIM.monthlyPassive)}/mês</strong>${INV_SIM.goal?' · '+(INV_SIM.goalPeriods?`Meta de ${BRL(INV_SIM.goal)}/mês atingida em ~${INV_SIM.goalPeriods} ${INV_SIM.goalPeriods===1?'ano':'anos'}`:'Meta de renda requer mais prazo ou aporte'):''}</small></div></div>`:'';
  return `<div class="panel"><h2>Valuation de Ações (Preço Teto Bazin &amp; Preço Justo Graham)</h2>
   <p class="empty" style="padding:0 0 var(--space-2)">Preço Teto = Dividendos 12m ÷ Taxa mínima desejada. Preço Justo de Graham = √(22,5 × LPA × VPA).</p>
   ${valAssets.length?`<div style="overflow-x:auto"><table class="yt"><thead><tr><th scope="col">Ação</th><th scope="col">Div. 12m</th><th scope="col">Taxa %</th><th scope="col">Preço Teto</th><th scope="col">LPA</th><th scope="col">VPA</th><th scope="col">Graham</th></tr></thead><tbody>${valRows}</tbody></table></div>`:'<p class="empty">Adicione ações BR para calcular Preço Teto e Preço Justo.</p>'}
  </div>
  <div class="panel"><h2>Simulador de Juros Compostos</h2>
-  <form class="bar" id="finvsim"><label class="lb" style="margin:0">Patrimônio inicial<input class="in" name="initial" inputmode="decimal" value="${(INV_SIM?INV_SIM.initial:M.gross).toFixed(2).replace('.',',')}" required style="width:130px"></label><label class="lb" style="margin:0">Aporte mensal<input class="in" name="monthly" inputmode="decimal" value="${(INV_SIM?INV_SIM.monthly:M.aporte).toFixed(2).replace('.',',')}" required style="width:120px"></label><label class="lb" style="margin:0">Taxa (% a.a.)<input class="in" name="rate" inputmode="decimal" value="${INV_SIM?INV_SIM.rate:'10'}" required style="width:90px"></label><label class="lb" style="margin:0">Prazo (anos)<input class="in" name="years" type="number" min="1" max="60" value="${INV_SIM?INV_SIM.years:'10'}" required style="width:80px"></label><label class="lb" style="margin:0">Meta renda/mês (opc.)<input class="in" name="goal" inputmode="decimal" value="${INV_SIM&&INV_SIM.goal?INV_SIM.goal:''}" placeholder="Ex.: 2000" style="width:120px"></label><button class="pill dark">Simular</button></form>
+  <form class="bar" id="finvsim"><label class="lb" style="margin:0">Patrimônio inicial<input data-fin-private class="in" name="initial" inputmode="decimal" value="${(INV_SIM?INV_SIM.initial:M.gross).toFixed(2).replace('.',',')}" required style="width:130px"></label><label class="lb" style="margin:0">Aporte mensal<input data-fin-private class="in" name="monthly" inputmode="decimal" value="${(INV_SIM?INV_SIM.monthly:M.aporte).toFixed(2).replace('.',',')}" required style="width:120px"></label><label class="lb" style="margin:0">Taxa (% a.a.)<input data-fin-private class="in" name="rate" inputmode="decimal" value="${INV_SIM?INV_SIM.rate:'10'}" required style="width:90px"></label><label class="lb" style="margin:0">Prazo (anos)<input class="in" name="years" type="number" min="1" max="60" value="${INV_SIM?INV_SIM.years:'10'}" required style="width:80px"></label><label class="lb" style="margin:0">Meta renda/mês (opc.)<input data-fin-private class="in" name="goal" inputmode="decimal" value="${INV_SIM&&INV_SIM.goal?INV_SIM.goal:''}" placeholder="Ex.: 2000" style="width:120px"></label><button class="pill dark">Simular</button></form>
   ${simRes}
  </div>
  <div class="panel wide" id="fin-invest-settings"><h2>Configurações da carteira e cotações</h2>
@@ -406,7 +406,7 @@ function invHandleChange(i){
   const k=d.invCfg,I=inv();
   if(k==='sheetId'){I.cfg.sheetId=invParseSheetId(i.value)||i.value.trim();I.cfg.updatedAt=0}
   else if(k==='brapiToken'){I.cfg.brapiToken=i.value.trim();I.cfg.updatedAt=0}
-  else{const v=num(i.value);if(!i.value.trim()&&k==='costTotal')I.cfg.costTotal=0;else if(Number.isFinite(v)&&(k!=='usd'||v>0)&&v>=0)I.cfg[k]=r2(v);else toast('Informe um valor válido')}
+  else{const v=num(i.value);if(!i.value.trim()&&k==='costTotal')I.cfg.costTotal=0;else if(Number.isFinite(v)&&(k!=='usd'||v>0)&&v>=0)I.cfg[k]=k==='cash'?r2(v-(closingProjection(F).credits.get(CLOSING_CASH)||0)/100):r2(v);else toast('Informe um valor válido')}
   return 1;
  }
  if(d.invMileDate!==undefined){const m=inv().milestones.find(x=>x.id===d.invMileDate);if(m)m.doneDate=i.value;return 1}
@@ -496,6 +496,8 @@ function finActE(a,id,b){
   UN=JSON.stringify({events:S.events,notes:S.notes,tasks:S.tasks,links:S.links,fin:S.fin});
   UTime=0;
   F.tx.forEach(t=>{if(t.rc){const r=F.rec.find(x=>x.id===t.rc);if(r){r.skip=r.skip||[];if(!r.skip.includes(t.id))r.skip.push(t.id)}}});
+  const periods=new Set((F.closings||[]).map(e=>e.month));
+  if(periods.size)F.closingRetained=Object.assign({},F.closingRetained,Object.fromEntries(closingNet(F,periods)));
   F.tx=[];F.acc.forEach(x=>{x.ini=0});
   FED=null;IMP=null;FQ='';FRECON='';S.fcat='';S.fkd='';
   toast('Lançamentos financeiros removidos',1);return 1;
@@ -522,7 +524,6 @@ function finSubE(f,v){
  if(f.id==='fres'){const rm=+v.rm||6,a=avgOut3(),tg=num(v.v)>0?r2(num(v.v)):Math.round(rm*a);if(!(tg>0)){toast('Sem histórico de despesas: informe o valor alvo');return}F.goals.push({id:uid(),n:'Reserva de emergência',target:tg,saved:Math.max(0,num(v.saved)||0),res:1,rm})}
  if(f.id==='fpr'){const pc=num(v.pc);if(!(pc>0&&pc<=100)){toast('Informe um percentual entre 1 e 100');return}const p=String(v.tgt).split(':');F.prules.push(p[0]==='save'?{id:uid(),k:'save',pc}:{id:uid(),k:'cat',cat:p.slice(1).join(':'),pc})}
  if(f.id==='fsp')splitAdd(v);
- if(f.id==='fclosemonth'){const x=r2(num(v.v));if(!(x>0)){toast('Informe um valor válido');return}if(v.goal==='__inv_cash'){const I=invInit(F);I.cfg.cash=r2((+I.cfg.cash||0)+x);toast('Destinado '+BRL(x)+' para Caixa de Investimentos');return}const g=F.goals.find(q=>q.id===v.goal);if(!g){toast('Escolha um destino válido');return}g.saved=r2((+g.saved||0)+x);toast('Destinado '+BRL(x)+' para '+esc(g.n))}
  if(f.id==='finvasset'){
   const I=invInit(F),tk=String(v.ticker||'').trim().toUpperCase(),p=num(v.price),q=num(v.qty)||0,tg=num(v.target)||0;
   if(!tk||!(p>0)||q<0||tg<0||tg>100){toast('Confira ticker, cotação e quantidade');return 'stop'}
@@ -535,7 +536,7 @@ function finSubE(f,v){
   const brl=r2(q*p*(a.cur==='USD'?invUsd(I):1));
   a.qty=+((+a.qty||0)+q).toFixed(4);a.price=p;
   if(+I.cfg.costTotal>0)I.cfg.costTotal=r2(+I.cfg.costTotal+brl);
-  if(v.useCash)I.cfg.cash=Math.max(0,r2((+I.cfg.cash||0)-brl));
+  if(v.useCash)I.cfg.cash=r2((+I.cfg.cash||0)-Math.min(brl,Math.max(0,closingCashBalance(I))));
   if(v.ac)F.tx.unshift({id:uid(),k:'out',t:'Aporte '+a.ticker,v:brl,cat:'Outros',sub:'Investimentos',d:T,ac:v.ac});
   INV_BUY=null;invSyncLinkedGoals(F);toast('Aporte de '+BRL(brl)+' registrado em '+esc(a.ticker));return;
  }
@@ -553,7 +554,7 @@ function finSubE(f,v){
   const rm=Math.pow(1+rate/100,1/12)-1,n=years*12;
   let fv=P,gh=0;for(let m=1;m<=n;m++){fv=fv*(1+rm)+PMT;if(goal>0&&!gh&&fv*rm>=goal)gh=Math.ceil(m/12)}
   const contributed=r2(P+PMT*n),interest=r2(fv-contributed);
-  INV_SIM={initial:P,monthly:PMT,rate,years,goal,finalVal:r2(fv),contributed,interest,monthlyPassive:r2(fv*rm),goalMsg:goal?(gh?`Meta de ${BRL(goal)}/mês atingida em ~${gh} ${gh===1?'ano':'anos'}`:'Meta de renda requer mais prazo ou aporte'):''};
+  INV_SIM={initial:P,monthly:PMT,rate,years,goal,finalVal:r2(fv),contributed,interest,monthlyPassive:r2(fv*rm),goalPeriods:gh};
   return;
  }
 }

@@ -499,6 +499,69 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       assert.ok(result);assert.match(result.preview,/33,34/);assert.deepEqual(result.dates,['2026-01-31','2026-02-28','2026-03-31']);
       assert.deepEqual(result.values,[33.33,33.33,33.34]);assert.equal(result.groups,1);assert.ok(result.listed);
     }],
+    ['A1 fechamento limita destinações, preserva legados e estorna em parcelas', async () => {
+      await fresh();await login('A');
+      const result=await ev(`(()=>{
+        const F=finInit(),ac=F.acc[0].id;F.acc.push({id:'other',n:'Outra',ty:'cc',ini:0});
+        F.acc[0].ini=300;F.goals=[{id:'viagem',n:'Viagem',saved:50,target:10000}];invInit(F).cfg.cash=75;
+        F.tx=[{id:'a1-in',t:'Receita',k:'in',v:3000,d:T,cat:'Receita',ac},{id:'a1-out',t:'Despesa',k:'out',v:1000,d:T,cat:'Serviços',ac:'other'}];
+        const prior=JSON.parse(JSON.stringify(pick()));S.view='financas';S.ftab='orc';S.fmo=0;S.fac=ac;render();
+        const recap=()=>({goal:typeof closingGoalBalance==='function'?closingGoalBalance(F.goals[0]):F.goals[0].saved,cash:invCompute(F.inv).cash,count:F.tx.length,balance:bal(F.acc[0])});
+        const form=$('#fclosemonth');form.elements.v.value='1200,00';form.elements.goal.value='viagem';form.requestSubmit();
+        if(SUBMIT_BY_ID.fclosemonth)SUBMIT_BY_ID.fclosemonth(form,{v:'1200,00',goal:'viagem'});
+        const first=recap();S.fac='other';render();
+        const rest=$('#fclosemonth');rest.elements.v.value='800,00';rest.elements.goal.value='__inv_cash';rest.requestSubmit();
+        const full=recap(),exhausted=!$('#fclosemonth');
+        const reverse=$('[data-close-reverse]');if(reverse)reverse.requestSubmit();
+        return {first,full,exhausted,final:recap(),legacy:validBackup(prior),valid:validBackup(pick())};
+      })()`);
+      assert.deepEqual(result,{first:{goal:1250,cash:75,count:2,balance:3300},full:{goal:1250,cash:875,count:2,balance:3300},exhausted:true,final:{goal:50,cash:875,count:2,balance:3300},legacy:true,valid:true});
+    }],
+    ['A1 mescla destinações offline sem exceder a sobra nem aprovar o conflito após estorno', async () => {
+      await fresh();await login('A');
+      const result=await ev(`(()=>{
+        const F=finInit(),ac=F.acc[0].id,month=T.slice(0,7);
+        F.tx=[{id:'a1-sal',t:'Receita',k:'in',v:2000,d:T,ac}];
+        F.goals=[{id:'viagem',n:'Viagem',saved:100,target:10000}];invInit(F).cfg.cash=25;
+        const base=JSON.parse(JSON.stringify(F));
+        const make=(id,goal,cents)=>({...base,closings:[{id,month,scope:'all',goal,label:id,cents,limit:200000,at:1000}]});
+        const l=make('a','viagem',120000),r=make('b','__inv_cash',100000),merged=merge3(base,l,r),opposite=merge3(base,r,l);
+        const snapshot=F=>{const p=closingProjection(F);return {goal:closingGoalBalance(F.goals[0],p),cash:closingCashBalance(F.inv,p),status:[...p.status],used:p.months.get(month).used}};
+        S.fin=merged;S.view='financas';S.ftab='orc';S.fmo=0;render({save:false});
+        const conflict=$('#main').textContent.includes('Não aplicada');
+        const both=[snapshot(merged),snapshot(opposite)];closeMonthReverse('a');
+        return {both,conflict,after:snapshot(merged),valid:validBackup(pick())};
+      })()`);
+      const expected={goal:1300,cash:25,status:[['a','accepted'],['b','conflict']],used:120000};
+      assert.deepEqual(result,{both:[expected,expected],conflict:true,after:{goal:100,cash:25,status:[['a','reversed'],['b','conflict']],used:0},valid:true});
+    }],
+    ['A1 falha de armazenamento preserva sobra e saldo da meta', async () => {
+      await fresh();await login('A');
+      const result=await ev(`(()=>{
+        const F=finInit(),ac=F.acc[0].id;F.tx=[{id:'a1-in',t:'Receita',k:'in',v:2000,d:T,ac}];
+        F.goals=[{id:'g',n:'Meta',saved:50,target:5000}];S.view='financas';S.ftab='orc';S.fmo=0;render();
+        const start=Storage.prototype.setItem,form=$('#fclosemonth');
+        try{Storage.prototype.setItem=function(k,v){if(k==='hub-v1')throw Error('indisponível');return start.call(this,k,v)};form.requestSubmit()}finally{Storage.prototype.setItem=start}
+        const after={entries:F.closings.length,saved:closingGoalBalance(F.goals[0]),present:form.isConnected};
+        form.requestSubmit();return {after,retry:closingGoalBalance(F.goals[0]),entries:F.closings.length};
+      })()`);
+      assert.deepEqual(result,{after:{entries:0,saved:50,present:true},retry:2050,entries:1});
+    }],
+    ['A2 privacidade mascara valores de fechamento, cartão e parcela fora de foco', async () => {
+      await fresh();await login('A');await b.send('Emulation.setFocusEmulationEnabled',{enabled:true});
+      const result=await ev(`(()=>{
+        const F=finInit(),ac=F.acc[0].id;F.acc.push({id:'card-a2',n:'Cartão A2',ty:'card',close:15,due:22,lim:7000});
+        F.tx=[{id:'a2-in',t:'Receita',k:'in',v:2000,d:T,ac},{id:'a2-part',t:'Compra',k:'out',v:100,d:ds(add(today,1)),ac:'card-a2',pc:{g:'a2g',i:1,n:2}}];
+        S.view='financas';S.ftab='orc';S.fmo=0;render();$('#pv').click();
+        const inClose=$('#fclosemonth input[name=v]'),masked=el=>getComputedStyle(el).webkitTextSecurity;
+        const blur=masked(inClose);inClose.focus();const focus=masked(inClose);inClose.blur();
+        S.ftab='contas';render();const limit=$('[data-acc-edit="card-a2"] [name=lim]');const amount=$('[data-part-adjust="a2-part"] [name=v]');
+        for(const input of [limit,amount]){let el=input;while(el){if(el.tagName==='DETAILS')el.open=true;el=el.parentElement}}
+        const held=[masked(limit),masked(amount)],values=[limit.value,amount.value];$('#pv').click();
+        return {blur,focus,held,values,restored:masked($('[data-acc-edit="card-a2"] [name=lim]'))};
+      })()`);
+      assert.deepEqual(result,{blur:'disc',focus:'none',held:['disc','disc'],values:['7000','100,00'],restored:'none'});
+    }],
     ['Finanças gerencia parcelas e pausa recorrência sem apagar o histórico', async () => {
       await fresh();await login('A');
       const result=await ev(`(()=>{
@@ -2734,7 +2797,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
         const cf=document.querySelector('#fclosemonth');
         const suggestedSurplus=cf&&cf.elements.v.value;
         cf.requestSubmit();
-        const resSaved=S.fin.goals[0].saved;
+        const resSaved=closingGoalBalance(S.fin.goals[0]);
 
         return {
           metaBank,hasRecOpt,hasAccRecBtn,balBeforeRec,balAfterRec,
@@ -3148,14 +3211,14 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
           const goalSaved = F.goals.find(g => g.id === 'g_res').saved;
 
           // Fechamento do mês -> Caixa de Investimentos (__inv_cash)
-          const cashBeforeClose = S.fin.inv.cfg.cash;
+          const cashBeforeClose = closingCashBalance(S.fin.inv);
           S.fin.tx.push({ id: 'inc1', k: 'in', t: 'Salário', v: 2000, d: T, cat: 'Receita', ac: F.acc[0].id });
           S.ftab = 'orc'; S.fvw = 'mes'; S.fmo = 0; render();
           const fclose = document.querySelector('#fclosemonth');
           fclose.elements.goal.value = '__inv_cash';
           fclose.elements.v.value = '250,00';
           fclose.requestSubmit();
-          const cashAfterClose = S.fin.inv.cfg.cash;
+          const cashAfterClose = closingCashBalance(S.fin.inv);
 
           return {
             hasPresetBtn, afterPreset, mainText0, orderOk, synced,

@@ -797,7 +797,7 @@ const mDays=d=>Math.round((new Date(d+'T00:00')-new Date(T+'T00:00'))/864e5);
 const linked=g=>S.tasks.filter(t=>t.mt===g.id);
 function krProg(g,k){
  if(k.ty==='pc'){const r=finInit().prules.find(x=>x.id===k.ref);if(!r)return{p:0,txt:'Meta de percentual removida'};const t=+k.tg||6,m=prMonths(r);return{p:Math.min(1,m.met/t),txt:`${m.met} de ${t} meses cumpridos`}}
- if(k.ty==='sv'){const s=S.fin.goals.find(x=>x.id===k.ref);return s?{p:Math.min(1,s.saved/(s.target||1)),txt:BRL(s.saved)+' de '+BRL(s.target)}:{p:0,txt:'Meta de economia removida'}}
+ if(k.ty==='sv'){const s=S.fin.goals.find(x=>x.id===k.ref);const saved=s?closingGoalBalance(s):0;return s?{p:Math.min(1,saved/(s.target||1)),txt:BRL(saved)+' de '+BRL(s.target)}:{p:0,txt:'Meta de economia removida'}}
  if(k.ty==='man'){const t=+k.tg||1,c=+k.cur||0;return{p:Math.min(1,c/t),txt:`${c} de ${t}${k.un?' '+esc(k.un):''}`}}
  if(k.ty==='hb'){const h=S.habits.find(x=>x.id===k.ref);if(!h)return{p:0,txt:'Hábito removido'};const t=+k.tg||1,n=Object.keys(h.log).filter(d=>h.log[d]&&d>=g.ini&&d<=T).length;return{p:Math.min(1,n/t),txt:`${n} de ${t} dias cumpridos desde ${fmt(g.ini)}`}}
  const l=S.tasks.filter(t=>k.ty==='pj'?t.pj===k.ref:tagsU(t).includes(k.ref)),d=l.filter(t=>t.done).length;

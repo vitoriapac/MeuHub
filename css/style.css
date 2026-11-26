@@ -643,7 +643,7 @@ html[data-priv="1"] :is(.note .rt,textarea[data-dk],textarea[data-rv],textarea[d
 #tx-new>summary{display:inline-flex;align-items:center;cursor:pointer}
 .tx-detail p,.tx-description{overflow-wrap:anywhere}
 .tx-detail #ffin>.in,.tx-detail #ffin .adv>.in{width:100% !important}
-html[data-priv="1"] :is(.tx-detail #ffin,[data-part-adjust]) input[name=v]:not(:focus){-webkit-text-security:disc}
+html[data-priv="1"] [data-fin-private]:not(:focus){-webkit-text-security:disc}
 .tx-table{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
 .tx-table th,.tx-table td{padding:var(--space-2);text-align:left;vertical-align:middle;overflow-wrap:anywhere}
 .tx-table thead th{color:var(--mute);font-size:var(--type-small);font-weight:600}
