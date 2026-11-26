@@ -114,16 +114,69 @@ function parseFinNL(str,vRaw,useDate){
  t=t.replace(/\s+(em|no|na|por|de|valor)\s*$/i,'').trim()||nl.t;
  return{t,v,d:nl.d,tg:normTags(tgs.join(', '))}}
 function bal(a){let b=+a.ini||0;S.fin.tx.forEach(t=>{if(t.d>T)return;const ac=accId(t),v=+t.v||0;if(t.k==='in'&&ac===a.id)b+=v;else if(t.k==='out'&&ac===a.id)b-=v;else if(t.k==='tr'){if(ac===a.id)b-=v;if(t.to===a.id)b+=v}});return b}
+function recurringAllowed(r,date){
+ return (!r.ini||date>=r.ini)&&(!r.end||date<=r.end)&&!(r.skip||[]).includes(recurringId(r,date))&&!(r.pauses||[]).some(p=>date>=p.from&&date<=p.until);
+}
+function recurringId(r,date){return 'r_'+r.id+'_'+date.slice(0,7)}
+function nextRecurringDate(r){
+ let cursor=r.ini&&r.ini>T?r.ini:T;
+ for(;;){
+  const date=nextFixedDate(r.day,cursor);
+  if(r.end&&date>r.end)return '';
+  const pause=(r.pauses||[]).find(p=>date>=p.from&&date<=p.until);
+  if(pause){if(pause.until==='9999-12-31')return '';cursor=ds(add(new Date(pause.until+'T12:00'),1));continue}
+  if(recurringAllowed(r,date)&&!finInit().tx.some(t=>t.id===recurringId(r,date)))return date;
+  cursor=ds(add(new Date(date+'T12:00'),1));
+ }
+}
+function recurringChange(r,v){
+ const proposed={...r};
+ if(v.action==='skip'){
+  const date=nextRecurringDate(r);
+  if(!date||date.slice(0,7)!==T.slice(0,7))return null;
+  proposed.skip=[...new Set([...(r.skip||[]),recurringId(r,date)])];
+ }else if(v.action==='pause'){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(v.until||'')||v.until<T||!nextRecurringDate(r))return null;
+  const id=T+'/'+v.until;
+  proposed.pauses=[...(r.pauses||[]).filter(p=>p.id!==id),{id,from:T,until:v.until}];
+ }else if(v.action==='end'){
+  proposed.end=r.end&&r.end<T?r.end:ds(add(today,-1));
+ }else return null;
+ return proposed;
+}
+function recurringControls(r){
+ const next=nextRecurringDate(r);
+ if(!next)return '';
+ return `<details class="fin-item-details"><summary>Gerenciar recorrência</summary>
+ <form class="bar" data-rec-schedule="${esc(r.id)}">
+ <label class="lb">Alteração<select class="in" name="action">${next.slice(0,7)===T.slice(0,7)?'<option value="skip">Pular este mês</option>':''}<option value="pause">Pausar até…</option><option value="end">Encerrar recorrência</option></select></label>
+ <label class="lb" ${next.slice(0,7)===T.slice(0,7)?'hidden':''}>Pausar até<input class="in" type="date" name="until" min="${T}"></label>
+ <output class="fin-live" aria-live="polite">${next.slice(0,7)===T.slice(0,7)?recurringImpact(r,{action:'skip'}):'Informe até quando pausar.'}</output>
+ <button class="pill">Confirmar alteração</button></form></details>`;
+}
+function recurringImpact(r,v){
+ const change=recurringChange(r,v);
+ if(!change)return 'Informe um prazo válido para a pausa.';
+ const next=nextRecurringDate(change);
+ return next?'Próximo vencimento após a alteração: '+datePt(next)+'.':'Sem próximos vencimentos após a alteração.';
+}
+function previewRecurring(form){
+ const r=finInit().rec.find(x=>x.id===form.dataset.recSchedule);
+ if(!r)return;
+ const v=Object.fromEntries(new FormData(form));
+ form.elements.until.closest('label').hidden=v.action!=='pause';
+ form.querySelector('output').textContent=recurringImpact(r,v);
+}
 function genRec0(){
  const F=finInit(),ids=new Set(F.tx.map(t=>t.id));let n=0;
  F.rec.forEach(r=>{const s=r.ini||T;let y=+s.slice(0,4),m=+s.slice(5,7)-1;if(!/^\d{4}-\d{2}-\d{2}$/.test(s)||m<0||m>11)return;
   while(y<today.getFullYear()||(y===today.getFullYear()&&m<=today.getMonth())){const d=ds(new Date(y,m,Math.min(+r.day||1,dimOf(y,m))));
    if(d>T||(r.end&&d>r.end))break;
-   if(d>=s){const id='r_'+r.id+'_'+d.slice(0,7);if(!(r.skip||[]).includes(id)&&!ids.has(id)){F.tx.push({id,k:r.k,t:r.t,v:r.v,cat:r.cat,d,ac:r.ac,rc:r.id});ids.add(id);n++}}
+   if(d>=s){const id='r_'+r.id+'_'+d.slice(0,7);if(recurringAllowed(r,d)&&!ids.has(id)){F.tx.push({id,k:r.k,t:r.t,v:r.v,cat:r.cat,d,ac:r.ac,rc:r.id});ids.add(id);n++}}
    if(++m>11){m=0;y++}}});
  return n}
-function recReminder(r){let y=today.getFullYear(),m=today.getMonth();if(r.day<today.getDate())m++;const d=ds(new Date(y,m,Math.min(r.day,dimOf(y,m)))),eid=uid();S.events.push({id:eid,t:'Conta: '+r.t,d,h:'09:00',e:'',r:'m',rm:'',c:'p',billDay:r.day,until:r.end||''});finInit().bills.push({id:uid(),n:r.t,v:r.v,day:r.day,eid,rec:r.id,ac:r.ac})}
-function recReminderUpdate(r){const b=finInit().bills.find(x=>x.rec===r.id);if(!b)return;Object.assign(b,{n:r.t,v:r.v,day:r.day,ac:r.ac});const e=S.events.find(x=>x.id===b.eid);if(e){const y=+e.d.slice(0,4),m=+e.d.slice(5,7)-1;e.t='Conta: '+r.t;e.billDay=r.day;e.until=r.end||'';e.d=ds(new Date(y,m,Math.min(r.day,dimOf(y,m))))}}
+function recReminder(r){let y=today.getFullYear(),m=today.getMonth();if(r.day<today.getDate())m++;const d=ds(new Date(y,m,Math.min(r.day,dimOf(y,m)))),eid=uid();S.events.push({id:eid,t:'Conta: '+r.t,d,h:'09:00',e:'',r:'m',rm:'',c:'p',billDay:r.day,until:r.end||'',finRec:r.id,skip:r.skip||[],pauses:r.pauses||[]});finInit().bills.push({id:uid(),n:r.t,v:r.v,day:r.day,eid,rec:r.id,ac:r.ac,end:r.end||''})}
+function recReminderUpdate(r){const b=finInit().bills.find(x=>x.rec===r.id);if(!b)return;Object.assign(b,{n:r.t,v:r.v,day:r.day,ac:r.ac,end:r.end||''});const e=S.events.find(x=>x.id===b.eid);if(e){const y=+e.d.slice(0,4),m=+e.d.slice(5,7)-1;e.t='Conta: '+r.t;e.billDay=r.day;e.until=r.end||'';e.finRec=r.id;e.skip=r.skip||[];e.pauses=r.pauses||[];e.d=ds(new Date(y,m,Math.min(r.day,dimOf(y,m))))}}
 function sumAbated(list){
  const by={};let inc=0,out=0;
  list.forEach(t=>{const v=+t.v||0;if(t.k==='in')inc+=v;else if(t.k==='out'){const c=t.cat||'Outros';out+=v;by[c]=(by[c]||0)+v}});
@@ -186,10 +239,51 @@ function analysisCategories(){
  ${selection&&selection.v>0?`<button class="pill dark" data-a="analysis-extract" data-id="${esc(selection.c)}" data-cut="${cut}">Ver lançamentos de ${esc(selection.c)}</button>`:''}
  </div></div>`:'<p class="empty">Sem despesas nos dois períodos.</p>'}`;
 }
-function gauge(c,spent,lim,exp){
+function monthlyCommitments(month,account=S.fac){
+ const F=finInit(),year=month.getFullYear(),m=month.getMonth(),period=ds(month).slice(0,7),last=dimOf(year,m);
+ const date=day=>ds(new Date(year,m,Math.min(+day||1,last))),isScoped=ac=>!account||ac===account;
+ const existing=new Set(F.tx.map(t=>t.id)),recurrences=new Set(F.rec.map(r=>r.id)),rows=[];
+ for(const t of F.tx){
+  if(t.k==='out'&&t.d>T&&t.d.slice(0,7)===period&&isScoped(accId(t))){
+   rows.push({id:t.id,d:t.d,t:t.t,v:t.v,cat:t.cat||'Outros',ac:accId(t),kind:t.pc?'Parcela':t.rc?'Recorrência':'Despesa agendada',action:'finance-review-open'});
+  }
+ }
+ for(const r of F.rec){
+  const d=date(r.day),ac=r.ac||F.acc[0].id;
+  if(r.k==='out'&&d>T&&isScoped(ac)&&recurringAllowed(r,d)&&!existing.has(recurringId(r,d))){
+   rows.push({id:r.id,d,t:r.t,v:r.v,cat:r.cat||'Outros',ac,kind:'Recorrência',action:'att-open',target:'sub'});
+  }
+ }
+ for(const b of F.bills){
+  const d=date(b.day);
+  if(d>=T&&isScoped(b.ac)&&billInRange(b,d)&&!recurrences.has(b.rec)){
+   rows.push({id:b.id,d,t:b.n,v:b.v,cat:b.cat||'',ac:b.ac,kind:'Conta fixa',action:'att-open',target:'bill'});
+  }
+ }
+ return rows.sort((a,b)=>a.d.localeCompare(b.d));
+}
+function commitmentLink(row,label){
+ return `<button class="pill" data-a="${row.action}" data-id="${esc(row.id)}" ${row.target?'data-kind="'+row.target+'"':''}>${esc(label)}</button>`;
+}
+function commitmentsPanel(){
+ const months=[0,1,2].map(i=>new Date(today.getFullYear(),today.getMonth()+i,1));
+ return `<section class="panel wide" id="finance-commitments"><h2>Compromissos dos próximos meses</h2>
+ <p class="empty">Despesas a partir de hoje, pelo mês do lançamento ou vencimento cadastrado. Compras no cartão entram pela data da parcela.</p>
+ ${months.map(month=>{
+  const rows=monthlyCommitments(month),total=r2(rows.reduce((n,r)=>n+r.v,0)),unlinked=rows.filter(r=>!r.ac).length;
+  return `<details class="fin-item-details" id="commitments-${ds(month).slice(0,7)}"><summary>${MES[month.getMonth()]} de ${month.getFullYear()} · ${BRL(total)}${unlinked?' · '+unlinked+' sem conta vinculada':''}</summary>
+  ${rows.map(r=>`<div class="item"><div class="t"><strong>${esc(r.t)}</strong><small>${datePt(r.d)} · ${r.kind} · ${r.ac?esc(accName(r.ac)):'Sem conta de pagamento'}</small></div><strong>${BRL(r.v)}</strong>${commitmentLink(r,'Conferir')}</div>`).join('')||'<p class="empty">Sem compromissos cadastrados.</p>'}</details>`;
+ }).join('')}</section>`;
+}
+function budgetSplit(month){
+ const actual=sumAbated(month.tx.filter(t=>t.d<=T)).by,scheduled={};
+ for(const row of monthlyCommitments(month.f))if(row.cat)scheduled[row.cat]=r2((scheduled[row.cat]||0)+row.v);
+ return {actual,scheduled};
+}
+function gauge(c,spent,lim,exp,scheduled=0){
  const p=lim?spent/lim:0,col=p>=1?'var(--neg)':p>exp+.0001?'var(--yellow)':'var(--green)',ex=Math.min(1,Math.max(0,exp)),cx=Math.cos(Math.PI*ex),sx=Math.sin(Math.PI*ex);
- const remaining=r2(lim-spent),st=p>1?'Limite excedido':p===1?'Limite atingido':p>exp?'Acima do ritmo':'Dentro do ritmo';
- return `<div><svg viewBox="0 0 100 60" style="width:100%;max-width:190px" role="img" aria-label="${esc(c)}: ${Math.round(p*100)}% do orçamento"><path d="M10 50A40 40 0 0 1 90 50" pathLength="100" fill="none" stroke="var(--panel)" stroke-width="9"/><path d="M10 50A40 40 0 0 1 90 50" pathLength="100" fill="none" stroke="${col}" stroke-width="9" stroke-dasharray="${Math.min(1,p)*100} 100"/><line x1="${50-33*cx}" y1="${50-33*sx}" x2="${50-47*cx}" y2="${50-47*sx}" stroke="var(--ink)" stroke-width="2"/><text x="50" y="49" text-anchor="middle" style="font-size:14px;font-weight:600;fill:var(--ink)">${Math.round(p*100)}%</text></svg><strong>${esc(c)}</strong><small style="display:block;color:var(--mute)">${BRL(spent)} de ${BRL(lim)}</small><small class="${remaining<0?'neg':'pos'}">${remaining<0?'Excedeu em':'Restam'} ${BRL(Math.abs(remaining))}</small><small style="display:block;color:var(--mute)">ritmo esperado: ${BRL(lim*exp)}</small><span class="chip ${p>=1?'c-p':p>exp?'c-y':'c-g'}" style="margin:var(--space-1) 0 0">${st}</span><button class="x" data-a="delbud" data-id="${esc(c)}" aria-label="Remover orçamento">×</button></div>`}
+ const remaining=r2(lim-spent),projected=r2(remaining-scheduled),st=p>1?'Limite excedido':p===1?'Limite atingido':p>exp?'Acima do ritmo':'Dentro do ritmo';
+ return `<div><svg viewBox="0 0 100 60" style="width:100%;max-width:190px" role="img" aria-label="${esc(c)}: ${Math.round(p*100)}% do orçamento"><path d="M10 50A40 40 0 0 1 90 50" pathLength="100" fill="none" stroke="var(--panel)" stroke-width="9"/><path d="M10 50A40 40 0 0 1 90 50" pathLength="100" fill="none" stroke="${col}" stroke-width="9" stroke-dasharray="${Math.min(1,p)*100} 100"/><line x1="${50-33*cx}" y1="${50-33*sx}" x2="${50-47*cx}" y2="${50-47*sx}" stroke="var(--ink)" stroke-width="2"/><text x="50" y="49" text-anchor="middle" style="font-size:14px;font-weight:600;fill:var(--ink)">${Math.round(p*100)}%</text></svg><strong>${esc(c)}</strong><small style="display:block;color:var(--mute)">${BRL(spent)} gastos de ${BRL(lim)}</small><small class="${remaining<0?'neg':'pos'}">${remaining<0?'Excedeu em':'Restam'} ${BRL(Math.abs(remaining))}</small><small style="display:block;color:var(--mute)">ritmo esperado: ${BRL(lim*exp)}</small><small style="display:block">Agendado: ${BRL(scheduled)}</small><small class="${projected<0?'neg':'pos'}">${projected<0?'Excesso previsto:':'Restaria:'} ${BRL(Math.abs(projected))}</small><span class="chip ${p>=1?'c-p':p>exp?'c-y':'c-g'}" style="margin:var(--space-1) 0 0">${st}</span><button class="x" data-a="delbud" data-id="${esc(c)}" aria-label="Remover orçamento">×</button></div>`}
 const catOpts=sel=>`<option value="">Categoria automática</option>${FC.map(c=>`<option ${sel===c?'selected':''}>${c}</option>`).join('')}`;
 const accOpts=sel=>S.fin.acc.map(a=>`<option value="${a.id}" ${sel===a.id?'selected':''}>${esc(a.n)}</option>`).join('');
 function accountEdit(a){const card=a.ty==='card';return `${!card?`<button class="pill" data-a="primaryacc" data-id="${esc(a.id)}" aria-pressed="${finInit().primary===a.id}">${finInit().primary===a.id?'Conta principal':'Definir como principal'}</button>`:''}<details><summary>Editar ${card?'cartão':'conta'}</summary><form class="bar" data-acc-edit="${esc(a.id)}"><label class="lb">Nome<input class="in" name="n" value="${esc(a.n)}" required></label>${card?`<label class="lb">Limite<input class="in" name="lim" type="number" min="0" step="0.01" value="${+a.lim||0}"></label><label class="lb">Fecha dia<input class="in" name="close" type="number" min="1" max="31" value="${+a.close||28}" required></label><label class="lb">Vence dia<input class="in" name="due" type="number" min="1" max="31" value="${+a.due||10}" required></label><p class="empty">Mudar as datas altera o cálculo das faturas. Se houver pagamentos associados, o dia de fechamento fica protegido.</p><p class="empty" data-account-impact aria-live="polite"></p><label><input type="checkbox" name="confirm"> Confirmei o impacto da alteração nas datas</label>`:''}<button class="pill">Salvar conta</button></form></details>`}
@@ -212,6 +306,7 @@ function creditCardTile(a,del){
  <div class="cc-head"><strong>${esc(a.n)}</strong><span>${iv.closed?'Fatura fechada':'Fatura aberta'}</span></div>
  <p class="cc-amount"><small>Fatura de ${MES[+iv.end.slice(5,7)-1]}</small><strong class="cc-val">${BRL(iv.tot)}</strong></p>
  <small>Fecha ${fmt(iv.end)} · Vence ${fmt(iv.due)}</small>
+ ${iv.credit?`<small>Crédito de estorno anterior: ${BRL(iv.credit)}</small>`:''}
  <small>Pago ou agendado: ${BRL(iv.paid)} · Restante: ${BRL(iv.left)}</small>
  ${iv.legacy?'<p class="empty">Confira as transferências antigas sem vínculo.</p>':''}
  ${limit>0?`<small>Limite usado: ${BRL(used)} de ${BRL(limit)}</small><div class="fb ${bst(used/limit*100)}"><i style="width:${Math.min(100,used/limit*100)}%"></i></div>`:''}
@@ -219,11 +314,110 @@ function creditCardTile(a,del){
  <div class="actions">${iv.left>0?`<button class="pill" data-a="payinv" data-id="${esc(a.id)}">Pagar fatura</button>`:''}${accountEdit(a)}${del('delacc',a.id,'Excluir cartão')}</div>
  ${invoiceLinkForm(a,iv)}</article>`;
 }
-function nextFixedDate(day){
- const thisMonth=ds(new Date(today.getFullYear(),today.getMonth(),Math.min(+day||1,dimOf(today.getFullYear(),today.getMonth()))));
- if(thisMonth>=T)return thisMonth;
- const next=new Date(today.getFullYear(),today.getMonth()+1,1);
+function nextFixedDate(day,from=T){
+ const [year,month]=from.split('-').map(Number);
+ const thisMonth=ds(new Date(year,month-1,Math.min(+day||1,dimOf(year,month-1))));
+ if(thisMonth>=from)return thisMonth;
+ const next=new Date(year,month,1);
  return ds(new Date(next.getFullYear(),next.getMonth(),Math.min(+day||1,dimOf(next.getFullYear(),next.getMonth()))));
+}
+function billInRange(b,d){return (!b.ini||d>=b.ini)&&(!b.end||d<=b.end)}
+function nextBillDate(b){return nextFixedDate(b.day,b.ini&&b.ini>T?b.ini:T)}
+function billSchedule(b){
+ const next=nextBillDate(b);
+ return [billInRange(b,next)?'Próximo vencimento: '+fmt(next):'Sem próximo vencimento',b.end?'Repete até '+datePt(b.end):''].filter(Boolean).join(' · ');
+}
+function recurringEndLabel(r){
+ if(!r.end)return '';
+ const month=new Date(r.end.slice(0,7)+'-01T12:00');
+ for(let i=0;i<=(r.skip||[]).length+1;i++){
+  const m=new Date(month.getFullYear(),month.getMonth()-i,1);
+  const date=ds(new Date(m.getFullYear(),m.getMonth(),Math.min(r.day,dimOf(m.getFullYear(),m.getMonth()))));
+  if(date<r.ini)break;
+  if(recurringAllowed(r,date))return ' · repete até '+datePt(r.end)+' · último vencimento '+datePt(date);
+ }
+ return ' · repete até '+datePt(r.end);
+}
+function datePt(d){return d.split('-').reverse().join('/')}
+function repeatUntilField(end='',locked=false){
+ return `<label class="lb">Repetir até<input class="in" type="date" name="end" value="${esc(end)}" ${locked?'disabled':''}><small>${locked?'Prazo definido na recorrência.':'Em branco: sem data de término.'}</small></label>`;
+}
+function installmentSchedule(first,cents,count){
+ const share=Math.floor(cents/count);
+ return Array.from({length:count},(_,i)=>({d:addM(first,i),v:(i===count-1?cents-share*(count-1):share)/100}));
+}
+const editableInstallment=t=>t.d>T&&!t.checked&&!t.statementKey;
+function installmentAccount(t,date=t.d){
+ const a=finInit().acc.find(a=>a.id===accId(t));
+ if(a?.ty!=='card')return a?.n||'Conta não vinculada';
+ const {payment}=simulatedCardCycle(date,a);
+ return a.n+' · fatura com vencimento em '+datePt(payment);
+}
+function refundAvailable(t){
+ const refunded=finInit().tx.filter(x=>x.refundOf===t.id).reduce((sum,x)=>sum+x.v,0);
+ return Math.max(0,r2(t.v-refunded));
+}
+function installmentDetails(group){
+ const future=group.filter(t=>t.d>T),cancelable=future.filter(editableInstallment),sum=items=>r2(items.reduce((n,t)=>n+t.v,0));
+ return `<details class="fin-item-details" id="fin-parts-${esc(group[0].pc.g)}"><summary>Gerenciar parcelas</summary>
+ <p>${future.length===1?'1 parcela futura':future.length+' parcelas futuras'} · <strong>${BRL(sum(future))} restantes</strong></p>
+ ${group.map(t=>`<div class="item"><div class="t"><strong>Parcela ${t.pc.i}/${t.pc.n} · ${BRL(t.v)}</strong><small>${datePt(t.d)} · ${esc(installmentAccount(t))}</small>
+ ${editableInstallment(t)?`<details><summary>Ajustar parcela</summary><form class="bar" data-part-adjust="${esc(t.id)}">
+ <label class="lb">Novo valor<input class="in" name="v" inputmode="decimal" value="${t.v.toFixed(2).replace('.',',')}" required></label>
+ <label class="lb">Nova data<input class="in" type="date" name="d" value="${t.d}" min="${T}" required></label>
+ <output class="fin-live" aria-live="polite"></output><button class="pill">Salvar ajuste</button></form></details>`:t.d<=T&&refundAvailable(t)>0?`<details><summary>Registrar estorno</summary><form class="bar" data-part-refund="${esc(t.id)}">
+ <label class="lb">Valor do estorno<input class="in" name="v" inputmode="decimal" required></label>
+ <label class="lb">Data do crédito<input class="in" type="date" name="d" value="${T}" min="${t.d}" max="${T}" required></label>
+ <small>Até ${BRL(refundAvailable(t))} em ${esc(accName(accId(t)))}.</small>
+ <output class="fin-live" aria-live="polite"></output><button class="pill">Registrar estorno</button></form></details>`:''}</div></div>`).join('')}
+ ${cancelable.length?`<details><summary>Cancelar parcelas futuras</summary><form class="bar" data-part-cancel="${esc(group[0].pc.g)}"><p>${cancelable.length} parcelas serão removidas da previsão, liberando ${BRL(sum(cancelable))}. Parcelas registradas ou conferidas serão preservadas.</p>
+ ${cancelable.map(t=>`<input type="hidden" name="part" value="${esc(t.id)}">`).join('')}
+ <label><input type="checkbox" required> Confirmo o cancelamento</label><button class="pill">Confirmar cancelamento</button></form></details>`:''}</details>`;
+}
+function previewPart(form){
+ const t=finInit().tx.find(x=>x.id===(form.dataset.partAdjust||form.dataset.partRefund));
+ if(!t)return;
+ const {v,d}=Object.fromEntries(new FormData(form)),amount=r2(num(v));
+ const output=form.querySelector('output');
+ if(!d||!(amount>0)){output.textContent='Informe valor e data para ver o impacto.';return}
+ if(form.dataset.partRefund){output.textContent=amount>refundAvailable(t)?'O valor supera o saldo disponível para estorno.':'Crédito de '+BRL(amount)+' em '+installmentAccount(t,d)+'.';return}
+ const delta=r2(amount-t.v);
+ output.textContent='Novo vencimento: '+datePt(d)+' · '+installmentAccount(t,d)+' · '+(delta===0?'Valor total restante sem alteração.':(delta>0?'Aumenta ':'Reduz ')+BRL(Math.abs(delta))+' no total restante.');
+}
+function installmentPanel(){
+ const F=finInit(),groups=new Map();
+ for(const t of F.tx){
+  if(t.k!=='out'||!t.pc||(S.fac&&accId(t)!==S.fac))continue;
+  if(!groups.has(t.pc.g))groups.set(t.pc.g,[]);
+  groups.get(t.pc.g).push(t);
+ }
+ const rows=[...groups.values()].map(group=>{
+  group.sort((a,b)=>a.d.localeCompare(b.d));
+  const first=group[0],next=group.find(t=>t.d>T),registered=group.filter(t=>t.d<=T).length;
+  return {first,next,registered,group};
+ }).sort((a,b)=>(a.next?.d||'9999').localeCompare(b.next?.d||'9999')||b.first.d.localeCompare(a.first.d));
+ return `<section class="panel wide"><div class="top"><h2>Despesas parceladas</h2><button class="pill dark" data-a="fin-config-open" data-id="fin-installment-form">Parcelar despesa</button></div>
+ ${rows.length?rows.slice(0,pgN('fin-installment-groups',20)).map(({first,next,registered,group})=>`<div class="item"><div class="t"><strong>${esc(first.t)}</strong><small>${registered} de ${first.pc.n} parcelas registradas · ${next?'Próxima em '+datePt(next.d):'Sem próximas parcelas'} · ${esc(accName(accId(next||first)))}</small>${installmentDetails(group)}</div>${next?`<strong>${BRL(next.v)}</strong><button class="pill" data-a="finance-review-open" data-id="${esc(next.id)}">Ver próxima parcela</button>`:`<button class="pill" data-a="finance-review-open" data-id="${esc(first.id)}">Ver lançamento</button>`}</div>`).join(''):'<p class="empty">Nenhuma despesa parcelada neste escopo.</p>'}
+ ${pgMore('fin-installment-groups',rows.length,20)}
+ <details id="fin-installment-form"><summary>Nova despesa parcelada</summary>
+ <form id="fin-installment" class="bar">
+ <label class="lb">Descrição<input class="in" name="t" required></label>
+ <label class="lb">Valor total<input class="in" name="v" inputmode="decimal" required></label>
+ <label class="lb">Parcelas<input class="in" name="pc" type="number" min="2" max="48" value="2" required></label>
+ <label class="lb">Data da primeira parcela<input class="in" name="d" type="date" value="${T}" required></label>
+ <label class="lb">Conta ou cartão<select class="in" name="ac">${accOpts(S.fac)}</select></label>
+ <label class="lb">Categoria<select class="in" name="cat">${catOpts()}</select></label>
+ <div class="fin-installment-summary"><output class="fin-installment-preview" aria-live="polite"></output><button class="pill dark">Salvar parcelamento</button></div>
+ </form></details></section>`;
+}
+function installmentPlan(v){
+ const cents=Math.round(num(v.v)*100),count=+v.pc;
+ if(!Number.isSafeInteger(cents)||!Number.isInteger(count)||count<2||count>48||cents<count||!v.d)return [];
+ return installmentSchedule(v.d,cents,count);
+}
+function previewInstallment(form){
+ const v=Object.fromEntries(new FormData(form)),rows=installmentPlan(v),output=form.querySelector('output');
+ output.innerHTML=rows.length?`<strong>Prévia das parcelas</strong><ol>${rows.map(row=>`<li>${datePt(row.d)} · ${BRL(row.v)}</li>`).join('')}</ol>`:v.v?'Confira o total, a data e a quantidade de parcelas.':'';
 }
 function finClearPanel(){
  const F=finInit(),hasTx=F.tx.length>0||F.acc.some(a=>(+a.ini||0)!==0);
@@ -240,7 +434,7 @@ function txListHtml(tx){
  const q=norm(FQ.trim()),kd=S.fkd||'',fc=S.fcat||'',hasF=!!(q||kd||fc||FRECON||FTAG);
  const L=filteredTx(tx);
  const sum=L.reduce((s,t)=>s+(t.k==='in'?t.v:t.k==='out'?-t.v:0),0),allOut=L.length&&L.every(t=>t.k==='out'),allIn=L.length&&L.every(t=>t.k==='in');
- const stxt=ANALYSIS_CUT?`Despesas líquidas: <strong>${BRL(sumAbated(L).out)}</strong>`:allOut?'Total: <strong>'+BRL(L.reduce((s,t)=>s+t.v,0))+'</strong>':allIn?'Total: <strong class="pos">+ '+BRL(L.reduce((s,t)=>s+t.v,0))+'</strong>':L.length?'Saldo filtrado: <strong class="'+(sum<0?'neg':'pos')+'">'+BRL(sum)+'</strong>':'';
+ const stxt=ANALYSIS_CUT&&fc?`Despesas líquidas: <strong>${BRL(sumAbated(L).out)}</strong>`:allOut?'Total: <strong>'+BRL(L.reduce((s,t)=>s+t.v,0))+'</strong>':allIn?'Total: <strong class="pos">+ '+BRL(L.reduce((s,t)=>s+t.v,0))+'</strong>':L.length?'Saldo filtrado: <strong class="'+(sum<0?'neg':'pos')+'">'+BRL(sum)+'</strong>':'';
  const bulkHtml=L.length?`<details data-tx-bulk style="margin-top:var(--space-2)"><summary class="pill" style="display:inline-block;cursor:pointer">Edição em lote (${L.length} ${L.length===1?'lançamento listado':'lançamentos listados'})</summary><form class="bar" id="ftxbulk" style="margin-top:var(--space-2)"><select class="in" name="cat" aria-label="Nova categoria em lote"><option value="">Manter categoria</option>${FC.map(c=>`<option value="${c}">${c}</option>`).join('')}</select><input class="in" name="sub" list="subl" placeholder="Nova subcategoria (opcional)" aria-label="Nova subcategoria em lote"><input class="in" name="tg" list="alltags" placeholder="Adicionar etiqueta (opcional)" aria-label="Adicionar etiqueta em lote"><select class="in" name="ac" aria-label="Nova conta em lote"><option value="">Manter conta</option>${accOpts('')}</select><label><input type="checkbox" name="createRules" value="1"> Criar regras para as descrições</label><button class="pill dark" data-tx-bulk-submit data-label="Aplicar aos ${L.length} listados">Aplicar aos ${L.length} listados</button><button type="button" class="pill${TXBULKDEL?' dark':''}" data-a="txbulkdel">${TXBULKDEL?'Confirmar: excluir os '+L.length+' listados':'Excluir os '+L.length+' listados'}</button>${TXBULKDEL?'<button type="button" class="pill" data-a="txbulkcancel">Cancelar</button>':''}<div data-reserve-review tabindex="-1"></div></form></details>`:'';
  return (hasF?`<p class="empty" style="padding:0 0 var(--space-2)">Mostrando <strong>${L.length}</strong> de ${tx.length} lançamentos${stxt?' · '+stxt:''}${ANALYSIS_CUT?' · realizados até '+fmt(ANALYSIS_CUT):''}. <button class="pill" data-a="fclr">Limpar filtros</button></p>`:'')
  +(L.length?txTable(L.slice(0,pgN(FLK(),80))):emp('fin',hasF?'Nenhum lançamento combina com os filtros aplicados.':'Nenhum lançamento neste mês.',hasF?'Limpar filtros':'Novo lançamento',hasF?'data-a="fclr"':'data-a="tx-new"'))
@@ -265,9 +459,8 @@ function txTable(rows){
   <td class="tx-actions" role="cell"><button class="x" data-a="deltx" data-id="${esc(t.id)}" aria-label="Excluir lançamento">×</button>${t.pc?`<button class="x" data-a="deltxg" data-id="${esc(t.pc.g)}" aria-label="Excluir todas as parcelas">⊗</button>`:''}</td>
  </tr>`).join('')}</tbody>`).join('')}</table>`;
 }
-function recurringInfo(r){const start=(r.ini||T)>T?r.ini:T,base=new Date(start.slice(0,7)+'-01T00:00'),F=finInit();let next='';
- for(let i=0;i<(r.skip||[]).length+2;i++){const d=new Date(base.getFullYear(),base.getMonth()+i,1),iso=ds(new Date(d.getFullYear(),d.getMonth(),Math.min(+r.day||1,dimOf(d.getFullYear(),d.getMonth())))),id='r_'+r.id+'_'+iso.slice(0,7);if(r.end&&iso>r.end)break;if(iso>=start&&!(r.skip||[]).includes(id)&&!F.tx.some(t=>t.id===id&&iso<=T)){next=iso;break}}
- const last=F.tx.filter(t=>t.rc===r.id&&t.d<=T).sort((a,b)=>b.d.localeCompare(a.d))[0];return (next?'Próxima: '+fmt(next):'Sem próxima cobrança')+(last&&+last.v!==+r.v?' · último lançamento '+BRL(last.v)+'; valor atual '+BRL(r.v):'')}
+function recurringInfo(r){const next=nextRecurringDate(r),F=finInit(),pause=(r.pauses||[]).filter(p=>p.from<=T&&p.until>=T&&(!r.end||r.end>=T)).map(p=>p.until).sort().pop();
+ const last=F.tx.filter(t=>t.rc===r.id&&t.d<=T).sort((a,b)=>b.d.localeCompare(a.d))[0];return (pause?'Pausa até '+datePt(pause)+' · ':'')+(next?'Próxima: '+fmt(next):'Sem próxima cobrança')+(last&&+last.v!==+r.v?' · último lançamento '+BRL(last.v)+'; valor atual '+BRL(r.v):'')}
 function installmentsPanel(){const F=finInit(),tx=F.tx.filter(t=>t.k==='out'&&t.pc&&t.d>T&&(!S.fac||accId(t)===S.fac)),groups={},months={};tx.forEach(t=>{(groups[t.pc.g]=groups[t.pc.g]||[]).push(t);const m=t.d.slice(0,7);months[m]=(months[m]||0)+t.v});const total=tx.reduce((s,t)=>s+t.v,0);return `<h2>Parcelas futuras</h2>${tx.length?`<p>Restam ${BRL(total)} em ${tx.length} parcelas agendadas.</p><details><summary>Ver por mês e compra</summary>${Object.keys(months).sort().map(m=>`<div class="item"><div class="t">${esc(m)}</div><strong>${BRL(months[m])}</strong></div>`).join('')}${Object.values(groups).map(g=>{g.sort((a,b)=>a.d.localeCompare(b.d));return `<div class="item"><div class="t">${esc(g[0].t)}<small>${g.length} parcelas restantes · última em ${fmt(g[g.length-1].d)}</small></div><strong>${BRL(g.reduce((s,t)=>s+t.v,0))}</strong></div>`}).join('')}</details>`:'<p class="empty">Nenhuma parcela futura agendada.</p>'}`}
 function financeOverviewBalance(F,account,f,inc,out,realIn,realOut,alerts){
  const accounts=account?[account]:F.acc.filter(a=>a.ty!=='card'),balance=accounts.reduce((sum,a)=>sum+bal(a),0);
@@ -321,6 +514,7 @@ function financasMes(tab){
  let body='';
  if(tab==='geral'){
   body=`<div class="finance-overview wide">${overviewDues(selA)}${monthCashPanel(f,selA)}</div>
+  ${commitmentsPanel()}
   ${recentTxPanel(tx.filter(t=>t.d<=T))}
   ${overviewCategories(tx.filter(t=>t.d<=T))}
   ${summaryPanel()}${nextIncomePanel()}`;
@@ -348,8 +542,9 @@ function financasMes(tab){
   <div class="panel">${installmentsPanel()}</div>
   <div class="panel">${splitPanel()}</div>`;
  }else if(tab==='orc'){
+  const {actual,scheduled}=budgetSplit({f,tx});
   const dim=dimOf(f.getFullYear(),f.getMonth()),exp=S.fmo<0?1:S.fmo>0?0:today.getDate()/dim;
-  body=`<div class="panel wide"><div class="top"><h2>Orçamentos</h2><button class="pill" data-a="fin-config-open" data-id="fin-budget-form">Definir limite</button></div><p class="empty">Gastos do mês selecionado, incluindo despesas agendadas.</p><div class="gg">${Object.entries(budgetsAt(ds(f).slice(0,7))).sort(([a,x],[b,y])=>(by[b]||0)/y-(by[a]||0)/x).map(([c,l])=>gauge(c,by[c]||0,l,exp)).join('')||'<p class="empty">Defina um limite mensal por categoria. O medidor mostra quanto você gastou e a marca preta indica onde deveria estar hoje.</p>'}</div></div>
+  body=`<div class="panel wide"><div class="top"><h2>Orçamentos</h2><button class="pill" data-a="fin-config-open" data-id="fin-budget-form">Definir limite</button></div><p class="empty">Gastos registrados e despesas agendadas do mês. Contas fixas sem categoria ficam fora dos limites por categoria.</p><div class="gg">${Object.entries(budgetsAt(ds(f).slice(0,7))).sort(([a,x],[b,y])=>((actual[b]||0)+(scheduled[b]||0))/y-((actual[a]||0)+(scheduled[a]||0))/x).map(([c,l])=>gauge(c,actual[c]||0,l,exp,scheduled[c]||0)).join('')||'<p class="empty">Defina um limite mensal por categoria. O medidor mostra quanto você gastou e a marca preta indica onde deveria estar hoje.</p>'}</div></div>
   <div class="panel"><h2>Metas de economia</h2>${F.goals.filter(g=>!g.res).map(g=>{const p=Math.min(100,Math.round(g.saved/(g.target||1)*100));return `<div class="item"><div class="t">${esc(g.n)}<small>${BRL(g.saved)} de ${BRL(g.target)} (${p}%)</small>${glink(g)}<div class="fb" style="margin-top:var(--space-2)"><i style="width:${p}%"></i></div></div><input class="in" data-gdep="${g.id}" type="number" step="any" placeholder="+ depositar" aria-label="Depositar" style="width:140px">${del('delgoal',g.id,'Excluir meta')}</div>`}).join('')||'<p class="empty">Crie uma meta, como viagem ou reserva de emergência.</p>'}<details id="fin-goal-form"><summary>Criar meta de economia</summary><form class="bar" id="fgoal" style="margin:var(--space-2) 0 0"><input class="in grow" name="n" placeholder="Nome da meta" required><input class="in" name="v" type="text" inputmode="decimal" autocomplete="off" placeholder="Valor alvo" required style="width:120px"><button class="pill">Criar</button></form></details></div>
   <div class="panel">${reservaPanel()}</div>
   <div class="panel">${closingPanel()}</div>
@@ -359,7 +554,9 @@ function financasMes(tab){
   const er=RED?F.rec.find(r=>r.id===RED):null,eb=BED?F.bills.find(b=>b.id===BED):null;
   const subscriptions=F.rec.filter(r=>r.k==='out'&&r.cat==='Assinaturas'&&(!r.ini||r.ini<=T)&&(!r.end||r.end>=T));
   const subscriptionIds=new Set(subscriptions.map(r=>r.id)),monthly=subscriptions.reduce((sum,r)=>sum+(+r.v||0),0);
-  const bills=F.bills.reduce((a,b)=>a+(+b.v||0),0);
+  const editedBillRec=eb&&F.rec.find(r=>r.id===eb.rec);
+  const fixedBills=F.bills.map(b=>{const linked=F.rec.find(r=>r.id===b.rec);return linked?{...b,end:linked.end||''}:b});
+  const bills=fixedBills.reduce((a,b)=>a+(billInRange(b,nextBillDate(b))?(+b.v||0):0),0);
   const accounts=F.acc.filter(a=>a.ty!=='card'),cards=F.acc.filter(a=>a.ty==='card');
   body=`<section class="panel wide" id="fin-accounts"><div class="top"><h2>Saldos das contas</h2><button class="pill" data-a="fin-config-open" data-id="fin-account-form">Cadastrar conta ou cartão</button></div>
   <p>Saldo registrado até hoje: <strong>${BRL(accounts.reduce((sum,a)=>sum+bal(a),0))}</strong></p>
@@ -368,8 +565,9 @@ function financasMes(tab){
   ${cards.length?`<div class="cc-grid">${cards.map(a=>creditCardTile(a,del)).join('')}</div>`:'<p class="empty">Nenhum cartão cadastrado.</p>'}
   </section>
   <div class="wide fin-billing-preview">${overviewDues(null)}</div>
-  <section class="panel" id="fin-recurring"><h2>Lançamentos recorrentes</h2>${subscriptions.length?`<p class="empty">Assinaturas ativas: <strong>${subscriptions.length}</strong> · ${BRL(monthly)} por mês · ${BRL(monthly*12)} por ano no ritmo atual.</p>`:''}${F.rec.map(r=>{const al=recPriceAlert(r);return `<div class="item"><div class="t">${esc(r.t)}${al?` <span class="chip ${al.diff>0?'c-p':'c-g'}">${al.diff>0?'subiu +':'caiu −'}${BRL(Math.abs(al.diff))}</span>`:''}<small>${r.k==='in'?'Receita':subscriptionIds.has(r.id)?'Assinatura ativa':'Despesa'} · dia ${r.day} de cada mês · ${esc(accName(r.ac||F.acc[0].id))}${r.end?' · até '+fmt(r.end):''} · ${recurringInfo(r)}</small></div><strong class="${r.k==='in'?'pos':'neg'}">${BRL(r.v)}</strong>${al?`<button class="pill" data-a="rec-upd-val" data-id="${esc(r.id)}">Atualizar para ${BRL(al.last.v)}</button>`:''}${subscriptionIds.has(r.id)?`<button class="pill" data-a="sub-review" data-id="${esc(r.id)}">${r.review?'Concluir revisão':'Marcar para revisão'}</button>${r.review?`<button class="pill" data-a="sub-task" data-id="${esc(r.id)}">Criar tarefa</button>`:''}`:''}<button class="x" data-a="edrec" data-id="${r.id}" aria-label="Editar recorrência">✎</button>${del('delrec',r.id,'Excluir recorrência')}</div>`}).join('')||'<p class="empty">Salário, aluguel, assinaturas: cadastre uma vez e o lançamento aparece sozinho todo mês.</p>'}${detectedRecPanel()}<details id="fin-rec-form" ${er?'open':''}><summary>${er?'Editar recorrência':'Cadastrar recorrência'}</summary><form class="bar" id="frec" style="margin:var(--space-2) 0 0"><select class="in" name="k" aria-label="Tipo"><option value="out" ${!er||er.k==='out'?'selected':''}>Despesa</option><option value="in" ${er&&er.k==='in'?'selected':''}>Receita</option></select><input class="in grow" name="t" placeholder="Descrição" value="${er?esc(er.t):''}" required><input class="in" name="v" type="text" inputmode="decimal" autocomplete="off" placeholder="Valor" value="${er?er.v:''}" required style="width:110px"><select class="in" name="cat" aria-label="Categoria">${catOpts(er&&er.cat)}</select><select class="in" name="ac" aria-label="Conta">${accOpts(er&&(er.ac||F.acc[0].id))}</select><input class="in" name="day" type="number" min="1" max="31" placeholder="Dia" value="${er?er.day:''}" required style="width:80px"><input class="in" type="date" name="end" value="${er?er.end||'':''}" title="Termina em (opcional)" aria-label="Termina em">${!er?'<label><input type="checkbox" name="reminder" value="1"> Criar lembrete mensal na agenda (despesas)</label>':''}<button class="pill${er?' dark':''}">${er?'Salvar recorrência':'Criar'}</button>${er?'<button type="button" class="pill" data-a="reccancel">Cancelar</button>':''}</form></details></section>
-  <section class="panel" id="fin-fixed"><h2>Contas fixas</h2>${F.bills.map(b=>`<div class="item"><div class="t">${esc(b.n)}<small>Próximo vencimento: ${fmt(nextFixedDate(b.day))} · ${b.ac?esc(accName(b.ac)):'sem conta de pagamento'}</small></div><strong>${BRL(b.v)}</strong><button class="x" data-a="edbill" data-id="${b.id}" aria-label="Editar conta">✎</button>${del('delbill',b.id,'Excluir conta')}</div>`).join('')||'<p class="empty">Cadastre contas que se repetem. Elas entram na agenda todo mês.</p>'}${F.bills.length?`<p class="empty" style="margin:0 0 var(--space-2)">Total fixo: ${BRL(bills)} por mês. Estes lembretes podem ser independentes ou ligados a uma recorrência.</p>`:''}<details id="fin-bill-form" ${eb?'open':''}><summary>${eb?'Editar conta fixa':'Cadastrar conta fixa'}</summary><form class="bar" id="fbill" style="margin:var(--space-2) 0 0"><input class="in grow" name="n" placeholder="Nome" value="${eb?esc(eb.n):''}" required><input class="in" name="v" type="text" inputmode="decimal" autocomplete="off" placeholder="Valor" value="${eb?eb.v:''}" required style="width:110px"><input class="in" name="day" type="number" min="1" max="31" placeholder="Dia" value="${eb?eb.day:''}" required style="width:80px"><label class="lb">Conta de pagamento<select class="in" name="ac" ${eb&&eb.rec?'disabled':''}><option value="">Sem conta vinculada</option>${F.acc.filter(a=>a.ty!=='card').map(a=>`<option value="${esc(a.id)}" ${eb&&eb.ac===a.id?'selected':''}>${esc(a.n)}</option>`).join('')}</select></label>${eb&&eb.rec?'<small class="empty">Conta definida pela recorrência; edite-a em Lançamentos recorrentes.</small>':''}<button class="pill${eb?' dark':''}">${eb?'Salvar conta':'Adicionar'}</button>${eb?'<button type="button" class="pill" data-a="billcancel">Cancelar</button>':''}</form></details></section>
+  <section class="panel" id="fin-recurring"><h2>Lançamentos recorrentes</h2>${subscriptions.length?`<p class="empty">Assinaturas ativas: <strong>${subscriptions.length}</strong> · ${BRL(monthly)} por mês · ${BRL(monthly*12)} por ano no ritmo atual.</p>`:''}${F.rec.map(r=>{const al=recPriceAlert(r);return `<div class="item"><div class="t">${esc(r.t)}${al?` <span class="chip ${al.diff>0?'c-p':'c-g'}">${al.diff>0?'subiu +':'caiu −'}${BRL(Math.abs(al.diff))}</span>`:''}<small>${r.k==='in'?'Receita':subscriptionIds.has(r.id)?'Assinatura ativa':'Despesa'} · dia ${r.day} de cada mês · ${esc(accName(r.ac||F.acc[0].id))}${recurringEndLabel(r)} · ${recurringInfo(r)}</small>${recurringControls(r)}</div><strong class="${r.k==='in'?'pos':'neg'}">${BRL(r.v)}</strong>${al?`<button class="pill" data-a="rec-upd-val" data-id="${esc(r.id)}">Atualizar para ${BRL(al.last.v)}</button>`:''}${subscriptionIds.has(r.id)?`<button class="pill" data-a="sub-review" data-id="${esc(r.id)}">${r.review?'Concluir revisão':'Marcar para revisão'}</button>${r.review?`<button class="pill" data-a="sub-task" data-id="${esc(r.id)}">Criar tarefa</button>`:''}`:''}<button class="x" data-a="edrec" data-id="${r.id}" aria-label="Editar recorrência">✎</button>${del('delrec',r.id,'Excluir recorrência')}</div>`}).join('')||'<p class="empty">Salário, aluguel, assinaturas: cadastre uma vez e o lançamento aparece sozinho todo mês.</p>'}${detectedRecPanel()}<details id="fin-rec-form" ${er?'open':''}><summary>${er?'Editar recorrência':'Cadastrar recorrência'}</summary><form class="bar" id="frec" style="margin:var(--space-2) 0 0"><select class="in" name="k" aria-label="Tipo"><option value="out" ${!er||er.k==='out'?'selected':''}>Despesa</option><option value="in" ${er&&er.k==='in'?'selected':''}>Receita</option></select><input class="in grow" name="t" placeholder="Descrição" value="${er?esc(er.t):''}" required><input class="in" name="v" type="text" inputmode="decimal" autocomplete="off" placeholder="Valor" value="${er?er.v:''}" required style="width:110px"><select class="in" name="cat" aria-label="Categoria">${catOpts(er&&er.cat)}</select><select class="in" name="ac" aria-label="Conta">${accOpts(er&&(er.ac||F.acc[0].id))}</select><label class="lb">Dia do vencimento<input class="in" name="day" type="number" min="1" max="31" value="${er?er.day:''}" required style="width:80px"></label>${repeatUntilField(er?.end)}${!er?'<label><input type="checkbox" name="reminder" value="1"> Criar lembrete mensal na agenda (despesas)</label>':''}<button class="pill${er?' dark':''}">${er?'Salvar recorrência':'Criar'}</button>${er?'<button type="button" class="pill" data-a="reccancel">Cancelar</button>':''}</form></details></section>
+  <section class="panel" id="fin-fixed"><h2>Contas fixas</h2>${fixedBills.map(b=>`<div class="item"><div class="t">${esc(b.n)}<small>${billSchedule(b)} · ${b.ac?esc(accName(b.ac)):'sem conta de pagamento'}</small></div><strong>${BRL(b.v)}</strong><button class="x" data-a="edbill" data-id="${b.id}" aria-label="Editar conta">✎</button>${del('delbill',b.id,'Excluir conta')}</div>`).join('')||'<p class="empty">Cadastre contas que se repetem. Elas entram na agenda todo mês.</p>'}${F.bills.length?`<p class="empty" style="margin:0 0 var(--space-2)">Total fixo: ${BRL(bills)} por mês. Estes lembretes podem ser independentes ou ligados a uma recorrência.</p>`:''}<details id="fin-bill-form" ${eb?'open':''}><summary>${eb?'Editar conta fixa':'Cadastrar conta fixa'}</summary><form class="bar" id="fbill" style="margin:var(--space-2) 0 0"><input class="in grow" name="n" placeholder="Nome" value="${eb?esc(eb.n):''}" required><input class="in" name="v" type="text" inputmode="decimal" autocomplete="off" placeholder="Valor" value="${eb?eb.v:''}" required style="width:110px"><label class="lb">Dia do vencimento<input class="in" name="day" type="number" min="1" max="31" value="${eb?eb.day:''}" required style="width:80px"></label>${repeatUntilField(editedBillRec?editedBillRec.end:eb?.end,!!editedBillRec)}<label class="lb">Conta de pagamento<select class="in" name="ac" ${eb&&eb.rec?'disabled':''}><option value="">Sem conta vinculada</option>${F.acc.filter(a=>a.ty!=='card').map(a=>`<option value="${esc(a.id)}" ${eb&&eb.ac===a.id?'selected':''}>${esc(a.n)}</option>`).join('')}</select></label>${eb&&eb.rec?'<small class="empty">Conta definida pela recorrência; edite-a em Lançamentos recorrentes.</small>':''}<button class="pill${eb?' dark':''}">${eb?'Salvar conta':'Adicionar'}</button>${eb?'<button type="button" class="pill" data-a="billcancel">Cancelar</button>':''}</form></details></section>
+  ${installmentPanel()}
   <details class="panel wide" id="fin-account-form"><summary>Cadastrar conta ou cartão</summary><form class="bar" id="facc" style="margin:var(--space-2) 0 0"><input class="in grow" name="n" placeholder="Nome da conta ou cartão" required><select class="in" name="ty" aria-label="Tipo">${Object.entries(ACT).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select><input class="in" name="ini" type="number" step="any" placeholder="Saldo inicial" style="width:130px"><input class="in f-card" name="lim" type="number" min="0" placeholder="Limite" style="width:110px"><input class="in f-card" name="close" type="number" min="1" max="31" placeholder="Fecha dia" style="width:100px"><input class="in f-card" name="due" type="number" min="1" max="31" placeholder="Vence dia" style="width:100px"><button class="pill">Adicionar conta</button></form></details>`;
  }else if(tab==='regras'){
   body=`<section class="panel wide" id="fin-import"><h2>Importar extrato (CSV ou OFX)</h2>${impPanel()}</section>
@@ -410,7 +608,7 @@ document.addEventListener('change',async e=>{
  if(i.name==='k'&&i.form&&i.form.id==='ffin'){i.form.classList.remove('kout','kin','ktr');i.form.classList.add('k'+i.value)}
  if(i.name==='ty'&&i.form&&i.form.id==='facc')i.form.classList.toggle('facard',i.value==='card');
 });
-document.addEventListener('input',e=>{const i=e.target;if(i&&i.id==='fq'){FQ=i.value;TXBULKDEL=false;const el=$('#txlist');if(el)el.innerHTML=txListHtml(finMonth().tx)}if(i&&i.name==='v'&&i.form&&i.form.id==='fbud'){const el=i.form.querySelector('[data-budget-preview]'),v=num(i.value);if(el)el.textContent=i.value.trim()?(Number.isFinite(v)&&v>0?'Valor interpretado: '+BRL(v):'Informe um valor maior que zero.'):''}if(i&&i.form&&i.form.dataset.accEdit&&['close','due'].includes(i.name))accountImpact(i.form)});
+document.addEventListener('input',e=>{const i=e.target;if(i.form?.dataset.partAdjust||i.form?.dataset.partRefund)previewPart(i.form);if(i.form?.dataset.recSchedule)previewRecurring(i.form);if(i.form?.id==='fin-installment'&&['v','pc','d'].includes(i.name))previewInstallment(i.form);if(i&&i.id==='fq'){FQ=i.value;TXBULKDEL=false;const el=$('#txlist');if(el)el.innerHTML=txListHtml(finMonth().tx)}if(i&&i.name==='v'&&i.form&&i.form.id==='fbud'){const el=i.form.querySelector('[data-budget-preview]'),v=num(i.value);if(el)el.textContent=i.value.trim()?(Number.isFinite(v)&&v>0?'Valor interpretado: '+BRL(v):'Informe um valor maior que zero.'):''}if(i&&i.form&&i.form.dataset.accEdit&&['close','due'].includes(i.name))accountImpact(i.form)});
 
 /* ===== Integração das finanças com o resto do painel ===== */
 function projData(){
@@ -460,18 +658,37 @@ const DOW=['seg','ter','qua','qui','sex','sáb','dom'],DOWF=['segundas','terças
 const RM_LABEL={c:'contém',s:'começa com',e:'é igual a',r:'corresponde à expressão'};
 const subList=()=>`<datalist id="subl">${[...new Set([...finInit().tx.map(t=>t.sub),...finInit().rules.map(r=>r.sub)].filter(Boolean))].map(s=>`<option value="${esc(s)}">`).join('')}</datalist>`;
 function openBal(start){const F=finInit(),fa=S.fac;let b=0;(fa?F.acc.filter(a=>a.id===fa):F.acc).forEach(a=>{b+=+a.ini||0});F.tx.forEach(t=>{if(t.d>=start)return;const ac=accId(t);if(t.k==='in'&&(!fa||ac===fa))b+=t.v;else if(t.k==='out'&&(!fa||ac===fa))b-=t.v;else if(t.k==='tr'&&fa){if(ac===fa)b-=t.v;if(t.to===fa)b+=t.v}});return b}
+function installmentRefundCarry(card,before){
+ const list=finInit().tx,hasCredit=list.some(t=>t.k==='in'&&t.refundOf&&accId(t)===card.id&&t.d<before);
+ if(!hasCredit)return 0;
+ const cycles=new Map();
+ const get=d=>{if(!cycles.has(d))cycles.set(d,{charges:0,credits:0,paid:0});return cycles.get(d)};
+ for(const t of list){
+  if(t.k==='tr'&&t.to===card.id&&t.invoice&&t.invoice<before){get(t.invoice).paid+=t.v;continue}
+  if(t.d>=before||accId(t)!==card.id||!(t.k==='out'||(t.k==='in'&&t.refundOf)))continue;
+  const end=simulatedCardCycle(t.d,card).closing;
+  if(end>=before)continue;
+  if(t.k==='out')get(end).charges+=t.v;else get(end).credits+=t.v;
+ }
+ let carry=0;
+ for(const end of [...cycles.keys()].sort()){
+  const {charges,credits,paid}=cycles.get(end);
+  carry=Math.max(0,r2(carry+credits-Math.max(0,charges-paid)));
+ }
+ return carry;
+}
 function invoice(a,o){
  const f=new Date(today.getFullYear(),today.getMonth()+(o==null?S.fmo:o),1),y=f.getFullYear(),m=f.getMonth(),cl=+a.close||28,c=Math.min(cl,dimOf(y,m)),end=ds(new Date(y,m,c)),pm=new Date(y,m-1,1),st=ds(add(new Date(pm.getFullYear(),pm.getMonth(),Math.min(cl,dimOf(pm.getFullYear(),pm.getMonth()))),1));
- let tot=0;S.fin.tx.forEach(t=>{if(t.k==='out'&&accId(t)===a.id&&t.d>=st&&t.d<=end)tot+=t.v});
+ const credit=installmentRefundCarry(a,st);let tot=-credit;S.fin.tx.forEach(t=>{if(accId(t)!==a.id||t.d<st||t.d>end)return;if(t.k==='out')tot+=t.v;else if(t.k==='in'&&t.refundOf)tot-=t.v});
  const dd=+a.due||10,dm=new Date(y,dd>cl?m:m+1,1),due=ds(new Date(dm.getFullYear(),dm.getMonth(),Math.min(dd,dimOf(dm.getFullYear(),dm.getMonth()))));
  const paid=S.fin.tx.filter(t=>t.k==='tr'&&t.to===a.id&&t.invoice===end).reduce((s,t)=>s+(+t.v||0),0),legacy=S.fin.tx.some(t=>t.k==='tr'&&t.to===a.id&&!t.invoice&&t.d>=st&&t.d<=due);
- return{tot,end,due,paid,left:Math.max(0,Math.round((tot-paid)*100)/100),legacy,closed:end<T}}
+ return{tot:r2(tot),credit,end,due,paid,left:Math.max(0,Math.round((tot-paid)*100)/100),legacy,closed:end<T}}
 function invoiceLinkForm(a,iv){const tx=finInit().tx.filter(t=>t.k==='tr'&&t.to===a.id&&!t.invoice);if(!tx.length||iv.left<=0)return '';return `<details><summary>Associar transferência antiga à fatura</summary><p class="empty">Confira a data, a conta e o valor. A associação não cria nem altera a transferência.</p><form class="bar" data-invoice-link="${esc(a.id)}" data-end="${iv.end}"><select class="in grow" name="tx" aria-label="Transferência anterior">${tx.map(t=>`<option value="${esc(t.id)}">${fmt(t.d)} · ${esc(accName(accId(t)))} · ${BRL(t.v)} · ${esc(t.t)}</option>`).join('')}</select><label><input type="checkbox" name="confirm" required> Confirmo que é desta fatura</label><button class="pill">Associar pagamento</button></form></details>`}
 function lineChart(){
  const F=finInit(),f=new Date(today.getFullYear(),today.getMonth()+S.fmo,1),y0=f.getFullYear(),m0=f.getMonth(),N=dimOf(y0,m0),p=ds(f).slice(0,7),cut=S.fmo===0?today.getDate():S.fmo<0?N:0,sal=S.flm==='sal',fa=S.fac;
  const okf=t=>!fa||accId(t)===fa||(t.k==='tr'&&t.to===fa),act=Array(N+1).fill(0),sch=Array(N+1).fill(0);let varSum=0;
  F.tx.forEach(t=>{if(t.d.slice(0,7)!==p||!okf(t))return;if(t.k==='tr'&&!(sal&&fa))return;const d=+t.d.slice(8),v=t.k==='in'?t.v:t.k==='out'?-t.v:((accId(t)===fa?-t.v:0)+(t.to===fa?t.v:0));if(t.d>T)sch[d]+=v;else{act[d]+=v;if(t.k==='out'&&!t.rc&&!t.pc)varSum+=t.v}});
- F.rec.forEach(r=>{if(fa&&r.ac!==fa&&!(fa===F.acc[0].id&&!r.ac))return;const dd=Math.min(+r.day||1,N),d=ds(new Date(y0,m0,dd)),id='r_'+r.id+'_'+p;if(d>T&&(r.ini||T)<=d&&(!r.end||d<=r.end)&&!F.tx.some(t=>t.id===id)&&!(r.skip||[]).includes(id))sch[dd]+=r.k==='in'?r.v:-r.v});
+ F.rec.forEach(r=>{if(fa&&r.ac!==fa&&!(fa===F.acc[0].id&&!r.ac))return;const dd=Math.min(+r.day||1,N),d=ds(new Date(y0,m0,dd)),id='r_'+r.id+'_'+p;if(d>T&&recurringAllowed(r,d)&&!F.tx.some(t=>t.id===id))sch[dd]+=r.k==='in'?r.v:-r.v});
  const off=sal?openBal(p+'-01'):0,avg=S.fmo===0&&cut>0?varSum/cut:0,A=[off];let c=off;for(let d=1;d<=cut;d++){c+=act[d];A.push(c)}
  const now=A[cut]!==undefined?A[cut]:off,Pj=[[cut,now]];let c2=now;for(let d=cut+1;d<=N;d++){c2+=sch[d]-avg;Pj.push([d,c2])}
  const W=420,H=240,L=42,R=8,T0=12,B=26,pw=W-L-R,ph=H-T0-B,vals=[0,...A,...Pj.map(q=>q[1])],hi=Math.max(4,...vals),lo=Math.min(0,...vals),y=v=>T0+ph*(hi-v)/((hi-lo)||1),x=d=>L+pw*d/N;
@@ -500,8 +717,8 @@ function calPanel(){
  const F=finInit(),f=new Date(today.getFullYear(),today.getMonth()+S.fmo,1),y=f.getFullYear(),m=f.getMonth(),N=dimOf(y,m),p=ds(f).slice(0,7),off=(f.getDay()+6)%7,ok=t=>!S.fac||accId(t)===S.fac||t.to===S.fac,days={};
  const g=d=>(days[d]=days[d]||{inc:0,out:0,ev:[],tx:[]});
  F.tx.forEach(t=>{if(t.d.slice(0,7)!==p||!ok(t))return;const o=g(+t.d.slice(8));o.tx.push(t);if(t.k==='in')o.inc+=t.v;else if(t.k==='out')o.out+=t.v});
- F.bills.filter(b=>(!b.rec||!F.rec.some(r=>r.id===b.rec))&&(!S.fac||b.ac===S.fac)).forEach(b=>g(Math.min(+b.day||1,N)).ev.push({t:'Conta: '+b.n,v:b.v,c:'y'}));
- F.rec.forEach(r=>{const dd=Math.min(+r.day||1,N),d=ds(new Date(y,m,dd)),id='r_'+r.id+'_'+p;if((!S.fac||(r.ac||F.acc[0].id)===S.fac)&&d>T&&(r.ini||T)<=d&&(!r.end||d<=r.end)&&!F.tx.some(t=>t.id===id)&&!(r.skip||[]).includes(id))g(dd).ev.push({t:r.t+' (agendado)',v:r.v,c:r.k==='in'?'g':'p'})});
+ F.bills.filter(b=>(!b.rec||!F.rec.some(r=>r.id===b.rec))&&(!S.fac||b.ac===S.fac)).forEach(b=>{const day=Math.min(+b.day||1,N);if(billInRange(b,ds(new Date(y,m,day))))g(day).ev.push({t:'Conta: '+b.n,v:b.v,c:'y'})});
+ F.rec.forEach(r=>{const dd=Math.min(+r.day||1,N),d=ds(new Date(y,m,dd)),id='r_'+r.id+'_'+p;if((!S.fac||(r.ac||F.acc[0].id)===S.fac)&&d>T&&recurringAllowed(r,d)&&!F.tx.some(t=>t.id===id))g(dd).ev.push({t:r.t+' (agendado)',v:r.v,c:r.k==='in'?'g':'p'})});
  F.acc.filter(a=>a.ty==='card'&&(!S.fac||a.id===S.fac)).forEach(a=>[-1,0].forEach(o=>{const iv=invoice(a,S.fmo+o);if(iv.due.slice(0,7)===p&&iv.left>0)g(+iv.due.slice(8)).ev.push({t:'Vence a fatura '+a.n,v:iv.left,c:'b'})}));
  const sel=S.fday&&S.fday.slice(0,7)===p?S.fday:(S.fmo===0?T:''),cells=[];
  for(let i=0;i<off;i++)cells.push('<span></span>');
@@ -569,7 +786,7 @@ function rulesPanel(){
  <div class="bar"><button class="pill" data-a="rulesapply">Categorizar lançamentos em "Outros"</button><button class="pill${RARM?' dark':''}" data-a="rapplyall">${RARM?'Confirmar: recategorizar todos':'Recategorizar todos os lançamentos'}</button>${RARM?'<button class="pill" data-a="rcancelall">Cancelar</button>':''}</div>`}
 function finSubmit(v){
  const F=finInit(),e=FED?F.tx.find(t=>t.id===FED):null,oldT=e?e.t:'';
- if(!e){const p=parseFinNL(v.t,v.v,!v.d||v.d===T);v=Object.assign({},v,{t:p.t,v:p.v,d:p.d||v.d||T,tg:normTags([v.tg,p.tg].filter(Boolean).join(', '))})}
+ if(!e){const p=parseFinNL(v.t,v.v,v.parseDate!==false&&(!v.d||v.d===T));v=Object.assign({},v,{t:p.t,v:p.v,d:p.d||v.d||T,tg:normTags([v.tg,p.tg].filter(Boolean).join(', '))})}
  const x=Math.round(num(v.v)*100)/100;if(!(x>0)){toast('Informe um valor maior que zero');return}if(v.k==='tr'&&(v.ac===v.to||F.acc.length<2)){toast(F.acc.length<2?'Cadastre uma segunda conta para transferir':'A conta de destino precisa ser diferente da origem');return}
  const invEnd=v.invoice||(e&&e.k==='tr'&&v.k==='tr'&&e.to===v.to?e.invoice:'');if(invEnd){const a=F.acc.find(a=>a.id===v.to&&a.ty==='card'),offset=(+invEnd.slice(0,4)-today.getFullYear())*12+(+invEnd.slice(5,7)-1-today.getMonth()),iv=a&&invoice(a,offset),remaining=iv?iv.left+(e&&e.invoice===invEnd?e.v:0):0;if(!iv||iv.end!==invEnd||v.k!=='tr'||x>remaining+.001){toast('Confira o cartão e o valor restante da fatura');return}}
  const k=v.k,R=(!v.cat&&k!=='tr'&&!e)?ruleOf({t:v.t,v:x,k,ac:v.ac}):null,H=(!v.cat&&!R&&k!=='tr'&&!e)?histCat(v.t,k):null;
@@ -599,8 +816,8 @@ function finSubmit(v){
   }
   FED=null;toast('Lançamento atualizado'+(v.applySame&&k!=='tr'?' (aplicado a '+extra+' outro'+(extra===1?'':'s')+' e regra salva)':''));return
  }
- const n=k==='out'?Math.min(48,Math.max(1,+v.pc||1)):1,t=v.t.trim();
- if(n>1){const g=uid(),base=Math.floor(x/n*100)/100;for(let i=0;i<n;i++){const val=i===n-1?Math.round((x-base*(n-1))*100)/100:base;F.tx.unshift({id:uid(),k,t,v:val,cat,d:addM(v.d,i),ac:v.ac,...ex,pc:{g,i:i+1,n}})}toast(n+' parcelas lançadas'+(+v.pc>48?' (limite de 48 parcelas)':''))}
+ const n=k==='out'?Math.min(48,Math.max(1,Math.trunc(+v.pc)||1)):1,t=v.t.trim();
+ if(n>1){const g=uid();installmentSchedule(v.d,Math.round(x*100),n).forEach((row,i)=>F.tx.unshift({id:uid(),k,t,...row,cat,ac:v.ac,...ex,pc:{g,i:i+1,n}}));toast(n+' parcelas lançadas'+(+v.pc>48?' (limite de 48 parcelas)':''))}
  else{const o={id:uid(),k,t,v:x,cat,d:v.d,ac:v.ac,...ex};if(k==='tr')o.to=v.to;if(invEnd)o.invoice=invEnd;F.tx.unshift(o);toast(k==='in'?'Receita lançada':k==='tr'?'Transferência registrada':'Despesa lançada'+(R?' ('+esc(cat)+(ex.sub?' › '+esc(ex.sub):'')+' pela regra)':''))}}
 function reviewReserveBatch(form,v,confirming=false){
  const box=form.querySelector('[data-reserve-review]');
@@ -669,16 +886,39 @@ function recPriceAlert(r){
  if(!last||Math.abs((+last.v||0)-(+r.v||0))<.01)return null;
  return{last,diff:r2((+last.v||0)-(+r.v||0))};
 }
+function closingReview(month,tx){
+ const F=finInit(),pending=tx.filter(t=>!t.checked),groups=new Map();
+ for(const t of tx){
+  const key=JSON.stringify([t.k,accId(t),t.to||'',t.d,Math.round(t.v*100),norm(cleanDesc(t.t))]);
+  if(!groups.has(key))groups.set(key,[]);
+  groups.get(key).push(t);
+ }
+ const duplicates=[...groups.values()].filter(g=>g.length>1&&!g.every(t=>t.shoppingReviewed));
+ const offset=(month.f.getFullYear()-today.getFullYear())*12+month.f.getMonth()-today.getMonth();
+ const open=F.acc.filter(a=>a.ty==='card'&&(!S.fac||a.id===S.fac)).flatMap(a=>{
+  const direct=invoice(a,offset),prior=invoice(a,offset-1);
+  return [direct,prior].filter(iv=>iv.left>0&&iv.due.startsWith(month.p)).map(iv=>({a,iv}));
+ });
+ const reserve=tx.filter(t=>t.k==='out'&&t.cat==='Reserva');
+ const link=t=>commitmentLink({id:t.id,action:'finance-review-open'},t.t);
+ return `<section class="fin-month-check" aria-label="Revisão antes do fechamento"><h3>Antes de fechar o mês</h3>
+ <details id="closing-unchecked"><summary>${pending.length} lançamentos a conferir</summary>
+ ${pending.slice(0,5).map(t=>`<div class="item"><div class="t">${datePt(t.d)} · ${BRL(t.v)}</div>${link(t)}</div>`).join('')}
+ ${pending.length?`<button class="pill" data-a="closing-pending">Ver lançamentos não conferidos</button>`:'<p class="empty">Nenhuma pendência de conferência.</p>'}</details>
+ <details id="closing-duplicates"><summary>${duplicates.length===1?'1 grupo':duplicates.length+' grupos'} de possíveis duplicatas</summary>${duplicates.map(group=>`<div class="item"><div class="t">${esc(group[0].t)} · ${datePt(group[0].d)} · ${BRL(group[0].v)}<div class="bar">${group.map(link).join('')}</div></div></div>`).join('')||'<p class="empty">Nenhuma duplicata exata encontrada.</p>'}</details>
+ <details id="closing-invoices"><summary>${open.length} faturas com saldo a pagar</summary>${open.map(({a,iv})=>`<div class="item"><div class="t">${esc(a.n)} · vence em ${datePt(iv.due)}</div><strong>${BRL(iv.left)}</strong><button class="pill" data-a="overview-card" data-id="${esc(a.id)}" data-o="${iv.end.startsWith(month.p)?offset:offset-1}">Ver fatura</button></div>`).join('')||'<p class="empty">Sem faturas com saldo a pagar neste período.</p>'}</details>
+ <details id="closing-reserve"><summary>Aportes na categoria Reserva · ${BRL(reserve.reduce((n,t)=>n+t.v,0))}</summary>${reserve.map(t=>`<div class="item"><div class="t">${datePt(t.d)} · ${BRL(t.v)}</div>${link(t)}</div>`).join('')||'<p class="empty">Nenhum aporte registrado neste mês.</p>'}</details></section>`;
+}
 function closingPanel(){
- const F=finInit(),m=finMonth(),sal=r2(m.inc-m.out),mn=MES[m.f.getMonth()];
- const buds=Object.entries(budgetsAt(m.p)),okBud=buds.filter(([c,l])=>(m.by[c]||0)<=l).length;
+ const F=finInit(),m=finMonth(),realized=m.tx.filter(t=>t.d<=T),{inc,out,by}=sumAbated(realized),sal=r2(inc-out),mn=MES[m.f.getMonth()];
+ const buds=Object.entries(budgetsAt(m.p)),okBud=buds.filter(([c,l])=>(by[c]||0)<=l).length;
  const goals=[...F.goals].sort((a,b)=>(b.res?1:0)-(a.res?1:0));
- const rate=m.inc>0?Math.round(sal/m.inc*100):null;
+ const rate=inc>0?Math.round(sal/inc*100):null;
  let body='';
- if(!m.inc&&!m.out)body='<p class="empty">Sem movimentações registradas neste mês.</p>';
+ if(!inc&&!out)body='<p class="empty">Sem movimentações registradas neste mês.</p>';
  else if(sal<=0)body=`<p>Resultado de ${mn}: <strong class="neg">− ${BRL(-sal)}</strong>.${buds.length?' '+okBud+' de '+buds.length+' orçamentos dentro do limite.':''}</p>`;
  else body=`<p>Sobraram <strong class="pos">${BRL(sal)}</strong> em ${mn}${rate!==null?' ('+rate+'% da renda)':''}.${buds.length?' '+okBud+' de '+buds.length+' orçamentos dentro do limite.':''}</p><form class="bar" id="fclosemonth" style="margin:var(--space-2) 0 0"><label class="lb" style="margin:0">Valor a destinar<input class="in" name="v" type="text" inputmode="decimal" autocomplete="off" value="${sal.toFixed(2).replace('.',',')}" required style="width:130px"></label><label class="lb" style="margin:0">Destino<select class="in" name="goal">${goals.map(g=>`<option value="${esc(g.id)}">${esc(g.n)} (${BRL(g.saved)}/${BRL(g.target)})</option>`).join('')}<option value="__inv_cash">Caixa de Investimentos (para próximo aporte)</option></select></label><button class="pill dark">Destinar sobra</button></form>`;
- return `<h2>Fechamento de ${mn}</h2>${body}`;
+ return `<h2>Fechamento de ${mn}</h2>${closingReview(m,realized)}${body}`;
 }
 function merchantsPanel(){
  const F=finInit(),per=S.fmm==='y'?'y':'m',pix=!!S.fmpix;
@@ -844,8 +1084,8 @@ function cashFlow(o){
  F.tx.forEach(t=>{if(t.d<=T||t.d>endD)return;const v=cashDelta(t,set);if(v)push(t.d,t.t,v,v>0?'in':'out')});
  for(let i=0;i<=Math.ceil(H/28)+1;i++){
   const m0=new Date(today.getFullYear(),today.getMonth()+i,1),y=m0.getFullYear(),mo=m0.getMonth(),p=ds(m0).slice(0,7),N=dimOf(y,mo);
-  F.rec.forEach(r=>{const ac=r.ac||F.acc[0].id;if(!set.has(ac))return;const dd=Math.min(+r.day||1,N),d=ds(new Date(y,mo,dd)),id='r_'+r.id+'_'+p;if(d>T&&(r.ini||T)<=d&&(!r.end||d<=r.end)&&!F.tx.some(t=>t.id===id)&&!(r.skip||[]).includes(id))push(d,r.t,r.k==='in'?r.v:-r.v,r.k==='in'?'in':'out')});
-  F.bills.forEach(b=>{if(fac&&b.ac!==fac)return;const d=ds(new Date(y,mo,Math.min(+b.day||1,N)));if(b.rec&&F.rec.some(r=>r.id===b.rec))return;push(d,b.n,-b.v,'bill')})}
+  F.rec.forEach(r=>{const ac=r.ac||F.acc[0].id;if(!set.has(ac))return;const dd=Math.min(+r.day||1,N),d=ds(new Date(y,mo,dd)),id='r_'+r.id+'_'+p;if(d>T&&recurringAllowed(r,d)&&!F.tx.some(t=>t.id===id))push(d,r.t,r.k==='in'?r.v:-r.v,r.k==='in'?'in':'out')});
+  F.bills.forEach(b=>{if(fac&&b.ac!==fac)return;const d=ds(new Date(y,mo,Math.min(+b.day||1,N)));if(!billInRange(b,d)||(b.rec&&F.rec.some(r=>r.id===b.rec)))return;push(d,b.n,-b.v,'bill')})}
  if(!fac)F.acc.filter(a=>a.ty==='card').forEach(a=>[-1,0,1,2,3].forEach(off=>{const iv=invoice(a,off);if(iv.due>T&&iv.due<=endD&&iv.left>0)push(iv.due,'Fatura '+a.n,-iv.left,'card')}));
  let vs=0;const from=ds(add(today,-60));F.tx.forEach(t=>{const a=F.acc.find(x=>x.id===accId(t));if(t.k==='out'&&!t.rc&&!t.pc&&a&&a.ty!=='card'&&t.d>from&&t.d<=T&&(!fac||accId(t)===fac))vs+=t.v});
  const avg=o.vary?vs/60:0,by={};evs.forEach(e=>(by[e.d]=by[e.d]||[]).push(e));
@@ -855,7 +1095,7 @@ function cashFlow(o){
 function nextIncomePanel(){
  const F=finInit(),a=F.acc.find(x=>x.id===F.primary&&x.ty!=='card'),head='<div class="panel c2"><h2>Até o próximo recebimento</h2>';
  if(!a)return head+'<p>Escolha uma conta principal em Contas e recorrentes para ver a previsão.</p></div>';
- const recurring=F.rec.filter(r=>r.k==='in'&&(r.ac||F.acc[0].id)===a.id).flatMap(r=>[...Array(13)].map((_,i)=>{const m=new Date(today.getFullYear(),today.getMonth()+i,1),d=ds(new Date(m.getFullYear(),m.getMonth(),Math.min(+r.day||1,dimOf(m.getFullYear(),m.getMonth())))),id='r_'+r.id+'_'+d.slice(0,7);return d>T&&(r.ini||T)<=d&&(!r.end||d<=r.end)&&!F.tx.some(t=>t.id===id)&&!(r.skip||[]).includes(id)?{d}:null}).filter(Boolean));
+ const recurring=F.rec.filter(r=>r.k==='in'&&(r.ac||F.acc[0].id)===a.id).flatMap(r=>[...Array(13)].map((_,i)=>{const m=new Date(today.getFullYear(),today.getMonth()+i,1),d=ds(new Date(m.getFullYear(),m.getMonth(),Math.min(+r.day||1,dimOf(m.getFullYear(),m.getMonth())))),id='r_'+r.id+'_'+d.slice(0,7);return d>T&&recurringAllowed(r,d)&&!F.tx.some(t=>t.id===id)?{d}:null}).filter(Boolean));
  const next=[...F.tx.filter(t=>t.k==='in'&&t.d>T&&accId(t)===a.id),...recurring].sort((x,y)=>x.d.localeCompare(y.d))[0];
  if(!next)return head+`<p>Nenhuma receita futura cadastrada em ${esc(a.n)}.</p></div>`;
  const days=Math.round((new Date(next.d+'T12:00')-new Date(T+'T12:00'))/864e5);if(days>366)return head+'<p>A próxima receita está a mais de 366 dias; a previsão não está disponível para esse intervalo.</p></div>';

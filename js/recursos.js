@@ -26,10 +26,10 @@ async function shoppingShare(id){const n=S.notes.find(x=>x.id===id&&x.kind==='sh
 /* vencimentos na tela Hoje */
 function dues(n,includePayments=false){
  const F=finInit(),out=[],end=ds(add(today,n)),push=(d,t,v,k,x)=>out.push({d,t,v,k,...(x||{})});
- F.bills.filter(b=>!b.rec||!F.rec.some(r=>r.id===b.rec)).forEach(b=>{for(let i=0;i<=n;i++){const d=add(today,i),dd=Math.min(+b.day||1,dimOf(d.getFullYear(),d.getMonth()));if(d.getDate()===dd)push(ds(d),b.n,b.v,'bill',{id:b.id,ac:b.ac,account:b.ac?accName(b.ac):'Conta não vinculada'})}});
+ F.bills.filter(b=>!b.rec||!F.rec.some(r=>r.id===b.rec)).forEach(b=>{for(let i=0;i<=n;i++){const d=add(today,i),dd=Math.min(+b.day||1,dimOf(d.getFullYear(),d.getMonth()));if(d.getDate()===dd&&billInRange(b,ds(d)))push(ds(d),b.n,b.v,'bill',{id:b.id,ac:b.ac,account:b.ac?accName(b.ac):'Conta não vinculada'})}});
  F.acc.filter(a=>a.ty==='card').forEach(a=>[-1,0,1].forEach(o=>{const iv=invoice(a,o);if(iv.left>0&&iv.due>=T&&iv.due<=end)push(iv.due,'Fatura '+a.n,iv.left,'card',{id:a.id,ac:a.id,o,account:'Conta de pagamento não vinculada'})}));
  F.tx.forEach(t=>{if(t.k==='tr'||t.d<=T||t.d>end)return;const a=F.acc.find(x=>x.id===accId(t));if(a&&a.ty==='card')return;push(t.d,t.t,t.v,t.k==='in'?'in':'sched',{txid:t.id,ac:accId(t),account:t.ac?accName(t.ac):'Conta não vinculada',subscription:t.k==='out'&&t.cat==='Assinaturas'&&!!t.rc,installment:t.pc?t.pc.i+'/'+t.pc.n:''})});
- F.rec.forEach(r=>{for(let i=1;i<=n;i++){const d=add(today,i),iso=ds(d),dd=Math.min(+r.day||1,dimOf(d.getFullYear(),d.getMonth())),id='r_'+r.id+'_'+iso.slice(0,7);if(d.getDate()===dd&&(r.ini||T)<=iso&&(!r.end||iso<=r.end)&&!F.tx.some(t=>t.id===id)&&!(r.skip||[]).includes(id))push(iso,r.t,r.v,r.k==='in'?'in':'sched',{rec:r.id,ac:r.ac||F.acc[0].id,account:r.ac?accName(r.ac):'Conta não vinculada',subscription:r.k==='out'&&r.cat==='Assinaturas'})}});
+ F.rec.forEach(r=>{for(let i=1;i<=n;i++){const d=add(today,i),iso=ds(d),dd=Math.min(+r.day||1,dimOf(d.getFullYear(),d.getMonth())),id='r_'+r.id+'_'+iso.slice(0,7);if(d.getDate()===dd&&recurringAllowed(r,iso)&&!F.tx.some(t=>t.id===id))push(iso,r.t,r.v,r.k==='in'?'in':'sched',{rec:r.id,ac:r.ac||F.acc[0].id,account:r.ac?accName(r.ac):'Conta não vinculada',subscription:r.k==='out'&&r.cat==='Assinaturas'})}});
  if(includePayments)F.tx.filter(t=>t.k==='tr'&&t.invoice&&t.d>T&&t.d<=end).forEach(t=>push(t.d,t.t,t.v,'payment',{txid:t.id,ac:accId(t),to:t.to,account:accName(accId(t))}));
  return out.sort((a,b)=>a.d.localeCompare(b.d))}
 function duesPanel(){
@@ -217,7 +217,7 @@ function shoppingReviewGroups(){
 }
 function financeReviewPanel(){
  const F=finInit(),accounts=new Set(F.acc.filter(a=>a.ty!=='card').map(a=>a.id));
- const bills=F.bills.filter(b=>!accounts.has(b.ac)&&(!b.rec||!F.rec.some(r=>r.id===b.rec)));
+ const bills=F.bills.filter(b=>billInRange(b,nextBillDate(b))&&!accounts.has(b.ac)&&(!b.rec||!F.rec.some(r=>r.id===b.rec)));
  const groups=shoppingReviewGroups();
  if(!bills.length&&!groups.length)return '';
  const billRows=bills.slice(0,pgN('frb',15)).map(b=>`<div class="item"><div class="t">${esc(b.n)}<small>Conta fixa sem conta de pagamento vinculada</small></div><button class="pill" data-a="att-open" data-kind="bill" data-id="${esc(b.id)}">Vincular conta</button></div>`).join('');

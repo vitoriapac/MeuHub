@@ -190,17 +190,39 @@ function prepCSV(txt,name){
  IMP={name:name||'extrato.csv',rows,hdr,df,inv,ac:ac0,isCard:isCardAcc,skipCardPay:isCardAcc,meta,setIni:!!(meta&&Number.isFinite(meta.ini)&&!hasTx&&!(accObj&&accObj.ini)),reconcile:false,genInst:true,clean:false,skipRes:false,trRes:false,saveRules:true,cats:{},include:[],map:{d:dCol,t:tCol,v:vCol,ref:refCol}};
  return true;
 }
+function hasStatementKey(tx,key){
+ return tx.statementKey===key||(tx.statementRefs||[]).some(ref=>ref.id===key);
+}
+function statementCandidates(item,account,transactions,card){
+ const label=t=>norm(cleanDesc(t)).replace(/\b(?:parcela\s*)?\d+\s*\/\s*\d+\b/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+ const days=d=>Math.abs(Date.parse(d)-Date.parse(item.d))/86400000;
+ const name=label(item.rawT),matches=[];
+ for(const tx of transactions){
+  const payment=item.isCardPay&&tx.k==='tr'&&tx.invoice&&(card?tx.to===account:accId(tx)===account);
+  if(!tx.id||Math.abs(tx.v-item.v)>=.005||(!payment&&(tx.statementKey||(item.ref&&tx.ref&&item.ref!==tx.ref))))continue;
+  if(payment&&[tx.statementKey,...(tx.statementRefs||[]).map(ref=>ref.id)].some(key=>key?.startsWith(JSON.stringify([account]).slice(0,-1)+',')))continue;
+  if(!payment&&(tx.k!==item.k||accId(tx)!==account||item.onlyAssociate||(tx.imp&&!tx.pc)))continue;
+  if(item.pc&&tx.pc&&(item.pc.i!==tx.pc.i||item.pc.n!==tx.pc.n))continue;
+  const gap=days(tx.d),other=label(tx.t),description=!!(name&&other&&(name===other||(Math.min(name.length,other.length)>=6&&(name.includes(other)||other.includes(name)))));
+  if(gap===0||(gap<=3&&(description||payment)))matches.push({tx,score:(payment?8:0)+(description?4:0)+(gap===0?2:0)-gap/10});
+ }
+ return matches.sort((a,b)=>b.score-a.score).map(m=>m.tx);
+}
 function statementReview(r){
  const choice=IMP.review?.[r.index];
- const options=r.matches.map(tx=>`<option value="tx:${esc(tx.id)}" ${choice==='tx:'+tx.id?'selected':''}>Associar a ${esc(tx.t)}${tx.shopping?' (compra de lista)':tx.rc||tx.id.startsWith('r_')?' (conta recorrente)':''}</option>`).join('');
+ const options=r.matches.map(tx=>`<option value="tx:${esc(tx.id)}" ${choice==='tx:'+tx.id?'selected':''}>Associar a ${esc(tx.t)} · ${datePt(tx.d)}${tx.invoice?' (pagamento de fatura)':tx.pc?' (parcela '+tx.pc.i+'/'+tx.pc.n+')':tx.shopping?' (compra de lista)':tx.rc||tx.id.startsWith('r_')?' (conta recorrente)':''}</option>`).join('');
  if(!options&&!r.uncertain&&!choice)return '';
- return `<label class="lb">${options?'Mesmo valor, data e conta':'Categoria a conferir'}
+ const candidate=r.matches.find(t=>'tx:'+t.id===choice)||r.matches[0];
+ return `<label class="lb">${options?'Conciliar com lançamento existente':'Categoria a conferir'}
  <select class="in" data-imp-review="${r.index}" aria-label="Conferência de ${esc(r.t)}">
- <option value="">${r.dup?'Usar decisão de duplicata':'Importar como novo'}</option>
- <option value="skip" ${choice==='skip'?'selected':''}>Ignorar linha</option>${options}</select></label>`;
+ <option value="">${r.onlyAssociate?'Ignorar pagamento':r.hold?'Aguardar conferência':r.dup?'Usar decisão de duplicata':'Importar como novo'}</option>
+ ${r.hold&&!r.onlyAssociate?`<option value="new" ${choice==='new'?'selected':''}>Importar como lançamento distinto</option>`:''}
+ <option value="skip" ${choice==='skip'?'selected':''}>Ignorar linha</option>${options}</select></label>
+ ${candidate?`<dl class="imp-compare"><div><dt>Extrato</dt><dd>${esc(r.rawT)} · ${datePt(r.d)} · ${BRL(r.v)}</dd></div><div><dt>Meu Hub</dt><dd>${esc(candidate.t)} · ${datePt(candidate.d)} · ${BRL(candidate.v)} · ${esc(accName(accId(candidate)))}</dd></div></dl>`:''}`;
 }
 function statementImports(row){
- return !IMP.review?.[row.index]&&(!row.dup||(IMP.include||[]).includes(row.index));
+ const choice=IMP.review?.[row.index],include=(IMP.include||[]).includes(row.index);
+ return !row.onlyAssociate&&(choice==='new'||(!choice&&(!row.dup&&!row.hold||include)));
 }
 function impPanel(){
  if(!IMP)return `<p class="empty" style="padding:0 0 var(--space-2)">Importe o extrato do banco ou da fatura em CSV ou OFX. O hub reconhece cabeçalhos de resumo (como Mercado Pago), arquivos OFX e faturas de cartão, identifica colunas automaticamente e categoriza os lançamentos.</p><div class="bar"><label class="pill dark" style="cursor:pointer;display:inline-block">Escolher arquivo CSV ou OFX<input type="file" id="csvf" accept=".csv,.ofx,.txt,text/csv,application/x-ofx,text/plain" class="hide"></label></div><details style="margin-top:var(--space-2)"><summary class="pill" style="display:inline-block;cursor:pointer">Ou colar texto do extrato</summary><form id="fcsvpaste" style="margin-top:var(--space-2)"><label class="lb">Cole o conteúdo CSV ou OFX do extrato<textarea class="in ta" name="csv" rows="6" placeholder="INITIAL_BALANCE;CREDITS;DEBITS;FINAL_BALANCE&#10;..." required></textarea></label><div class="bar"><button class="pill dark">Carregar extrato</button></div></form></details>`;
@@ -244,7 +266,7 @@ function impRows(){
   if(I.skipRes&&isRes)return;
   const isCardPay=isCardPayDesc(rawT);
   if(isCardPay)cardPayTotal++;
-  if(cardMode&&I.skipCardPay&&isCardPay)return;
+  const onlyAssociate=cardMode&&I.skipCardPay&&isCardPay;
   const t=I.clean?cleanDesc(rawT):rawT;
   const exp=I.inv?n>0:n<0,v=Math.abs(n),k=exp?'out':'in';
   const resTr=!!(isRes&&I.trRes),resDir=exp?'out':'in';
@@ -255,7 +277,7 @@ function impRows(){
   const H=(!resTr&&!R&&!ov)?(histCat(t,k)||histCat(rawT,k)):null;
   const cat=resTr?'Transferência':k==='out'?(ov||(R&&R.cat)||(H&&H.cat)||dictCat(rawT)):'Receita';
   const sub=resTr?(resDir==='out'?'Reserva':'Resgate de reserva'):((!ov||!R||R.cat===ov?(R&&R.sub):'')||(H&&H.sub)||dictSub(rawT,k,cat)||'');
-  parsed.push({index,d,t,rawT,k,v,cat,uncertain:!resTr&&k==='out'&&!ov&&!R&&!H&&cat==='Outros',sub,tg:(R&&R.tg)||(H&&H.tg)||'',pj:(R&&R.pj)||(H&&H.pj)||'',ref,resTr,resDir,pc});
+  parsed.push({index,d,t,rawT,k,v,cat,uncertain:!resTr&&k==='out'&&!ov&&!R&&!H&&cat==='Outros',sub,tg:(R&&R.tg)||(H&&H.tg)||'',pj:(R&&R.pj)||(H&&H.pj)||'',ref,resTr,resDir,pc,isCardPay,onlyAssociate});
  });
  const outPool=[...parsed.filter(x=>x.k==='out'&&!x.resTr).map(x=>({t:x.rawT,v:x.v,cat:x.cat,ref:x.ref})),...F.tx.filter(x=>x.k==='out').map(x=>({t:x.t,v:x.v,cat:x.cat,ref:x.ref||''}))];
  parsed.forEach(item=>{
@@ -275,10 +297,12 @@ function impRows(){
   }
   const key=JSON.stringify(item.ref?[item.k,item.d,item.v,norm(item.rawT),item.ref]:[item.k,item.d,item.v,norm(item.t)]);
   const statementKey=JSON.stringify([I.ac,item.k,item.ref||key]);
-  const matches=item.resTr?[]:F.tx.filter(x=>x.id&&!x.statementKey&&!x.imp&&x.k===item.k&&x.d===item.d&&Math.abs(x.v-item.v)<.005&&accId(x)===I.ac&&(!item.ref||!x.ref||x.ref===item.ref));
-  const dup=seen.has(key)||F.tx.some(x=>x.statementKey===statementKey)||F.tx.some(x=>((x.k===item.k)||(item.resTr&&x.k==='tr'))&&x.d===item.d&&Math.abs(x.v-item.v)<.005&&(accId(x)===I.ac||(item.resTr&&x.k==='tr'&&x.to===I.ac))&&(item.ref&&x.ref?x.ref===item.ref:(norm(x.t)===norm(item.t)||norm(x.t)===norm(item.rawT))));
+  const matches=item.resTr?[]:statementCandidates(item,I.ac,F.tx,accIsCard);
+  const dup=seen.has(key)||F.tx.some(x=>hasStatementKey(x,statementKey))||F.tx.some(x=>((x.k===item.k)||(item.resTr&&x.k==='tr'))&&x.d===item.d&&Math.abs(x.v-item.v)<.005&&(accId(x)===I.ac||(item.resTr&&x.k==='tr'&&x.to===I.ac))&&(item.ref&&x.ref?x.ref===item.ref:(norm(x.t)===norm(item.t)||norm(x.t)===norm(item.rawT))));
+  if(item.onlyAssociate&&!matches.length)return;
   seen.add(key);
-  out.push({...item,rb,rcat,dup,matches,statementKey});
+  const hold=matches.some(x=>x.pc||x.rc||x.invoice||x.d!==item.d);
+  out.push({...item,rb,rcat,dup,matches,hold,statementKey});
  });
  return{rows:out,bad,resTotal,cardPayTotal,instCount,instRem};
 }

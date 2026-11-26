@@ -371,6 +371,7 @@ const CLICK_ACTIONS={
  fcv:()=>{S.fcv=S.fcv===false},
  fyo:(id)=>{S.fyo=id},
  fvw:(id)=>{if(id==='ano'&&S.fvw!=='ano')S.fay=S.fac;S.fvw=id;saveUI()},
+ 'closing-pending':()=>{S.ftab='lanc';S.fkd='';S.fcat='';FQ='';FTAG='';ANALYSIS_CUT=T;FRECON='pending';saveUI()},
  ftab:(id)=>{S.ftab=id;S.fvw='mes';saveUI();TXBULKDEL=false;clearTimeout(TXBULKT)},
  sgo:(id,b)=>{S.view=b.dataset.view;if(b.dataset.tab){S.ftab=b.dataset.tab;if(S.view==='financas')S.fvw='mes'}if(b.dataset.fmo!==undefined){S.fmo=+b.dataset.fmo;S.fvw='mes'}if(b.dataset.ddo!==undefined)S.ddo=Math.min(0,+b.dataset.ddo);saveUI();Q='';$('#q').value=''},
  fwm:(id)=>{S.fwm=id},
@@ -411,13 +412,18 @@ const CLICK_ACTIONS={
   for(const [index,choice] of Object.entries(IMP.review||{})){
    if(!choice.startsWith('tx:'))continue;
    const row=R.find(r=>r.index===+index),tx=row?.matches.find(x=>'tx:'+x.id===choice);
-   if(!tx||selected.has(tx.id)||keys.has(row.statementKey)||F.tx.some(x=>x.statementKey===row.statementKey)){
+   if(!tx||selected.has(tx.id)||keys.has(row.statementKey)||F.tx.some(x=>hasStatementKey(x,row.statementKey))){
     toast('Confira as associações. Use cada lançamento e cada linha do extrato uma vez.');
     return 'stop';
    }
    selected.add(tx.id);keys.add(row.statementKey);links.push({row,tx});
   }
-  for(const {row,tx} of links)tx.statementKey=row.statementKey;
+  for(const {row,tx} of links){
+   if(tx.statementKey)(tx.statementRefs||(tx.statementRefs=[])).push({id:row.statementKey,d:row.d});
+   else{tx.statementKey=row.statementKey;tx.statementDate=row.d}
+   tx.checked=true;
+   if(tx.d>T&&row.d<=T)tx.d=row.d;
+  }
   if(IMP.setIni&&IMP.meta&&Number.isFinite(IMP.meta.ini)){
    const acc=F.acc.find(a=>a.id===IMP.ac);
    if(acc)acc.ini=Math.round(IMP.meta.ini*100)/100;
@@ -469,7 +475,7 @@ const CLICK_ACTIONS={
  },
  impcancel:()=>{IMP=null},
  fmn:(id,b)=>{ANALYSIS_CUT='';S.fmo=b.dataset.n==='0'?0:S.fmo+ +b.dataset.n;saveUI();TXBULKDEL=false;clearTimeout(TXBULKT)},
- deltx:(id)=>{const t=S.fin.tx.find(x=>x.id===id);if(t)auditLog('txDelete');if(t&&t.rc){const r=S.fin.rec.find(x=>x.id===t.rc);if(r)(r.skip=r.skip||[]).push(t.id)}S.fin.tx=S.fin.tx.filter(x=>x.id!==id)},
+ deltx:(id)=>{const t=S.fin.tx.find(x=>x.id===id);if(t)auditLog('txDelete');if(t&&t.rc){const r=S.fin.rec.find(x=>x.id===t.rc);if(r){r.skip=[...new Set([...(r.skip||[]),t.id])];recReminderUpdate(r)}}S.fin.tx=S.fin.tx.filter(x=>x.id!==id)},
  delbud:(id)=>{setBudget(id,ds(new Date(today.getFullYear(),today.getMonth()+S.fmo,1)).slice(0,7),null)},
  delbill:(id)=>{const bl=S.fin.bills.find(x=>x.id===id);if(bl)S.events=S.events.filter(ev=>ev.id!==bl.eid);S.fin.bills=S.fin.bills.filter(x=>x.id!==id)},
  delgoal:(id)=>{S.fin.goals=S.fin.goals.filter(x=>x.id!==id)},
@@ -796,6 +802,10 @@ const SUBMIT_BY_ID={
  },
  'project-create':submitProjectForm,
  ffin:(f,v)=>finSubmit(v),
+ 'fin-installment':(f,v)=>{
+  if(!v.t.trim()||!finInit().acc.some(a=>a.id===v.ac)||!installmentPlan(v).length){toast('Confira a descrição, a conta, a data e o valor das parcelas');return 'stop'}
+  finSubmit({...v,k:'out',parseDate:false});f.closest('details').open=false;
+ },
  ftxbulk:(f,v)=>{if(v.cat==='Reserva'){reviewReserveBatch(f,v);return 'stop'}return txBulkApply(v)},
  facc:(f,v)=>{const F=finInit();F.acc.push({id:uid(),n:v.n.trim(),ty:v.ty,ini:num(v.ini)||0,lim:+v.lim||0,close:+v.close||0,due:+v.due||0});toast('Conta adicionada')},
  frec:(f,v)=>{
@@ -803,10 +813,13 @@ const SUBMIT_BY_ID={
   const F=finInit(),x=num(v.v),day=Math.min(31,Math.max(1,+v.day||1));
   if(x>0){
    const er=RED?F.rec.find(r=>r.id===RED):null,cat=v.k==='in'?'Receita':(v.cat||ruleCat(v.t));
+   if(!er&&v.end&&v.end<nextFixedDate(day)){toast('A data de término deve incluir o primeiro vencimento');return 'stop'}
    if(er){
-    Object.assign(er,{k:v.k,t:v.t.trim(),v:x,cat,ac:v.ac,day,end:v.end||''});
+    const fields={k:v.k,t:v.t.trim(),v:x,cat,ac:v.ac,day};
+    const scheduleChanged=Object.entries(fields).some(([key,value])=>er[key]!==value);
+    Object.assign(er,fields,{end:v.end||''});
     const tid='r_'+er.id+'_'+T.slice(0,7),tx0=F.tx.find(t=>t.id===tid);
-    if(tx0)Object.assign(tx0,{k:er.k,t:er.t,v:er.v,cat:er.cat,ac:er.ac,d:ds(new Date(today.getFullYear(),today.getMonth(),Math.min(day,dimOf(today.getFullYear(),today.getMonth()))))});
+    if(tx0&&scheduleChanged&&(!er.end||tx0.d<=er.end))Object.assign(tx0,{k:er.k,t:er.t,v:er.v,cat:er.cat,ac:er.ac,d:ds(new Date(today.getFullYear(),today.getMonth(),Math.min(day,dimOf(today.getFullYear(),today.getMonth()))))});
     recReminderUpdate(er);RED=null;toast('Recorrência atualizada');
    }else{
     const r={id:uid(),k:v.k,t:v.t.trim(),v:x,cat,ac:v.ac,day,ini:T,end:v.end||''};F.rec.push(r);
@@ -826,18 +839,18 @@ const SUBMIT_BY_ID={
   const x=num(v.v),dy=Math.min(31,Math.max(1,+v.day||1));
   if(x>0){
    const eb=BED?S.fin.bills.find(b=>b.id===BED):null;
+   if(!eb&&v.end&&v.end<nextFixedDate(dy)){toast('A data de término deve incluir o primeiro vencimento');return 'stop'}
    if(eb){
-    Object.assign(eb,{n:v.n.trim(),v:x,day:dy});if(!eb.rec)eb.ac=v.ac||'';
+    Object.assign(eb,{n:v.n.trim(),v:x,day:dy});if(!eb.rec){eb.ac=v.ac||'';eb.end=v.end||''}
     const rr=eb.rec&&S.fin.rec.find(r=>r.id===eb.rec);
     if(rr){Object.assign(rr,{t:eb.n,v:x,day:dy});recReminderUpdate(rr);const tx=S.fin.tx.find(t=>t.id==='r_'+rr.id+'_'+T.slice(0,7));if(tx)Object.assign(tx,{t:rr.t,v:rr.v,d:ds(new Date(today.getFullYear(),today.getMonth(),Math.min(dy,dimOf(today.getFullYear(),today.getMonth()))))})}
     const ev=eb.eid&&S.events.find(e=>e.id===eb.eid);
-    if(ev){const y=+ev.d.slice(0,4),m=+ev.d.slice(5,7)-1;ev.t='Conta: '+eb.n+' ('+BRL(x)+')';ev.d=ds(new Date(y,m,Math.min(dy,dimOf(y,m))))}
+    if(ev){const y=+ev.d.slice(0,4),m=+ev.d.slice(5,7)-1;ev.t='Conta: '+eb.n+' ('+BRL(x)+')';ev.billDay=dy;ev.until=rr?.end||eb.end||'';ev.d=eb.ini?nextFixedDate(dy,eb.ini):ds(new Date(y,m,Math.min(dy,dimOf(y,m))))}
     BED=null;toast('Conta fixa atualizada');
    }else{
-    let y=today.getFullYear(),m=today.getMonth();if(dy<today.getDate())m++;
-    const dt=new Date(y,m,Math.min(dy,new Date(y,m+1,0).getDate())),eid=uid();
-    S.events.push({id:eid,t:'Conta: '+v.n.trim()+' ('+BRL(x)+')',d:ds(dt),h:'09:00',e:'',r:'m',rm:'',c:'p'});
-    S.fin.bills.push({id:uid(),n:v.n.trim(),v:x,day:dy,eid,ac:v.ac||''});toast('Conta adicionada e lembrada na agenda todo mês');
+    const ini=nextFixedDate(dy),eid=uid(),end=v.end||'';
+    S.events.push({id:eid,t:'Conta: '+v.n.trim()+' ('+BRL(x)+')',d:ini,h:'09:00',e:'',r:'m',rm:'',c:'p',billDay:dy,until:end});
+    S.fin.bills.push({id:uid(),n:v.n.trim(),v:x,day:dy,eid,ac:v.ac||'',ini,end});toast('Conta adicionada e lembrada na agenda todo mês');
    }
   }
  },
@@ -891,6 +904,27 @@ const SUBMIT_BY_ID={
  }
 };
 const SUBMIT_BY_DATA=[
+ ['partAdjust',(f,v)=>{
+  const t=finInit().tx.find(x=>x.id===f.dataset.partAdjust&&x.pc),amount=r2(num(v.v));
+  if(!t||!editableInstallment(t)||!Number.isFinite(amount)||amount<=0||!v.d||v.d<T){toast('Confira o valor e a nova data da parcela');return 'stop'}
+  Object.assign(t,{v:amount,d:v.d});toast('Parcela ajustada');
+ }],
+ ['partRefund',(f,v)=>{
+  const F=finInit(),t=F.tx.find(x=>x.id===f.dataset.partRefund&&x.pc&&x.k==='out'),amount=r2(num(v.v));
+  if(!t||!v.d||v.d<t.d||v.d>T||!Number.isFinite(amount)||amount<=0||amount>refundAvailable(t)){toast('Confira a data e o saldo disponível para estorno');return 'stop'}
+  F.tx.unshift({id:uid(),k:'in',t:'Estorno: '+t.t,v:amount,cat:'Receita',sub:'Reembolso',rb:1,rcat:t.cat||'Outros',d:v.d,ac:accId(t),refundOf:t.id});
+  toast('Estorno registrado');
+ }],
+ ['partCancel',(f)=>{
+  const F=finInit(),group=f.dataset.partCancel,ids=new Set(new FormData(f).getAll('part'));
+  if(!ids.size||F.tx.filter(t=>ids.has(t.id)&&t.pc?.g===group&&editableInstallment(t)).length!==ids.size){toast('As parcelas mudaram. Confira novamente.');return 'stop'}
+  F.tx=F.tx.filter(t=>!ids.has(t.id));toast('Parcelas futuras canceladas');
+ }],
+ ['recSchedule',(f,v)=>{
+  const r=finInit().rec.find(x=>x.id===f.dataset.recSchedule),change=r&&recurringChange(r,v);
+  if(!change){toast('Confira a alteração da recorrência');return 'stop'}
+  Object.assign(r,change);recReminderUpdate(r);toast('Agenda e próximas cobranças atualizadas');
+ }],
  ['rdQuote',(f,v)=>{
   const r=(S.reads||[]).find(x=>x.id===f.dataset.rdQuote),text=(v.text||'').trim(),ref=(v.ref||'').trim();
   if(!r||!text){toast('Informe a citação');return 'stop'}

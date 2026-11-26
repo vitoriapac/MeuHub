@@ -457,6 +457,103 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
         assert.match(r.message,/Sem saldo inicial ou movimentações/);assert.ok(r.order);assert.equal(r.overflow,0);
       }finally{await b.send('Emulation.clearDeviceMetricsOverride')}
     }],
+    ['contas fixas respeitam o término na agenda, lista e projeção', async () => {
+      await fresh(); await login('A');
+      const result=await ev(`(()=>{
+        today=new Date(2026,0,29,12);T=ds(today);const F=finInit();S.view='financas';S.ftab='contas';render();
+        $('#fin-bill-form').open=true;const form=$('#fbill');
+        for(const [k,v] of Object.entries({n:'Contrato',v:'45',day:31,end:'2026-02-28',ac:F.acc[0].id})){if(form.elements[k])form.elements[k].value=v}
+        form.requestSubmit();const bill=F.bills[0],event=S.events.find(e=>e.id===bill.eid);
+        return {end:bill.end,agenda:[hit(event,'2026-02-28'),hit(event,'2026-03-31')],due:dues(90).filter(d=>d.id===bill.id).map(d=>d.d),cash:cashFlow({days:90}).evs.filter(d=>d.t==='Contrato').map(d=>d.d)};
+      })()`);
+      assert.deepEqual(result,{end:'2026-02-28',agenda:[true,false],due:['2026-01-31','2026-02-28'],cash:['2026-01-31','2026-02-28']});
+    }],
+    ['editar apenas o término da recorrência preserva lançamentos e limita o lembrete', async () => {
+      await fresh(); await login('A');
+      const result=await ev(`(()=>{
+        today=new Date(2026,0,29,12);T=ds(today);const F=finInit();
+        F.rec=[{id:'rec',k:'out',t:'Assinatura',v:30,cat:'Assinaturas',ac:F.acc[0].id,day:15,ini:'2026-01-01'}];
+        F.tx=[{id:'r_rec_2026-01',t:'Assinatura conferida',k:'out',v:29,d:'2026-01-15',cat:'Assinaturas',ac:F.acc[0].id,rc:'rec',checked:true}];
+        recReminder(F.rec[0]);S.view='financas';S.ftab='contas';render();
+        $('[data-a=edrec][data-id=rec]').click();const form=$('#frec');
+        form.elements.end.value='2026-02-20';form.requestSubmit();
+        const reminder=S.events.find(e=>e.id===F.bills[0].eid);
+        return {preserved:F.tx[0].t,checked:F.tx[0].checked,value:F.tx[0].v,billEnd:F.bills[0].end,
+          dates:dues(90).filter(d=>d.rec==='rec').map(d=>d.d),agenda:[hit(reminder,'2026-02-15'),hit(reminder,'2026-03-15')]};
+      })()`);
+      assert.deepEqual(result,{preserved:'Assinatura conferida',checked:true,value:29,billEnd:'2026-02-20',dates:['2026-02-15'],agenda:[true,false]});
+    }],
+    ['parcelar despesa em Contas mostra prévia e gera um grupo no extrato', async () => {
+      await fresh(); await login('A');
+      const result=await ev(`(()=>{
+        today=new Date(2026,0,29,12);T=ds(today);const F=finInit();S.view='financas';S.ftab='contas';render();
+        const shortcut=$('[data-id=fin-installment-form]');if(!shortcut)return null;shortcut.click();
+        const form=$('#fin-installment-form form');
+        for(const [k,v] of Object.entries({t:'Compra dividida',v:'100',d:'2026-01-31',pc:3,ac:F.acc[0].id}))form.elements[k].value=v;
+        form.elements.pc.dispatchEvent(new Event('input',{bubbles:true}));
+        const preview=form.querySelector('output').textContent;
+        form.requestSubmit();
+        const rows=F.tx.filter(t=>t.t==='Compra dividida').sort((a,b)=>a.pc.i-b.pc.i);
+        return {preview,dates:rows.map(t=>t.d),values:rows.map(t=>t.v),groups:new Set(rows.map(t=>t.pc.g)).size,listed:$('#main').textContent.includes('0 de 3 parcelas registradas')};
+      })()`);
+      assert.ok(result);assert.match(result.preview,/33,34/);assert.deepEqual(result.dates,['2026-01-31','2026-02-28','2026-03-31']);
+      assert.deepEqual(result.values,[33.33,33.33,33.34]);assert.equal(result.groups,1);assert.ok(result.listed);
+    }],
+    ['Finanças gerencia parcelas e pausa recorrência sem apagar o histórico', async () => {
+      await fresh();await login('A');
+      const result=await ev(`(()=>{
+        today=new Date(2026,0,12,12);T=ds(today);const F=finInit();
+        const ac=F.acc[0].id,card={id:'card',n:'Cartão',ty:'card',close:10,due:20};F.acc.push(card);
+        F.rec=[{id:'rec',k:'out',t:'Internet',v:70,cat:'Serviços',ac,day:20,ini:'2025-12-01'}];
+        F.tx=[{id:'old',t:'Compra',k:'out',v:40,d:'2026-01-02',cat:'Compras',ac:'card',pc:{g:'buy',i:1,n:3}},{id:'next',t:'Compra',k:'out',v:40,d:'2026-02-02',cat:'Compras',ac:'card',pc:{g:'buy',i:2,n:3}},{id:'last',t:'Compra',k:'out',v:40,d:'2026-03-02',cat:'Compras',ac:'card',pc:{g:'buy',i:3,n:3}},{id:'paid',t:'Pagamento',k:'tr',v:40,d:'2026-01-11',ac,to:'card',invoice:'2026-01-10'}];
+        recReminder(F.rec[0]);S.view='financas';S.ftab='contas';render();
+        const submit=(sel,values)=>{const form=$(sel);for(const [key,value] of Object.entries(values)){form.elements[key].value=value;form.elements[key].dispatchEvent(new Event('input',{bubbles:true}))}form.requestSubmit()};
+        submit('[data-rec-schedule=rec]',{action:'skip'});
+        submit('[data-rec-schedule=rec]',{action:'pause',until:'2026-02-24'});
+        const r=F.rec[0],reminder=S.events.find(e=>e.finRec==='rec'),next=nextRecurringDate(r),dates=dues(90).filter(x=>x.rec==='rec').map(x=>x.d);
+        const agenda=[hit(reminder,'2026-01-20'),hit(reminder,'2026-02-20'),hit(reminder,'2026-03-20')];
+        submit('[data-part-adjust=next]',{v:'45',d:'2026-02-03'});
+        submit('[data-part-refund=old]',{v:'15',d:'2026-01-05'});
+        const amount=invoice(card,1).tot,old=F.tx.find(t=>t.id==='old').v;
+        const cancel=$('[data-part-cancel=buy]');cancel.querySelector('[type=checkbox]').checked=true;cancel.requestSubmit();
+        return {next,dates,agenda,amount,old,future:F.tx.filter(t=>t.pc?.g==='buy'&&t.d>T).length,refund:F.tx.find(t=>t.refundOf==='old')?.v};
+      })()`);
+      assert.deepEqual(result,{next:'2026-03-20',dates:['2026-03-20'],agenda:[false,false,true],amount:30,old:40,future:0,refund:15});
+    }],
+    ['Finanças concilia parcela deslocada e pagamento de fatura sem criar novos registros', async () => {
+      await fresh();await login('A');
+      const result=await ev(`(()=>{
+        today=new Date(2026,0,12,12);T=ds(today);const F=finInit();const ac=F.acc[0].id;F.acc.push({id:'card',n:'Cartão',ty:'card'});
+        F.tx=[{id:'part',t:'Curso de idiomas',k:'out',v:40,d:'2026-01-03',cat:'Educação',ac:'card',pc:{g:'g',i:1,n:3}},{id:'payment',t:'Pagamento da fatura',k:'tr',v:100,d:'2026-01-10',ac,to:'card',invoice:'2025-12-28'}];
+        S.view='financas';S.ftab='regras';S.fac='card';
+        const csv=['Data;Descrição;Valor','04/01/2026;Curso de idiomas Parcela 01/03;-40','10/01/2026;Pagamento da fatura;100'].join(String.fromCharCode(10));
+        prepCSV(csv,'fatura.csv');render();
+        const rows=impRows().rows,held=rows.every(row=>!statementImports(row)),compare=document.querySelectorAll('.imp-compare').length;
+        IMP.review=Object.fromEntries(rows.map(row=>[row.index,'tx:'+row.matches[0]?.id]));render();$('[data-a=impgo]').click();
+        const stored=F.tx.map(t=>[t.id,t.checked,t.statementDate]);
+        prepCSV(csv,'fatura.csv');const replay=impRows().rows.filter(statementImports).length;
+        S.fac=ac;const bank=['Data;Descrição;Valor','10/01/2026;Pagamento da fatura;-100'].join(String.fromCharCode(10));
+        prepCSV(bank,'conta.csv');const debit=impRows().rows[0];
+        IMP.review={[debit.index]:'tx:payment'};render();$('[data-a=impgo]').click();
+        prepCSV(bank,'conta.csv');const secondReplay=impRows().rows.filter(statementImports).length;
+        return {held,compare,stored,replay,secondReplay,refs:F.tx.find(t=>t.id==='payment').statementRefs.length,total:F.tx.length};
+      })()`);
+      assert.deepEqual(result,{held:true,compare:2,stored:[['part',true,'2026-01-04'],['payment',true,'2026-01-10']],replay:0,secondReplay:0,refs:1,total:2});
+    }],
+    ['Finanças separa compromissos previstos, orçamento realizado e revisão do mês', async () => {
+      await fresh();await login('A');
+      const result=await ev(`(()=>{
+        today=new Date(2026,0,12,12);T=ds(today);const F=finInit(),ac=F.acc[0].id;
+        F.tx=[{id:'a',k:'out',t:'Mercado',v:50,cat:'Alimentação',ac,d:T},{id:'b',k:'out',t:'Mercado',v:50,cat:'Alimentação',ac,d:T},{id:'r',k:'out',t:'Aporte',v:30,cat:'Reserva',ac,d:T},{id:'f',k:'out',t:'Compra prevista',v:25,cat:'Alimentação',ac,d:'2026-01-22'}];
+        F.rec=[{id:'rec',k:'out',t:'Feira',v:20,cat:'Alimentação',ac,day:25,ini:T}];
+        F.bills=[{id:'bill',n:'Internet',v:15,day:28}];setBudget('Alimentação','2026-01',200);
+        S.view='financas';S.ftab='geral';render();const overview=$('#finance-commitments').textContent;
+        S.ftab='orc';render();const budget=$('.gg').textContent,closing=$('.fin-month-check').textContent;
+        $('[data-a=closing-pending]').click();return {overview,budget,closing,rows:[...document.querySelectorAll('[data-tx-row]')].map(x=>x.dataset.txRow)};
+      })()`);
+      assert.match(result.overview,/60,00.*sem conta vinculada/s);assert.match(result.budget,/100,00 gastos.*45,00.*55,00/s);
+      assert.match(result.closing,/3 lançamentos a conferir.*1 grupo.*30,00/s);assert.deepEqual(result.rows.sort(),['a','b','r']);
+    }],
     ['F6 Finanças cabe nas larguras, temas e densidades e mantém a seção ativa visível', async () => {
       await fresh(); await login('A');
       const widths=[1440,320,375,430,860,1024,1280];

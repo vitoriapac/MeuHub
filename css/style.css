@@ -575,6 +575,19 @@ html[data-priv="1"] :is(.note .rt,textarea[data-dk],textarea[data-rv],textarea[d
 .tturno{min-height:42px;padding-bottom:var(--space-1)}
 .tturno-drop{border:1px dashed color-mix(in srgb,var(--ink) 16%,transparent);border-radius:10px;padding:var(--space-1) var(--space-2);font-size:11px;color:var(--mute);text-align:center}
 .fin-tail{margin-block-start:var(--space-4)}
+#fin-installment{margin-block-start:var(--space-3)}
+#fin-installment>.lb{display:grid;gap:var(--space-1);align-self:start}
+.fin-installment-summary{flex-basis:100%;display:grid;justify-items:start;gap:var(--space-3)}
+.fin-installment-preview:empty{display:none}
+.fin-item-details{margin-block-start:var(--space-2)}
+.fin-item-details form{margin-block-start:var(--space-2)}
+.fin-live{flex-basis:100%;color:var(--mute)}
+.imp-compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:var(--space-2);margin-block:var(--space-2) 0}
+.imp-compare dd{margin:0;overflow-wrap:anywhere}
+.imp-compare dt{font-weight:600}
+.fin-month-check{margin-block:var(--space-3)}
+.fin-month-check details{margin-block:var(--space-2)}
+.fin-installment-preview ol{columns:16rem;margin-block:var(--space-2) 0;padding-inline-start:var(--space-6)}
 #main .cards>.fin-billing-preview{grid-column:1/-1}
 #fin-accounts>.top,#fin-fixed>.top,#fin-recurring>.top{margin-top:0}
 #fin-invest-settings details{margin-block-end:var(--space-3)}
@@ -630,7 +643,7 @@ html[data-priv="1"] :is(.note .rt,textarea[data-dk],textarea[data-rv],textarea[d
 #tx-new>summary{display:inline-flex;align-items:center;cursor:pointer}
 .tx-detail p,.tx-description{overflow-wrap:anywhere}
 .tx-detail #ffin>.in,.tx-detail #ffin .adv>.in{width:100% !important}
-html[data-priv="1"] .tx-detail #ffin input[name=v]:not(:focus){-webkit-text-security:disc}
+html[data-priv="1"] :is(.tx-detail #ffin,[data-part-adjust]) input[name=v]:not(:focus){-webkit-text-security:disc}
 .tx-table{width:100%;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
 .tx-table th,.tx-table td{padding:var(--space-2);text-align:left;vertical-align:middle;overflow-wrap:anywhere}
 .tx-table thead th{color:var(--mute);font-size:var(--type-small);font-weight:600}
