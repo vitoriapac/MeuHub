@@ -94,24 +94,30 @@ Preservar a identidade visual, o limite de 1.440 px, a PWA sem etapa de build e 
 
 ## A5 — Rascunhos e recuperação ao navegar
 
-- [ ] Começar pela captura de tarefa. Guardar os campos alterados antes de trocar de aba ou receber uma atualização, com separação por conta e formulário.
-- [ ] Restaurar o rascunho ao retornar e oferecer descarte explícito. Limpar ao salvar com sucesso e tratar a troca de conta sem recuperar dados de outra pessoa.
-- [ ] Manter rascunhos no aparelho e aproveitar o comportamento validado ao ajustar Notas em A8. Verificar que atualização remota de outros itens não sobrescreve o rascunho.
+- [x] Começar pela captura de tarefa. Guardar os campos alterados antes de trocar de aba ou receber uma atualização, com separação por conta e formulário.
+- [x] Restaurar o rascunho ao retornar e oferecer descarte explícito. Limpar ao salvar com sucesso e tratar a troca de conta sem recuperar dados de outra pessoa.
+- [x] Manter rascunhos no aparelho e aproveitar o comportamento validado ao ajustar Notas em A8. Verificar que atualização remota de outros itens não sobrescreve o rascunho.
 
 **Aceite:** digitar uma tarefa, abrir Agenda e voltar mantém os campos. O rascunho não reaparece após descarte nem após envio bem-sucedido. A troca de conta não revela o rascunho anterior.
 
 **Verificação:** ponta a ponta de navegação, descarte, salvamento, atualização remota simulada e alternância de conta.
 
+**Registro de execução:** a captura de Tarefas salva título, prazo, prioridade, duração, etiquetas, projeto e repetição em um rascunho local por conta. Reabrir a tela ou a PWA recupera os dados. O rascunho é descartado explicitamente ou removido após salvar a tarefa com sucesso. A edição de uma tarefa existente acontece junto ao item e preserva o rascunho de criação. Os cenários cobrem troca de conta, atualização remota simulada e falha ao salvar.
+
+
 ## A6 — Conteúdo principal mais cedo nas telas de uso diário
 
-- [ ] Em **Hoje**, mostrar o próximo compromisso e as tarefas prioritárias cedo. Manter alertas urgentes acessíveis e mover listas completas de apoio para depois do conteúdo do dia.
-- [ ] Em **Tarefas**, dar prioridade à lista e à captura curta. Deixar prioridade, duração, etiquetas, projeto e repetição em opções avançadas.
-- [ ] Na **Agenda semanal**, enquadrar o dia atual ao abrir a semana corrente e o dia consultado ao voltar de outro modo. Manter rolagem e foco após ações no mesmo período.
-- [ ] Em **Lançamentos** no celular, resumir filtros secundários sem esconder o escopo ativo. Manter busca, criação e acesso ao detalhe perto do extrato.
+- [x] Em **Hoje**, mostrar o próximo compromisso e as tarefas prioritárias cedo. Manter alertas urgentes acessíveis e mover listas completas de apoio para depois do conteúdo do dia.
+- [x] Em **Tarefas**, dar prioridade à lista e à captura curta. Deixar prioridade, duração, etiquetas, projeto e repetição em opções avançadas.
+- [x] Na **Agenda semanal**, enquadrar o dia atual ao abrir a semana corrente e o dia consultado ao voltar de outro modo. Manter rolagem e foco após ações no mesmo período.
+- [x] Em **Lançamentos** no celular, resumir filtros secundários sem esconder o escopo ativo. Manter busca, criação e acesso ao detalhe perto do extrato.
 
 **Aceite:** em 375 px com dados fictícios, a primeira tarefa ou o primeiro lançamento aparece sem atravessar um formulário completo. Em Hoje, tarefa prioritária e próximo compromisso estão acessíveis perto do cabeçalho. A agenda semanal enquadra a data esperada e respeita rolagem manual.
 
 **Verificação:** comparação antes/depois em 375 e 1.440 px, teste de data atual no meio da semana, troca de período e os cenários existentes de filtros, parcelamento e edição.
+
+**Registro de execução:** Hoje mostra o próximo compromisso e até duas tarefas prioritárias antes dos painéis de apoio, com acesso direto aos alertas. Tarefas concentra a captura no título e recolhe os demais campos. A Agenda semanal enquadra a data atual ou a data consultada, preservando rolagem e foco durante atualizações na mesma semana. Lançamentos agrupa filtros mantendo o escopo visível ao lado da consulta e das ações de criação. As telas foram comparadas em 375 e 1.440 px com dados fictícios em Chromium. A validação de A5 e A6 passou em 25 testes unitários e 289 cenários de navegador. A versão da PWA foi sincronizada em `20261126`.
+
 
 ## A7 — Grade financeira com poucos cartões
 

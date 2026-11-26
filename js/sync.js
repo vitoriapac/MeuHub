@@ -65,7 +65,7 @@ function merge3(b,l,r,conflicts){
  if(conflicts)conflicts.push(true);return l}
 const applyState=o=>{SK.forEach(k=>{if(k in o)S[k]=o[k]});S.history=auditClean(S.history);applyTheme();if(typeof applyA11y==='function')applyA11y()};
 let remoteRenderPending=false;
-function remoteFormDirty(){return [...document.querySelectorAll('#main form')].some(f=>[...f.elements].some(x=>{if(x.tagName==='SELECT'){const d=[...x.options].find(o=>o.defaultSelected)||x.options[0];return !!d&&x.value!==d.value}if(/^(checkbox|radio)$/.test(x.type))return x.checked!==x.defaultChecked;return /^(text|search|number|date|time|url|textarea)$/i.test(x.type||'')&&x.value!==x.defaultValue}))}
+function remoteFormDirty(){return [...document.querySelectorAll('#main form:not(#ftk)')].some(f=>[...f.elements].some(x=>{if(x.tagName==='SELECT'){const d=[...x.options].find(o=>o.defaultSelected)||x.options[0];return !!d&&x.value!==d.value}if(/^(checkbox|radio)$/.test(x.type))return x.checked!==x.defaultChecked;return /^(text|search|number|date|time|url|textarea)$/i.test(x.type||'')&&x.value!==x.defaultValue}))}
 function remoteEditing(){const a=document.activeElement;return !!(a.closest&&a.closest('#main')&&(/INPUT|TEXTAREA|SELECT/.test(a.tagName)||a.isContentEditable))}
 function after(){save();if(remoteEditing()||remoteFormDirty())remoteRenderPending=true;else render()}
 document.addEventListener('focusout',()=>{if(remoteRenderPending)setTimeout(()=>{if(remoteRenderPending&&!remoteEditing()&&!remoteFormDirty())render()},0)});

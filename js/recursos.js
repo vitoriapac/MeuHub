@@ -173,9 +173,9 @@ function toast(m,u,act){let t=$('#toast');
  const btn=u?'<button data-a="undo">Desfazer</button>':act&&act.a?`<button data-a="${esc(act.a)}">${esc(act.label||'Atualizar')}</button>`:'';
  t.innerHTML=`<span>${m}</span>${btn}`;t.classList.add('on');clearTimeout(UT);UT=setTimeout(()=>t.classList.remove('on'),u||act?10000:6000)}
 function focusKey(){const a=document.activeElement;if(!a||!a.closest||!a.closest('#main')||a===$('#main'))return null;const d=a.dataset||{};
- return{tag:a.tagName,id:a.id||'',name:a.name||'',a:d.a||'',did:d.id||'',s:d.s||'',n:d.n||'',k:d.k||'',dd:d.d||'',lab:a.getAttribute('aria-label')||'',txt:a.tagName==='BUTTON'?(a.textContent||'').trim().slice(0,30):'',idx:[...document.querySelectorAll('#main '+a.tagName.toLowerCase())].indexOf(a)}}
+ return{tag:a.tagName,id:a.id||'',name:a.name||'',form:a.form?.id||'',a:d.a||'',did:d.id||'',s:d.s||'',n:d.n||'',k:d.k||'',dd:d.d||'',lab:a.getAttribute('aria-label')||'',txt:a.tagName==='BUTTON'?(a.textContent||'').trim().slice(0,30):'',idx:[...document.querySelectorAll('#main '+a.tagName.toLowerCase())].indexOf(a)}}
 function focusRestore(k,exact){const q=[...document.querySelectorAll('#main '+k.tag.toLowerCase())];
- let el=q.find(e=>{const d=e.dataset||{};return(!k.id||e.id===k.id)&&(!k.name||e.name===k.name)&&(d.a||'')===k.a&&(d.id||'')===k.did&&(d.s||'')===k.s&&(d.n||'')===k.n&&(d.k||'')===k.k&&(d.d||'')===k.dd&&(e.getAttribute('aria-label')||'')===k.lab&&(k.tag!=='BUTTON'||(e.textContent||'').trim().slice(0,30)===k.txt)});
+ let el=q.find(e=>{const d=e.dataset||{};return(!k.id||e.id===k.id)&&(!k.name||e.name===k.name)&&(!k.form||e.form?.id===k.form)&&(d.a||'')===k.a&&(d.id||'')===k.did&&(d.s||'')===k.s&&(d.n||'')===k.n&&(d.k||'')===k.k&&(d.d||'')===k.dd&&(e.getAttribute('aria-label')||'')===k.lab&&(k.tag!=='BUTTON'||(e.textContent||'').trim().slice(0,30)===k.txt)});
  if(!el&&!exact)el=q[Math.min(k.idx,q.length-1)];if(!el)return false;if(el!==document.activeElement)el.focus({preventScroll:true});return true}
 let lastVK=null;
 const VK=()=>[S.view,S.fvw,S.ftab,S.mode,S.fyr,Q?'q':''].join('|');

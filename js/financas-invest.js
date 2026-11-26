@@ -433,7 +433,7 @@ function finActE(a,id,b){
  if(a==='inv-mile-tog'){const m=invInit(F).milestones.find(x=>x.id===id);if(m)m.doneDate=m.doneDate?'':T;return 1}
  if(a==='inv-mile-del'){const I=invInit(F);I.milestones=I.milestones.filter(x=>x.id!==id);return 1}
  if(a==='fkd'){ANALYSIS_CUT='';S.fkd=S.fkd===id?'':id;TXBULKDEL=false;return 1}
- if(a==='fclr'){ANALYSIS_CUT='';S.fkd='';S.fcat='';FQ='';FRECON='';FTAG='';TXBULKDEL=false;return 1}
+ if(a==='fclr'){ANALYSIS_CUT='';S.fkd='';S.fcat='';S.fac='';FQ='';FRECON='';FTAG='';TXBULKDEL=false;return 1}
  if(a==='fmm'){S.fmm=id;return 1}
  if(a==='fmpix'){S.fmpix=!S.fmpix;return 1}
  if(a==='fmerch'){
