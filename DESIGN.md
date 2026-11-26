@@ -285,6 +285,8 @@ Os cards do topo do Início: fundo Papel, cantos de 18px, padding de 16px (12px 
 
 ## Decisions log
 
+- **2026-11-26 · Revisões e conferência.** A revisão semanal usa itens e ações existentes para projetos e notas; a previsão financeira liga lacunas de contas à conferência. O ensaio de recuperação fica após as ações de cópia e restauração, com registro manual identificado como local.
+
 - **2026-11-26 · Revisão A1–A10.** Hoje e Tarefas mostram o conteúdo prioritário antes das ferramentas. A Agenda semanal enquadra a data consultada. Em Finanças, o extrato mantém filtros e escopo junto da lista e a grade aproxima cartões e vencimentos quando há espaço. Notas separa leitura e edição, e Backup organiza cópia, conferência e recuperação. As artes responsivas preservam o enquadramento e todos os turnos offline. O cartão Frase do dia é a exceção tipográfica para citações breves.
 
 - **2026-11-25 — Espaçamento e largura:** limite de 1440px no desktop para acomodar as abas financeiras em uma linha e dar espaço às grades. Intervalos de seção e grupos de ações reutilizam a escala existente.

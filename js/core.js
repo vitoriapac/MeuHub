@@ -332,6 +332,9 @@ async function refreshStorageEstimate(){
 function backupFileButton(id,label){
  return `<button class="pill" data-a="backup-file" data-id="${id}">${label}</button><input type="file" id="${id}" accept=".json,application/json" hidden>`;
 }
+function backupDrillStatus(){
+ try{const d=localStorage.getItem('hub-backup-drill-'+(SY.uid||'local'));return /^\d{4}-\d{2}-\d{2}$/.test(d||'')?'Ensaio registrado em '+fmt(d)+' '+d.slice(0,4)+'.':'Nenhum ensaio registrado neste navegador.'}catch(e){return 'Não foi possível ler o registro neste navegador.'}
+}
 function backup(){
  if(typeof setTimeout==='function')setTimeout(refreshStorageEstimate,0);
  return `<div class="top"><h1>Backup</h1></div><div class="backup-steps">
@@ -347,6 +350,7 @@ function backup(){
  <div><h3>Restaurar de arquivo</h3><p>Substitui os dados atuais pelos dados do arquivo. Antes da troca, o Meu Hub guarda uma versão dos dados locais quando estão íntegros.</p>${backupFileButton('bkfile','Escolher arquivo para restaurar')}</div>
  <div><h3>Recuperar cópia local</h3><p>Usa a última cópia automática deste navegador para substituir os dados atuais.</p><button class="pill" data-a="idbrestore">Buscar cópia neste navegador</button></div>
  </div><div id="backup-confirm">${backupConfirmation()}</div>${backupStatus('recovery')}${snapPanel()}</section></div>
+ <details class="panel"><summary>Ensaio de recuperação</summary><p>Conferir a estrutura do arquivo não testa a recuperação completa. Para ensaiar, use dados fictícios e uma conta de teste separada:</p><ol><li>Faça uma cópia completa e confira o arquivo.</li><li>Restaure a cópia em uma conta de teste separada, nunca sobre seus dados de uso.</li><li>Confira tarefas, vínculos e saldos restaurados. Teste também a sincronização entre aparelhos.</li></ol><p>${esc(backupDrillStatus())} O registro é manual, fica apenas neste navegador e não comprova o resultado.</p><button class="pill" data-a="backup-drill">Registrar ensaio feito hoje</button></details>
  ${safetySummary()}${syncPanel()}${auditPanel()}<details class="panel" id="backup-technical"><summary>Detalhes técnicos e armazenamento</summary>${storageSummary()}</details>${pwaPanel()}`;
 }
 function siteSave(name,data,type){const b=new Blob([data],{type:type||'application/json'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
@@ -482,6 +486,7 @@ function custBar(){
  const savedProfiles=typeof profiles==='function'?profiles().map(p=>`<button class="pill" data-a="profile-switch" data-id="${esc(p.id)}">${esc(p.n)}</button>`).join(''):'';
  return `<div><div class="bar"><button class="pill ${cp?'on':''}" data-a="comp" aria-pressed="${cp}">Companhia (Spotify e clima)</button><button class="pill" data-a="cust">${S.cust?'Fechar personalização':'Personalizar painel'}</button></div>${S.cust?`<div class="panel" style="margin-bottom:var(--space-4)"><h2>Cards do Início</h2><p class="empty" style="padding:0 0 var(--space-1)">Modos prontos:</p><div class="bar" style="margin:0 0 var(--space-2)">${presets}${savedProfiles}</div>${c.map((x,i)=>`<div class="item"><input type="checkbox" class="chk" data-a="ctog" data-id="${x.id}" ${x.on?'checked':''} aria-label="Mostrar ${CARDS[x.id]}"><div class="t">${CARDS[x.id]}</div><button class="pill" data-a="cwide" data-id="${x.id}">${isCardWide(x)?'2 colunas':'1 coluna'}</button><button class="x" data-a="cmv" data-id="${x.id}" data-n="-1" aria-label="Subir" ${i?'':'disabled'}>↑</button><button class="x" data-a="cmv" data-id="${x.id}" data-n="1" aria-label="Descer" ${i<c.length-1?'':'disabled'}>↓</button></div>`).join('')}</div>`:''}</div>`;
 }
+const reviewProjectHidden=new Set();
 function reviewGuide(week=ds(add(today,-((today.getDay()+6)%7)))){
  const next=ds(add(new Date(week+'T12:00'),7)),end=ds(add(new Date(next+'T12:00'),6));
  const tasks=S.tasks.filter(t=>!t.done&&!taskPaused(t))
@@ -490,18 +495,23 @@ function reviewGuide(week=ds(add(today,-((today.getDay()+6)%7)))){
   const next=tasks.find(t=>t.id===p.nextTask&&(p.refs||[]).some(r=>r.id==='tk:'+t.id));
   return {p,next};
  }).sort((a,b)=>Number(!!a.next)-Number(!!b.next));
- const notes=S.notes.filter(n=>!n.archived&&n.reviewDate&&n.reviewDate<=end);
+ const notes=S.notes.filter(n=>!n.archived&&n.reviewDate&&n.reviewDate<=end).sort((a,b)=>a.reviewDate.localeCompare(b.reviewDate));
  const goals=S.metas.filter(g=>!g.archived&&g.reviewDate&&g.reviewDate<=end);
  const state=S.rev[week]||{};
  const open=(ref,title)=>`<button class="pill" data-a="lkgo" data-id="${esc(ref)}">${esc(title||'Sem título')}</button>`;
+ const noteReview=n=>{
+  const ref='nt:'+n.id,linked=new Set(lkOf(ref));
+  const related=[...(S.projects||[]).filter(p=>!p.archived&&((p.refs||[]).some(r=>r.id===ref)||linked.has('prj:'+p.id))).map(p=>'Projeto: '+p.t),...S.tasks.filter(t=>!t.done&&!taskPaused(t)&&linked.has('tk:'+t.id)).map(t=>'Tarefa: '+t.t)];
+  return `<div class="item"><div class="t">${open(ref,n.t)}<small>Revisar em ${fmt(n.reviewDate)}${related.length?' · '+esc(related.slice(0,2).join(' · ')):''}</small></div><label class="lb">Reagendar <input class="in" type="date" data-note-review="${esc(n.id)}" value="${esc(n.reviewDate)}" aria-label="Reagendar revisão de ${esc(n.t||'nota')}"></label><button class="pill" data-a="note-archive" data-id="${esc(n.id)}">Arquivar</button></div>`;
+ };
  const sections=[
   ['tasks','Pendências',tasks.slice(0,8).map(t=>`<div class="item"><div class="t">${open('tk:'+t.id,t.t)}<small>${t.due?'Prazo '+fmt(t.due):'Sem prazo'}</small></div><button class="pill" data-a="review-plan" data-id="${esc(t.id)}" data-date="${next}" ${t.hd===next||next<T?'disabled':''}>${t.hd===next?'Planejada':'Planejar para '+fmt(next)}</button></div>`).join('')+(tasks.length>8?'<button class="pill" data-v="tarefas">Ver todas as tarefas</button>':'')],
-  ['projects','Próximos passos dos projetos',projects.map(({p,next})=>open('prj:'+p.id,p.t+': '+(next?next.t:p.nextTask?'escolha outro passo':'escolha um próximo passo'))).join('')],
-  ['reviews','Notas e metas para revisar',notes.map(n=>open('nt:'+n.id,n.t)).join('')+goals.map(g=>open('mt:'+g.id,g.t)).join('')],
+  ['projects','Próximos passos dos projetos',projects.filter(({p,next})=>next||!reviewProjectHidden.has(JSON.stringify([SY.uid||'',week,p.id]))).map(({p,next})=>`<div class="item"><div class="t"><strong>${esc(p.t)}</strong><small>${esc(next?'Próximo: '+next.t:p.nextTask?'Próximo passo indisponível':'Sem próximo passo escolhido')}</small></div>${open('prj:'+p.id,next?'Abrir projeto':'Escolher próximo passo')}${next?'':`<button class="pill" data-a="review-project-later" data-id="${esc(p.id)}" data-wk="${esc(week)}">Revisar depois</button>`}</div>`).join('')],
+  ['reviews','Notas e metas para revisar',notes.slice(0,5).map(noteReview).join('')+(notes.length>5?'<button class="pill" data-v="notas">Ver todas as notas</button>':'')+goals.map(g=>open('mt:'+g.id,g.t)).join('')],
   ['priorities','Prioridades da próxima semana',`<label class="lb">O que você quer priorizar?<textarea class="in ta" data-rv="p" data-wk="${week}">${esc(state.p||'')}</textarea></label>`]
  ];
  return `<details data-review-guide><summary>Planejar a próxima semana · ${sections.filter(([key])=>state['step_'+key]===true).length} de ${sections.length} etapas</summary>
- ${sections.map(([key,label,body])=>`<section><h3>${label}</h3>${body?key==='projects'||key==='reviews'?`<div class="bar">${body}</div>`:body:'<p class="empty">Nada para revisar aqui.</p>'}
+ ${sections.map(([key,label,body])=>`<section><h3>${label}</h3>${body||'<p class="empty">Nada para revisar aqui.</p>'}
  <label><input type="checkbox" data-review-step="${key}" data-wk="${week}" ${state['step_'+key]===true?'checked':''}> Marcar ${label.toLowerCase()} como revisada</label></section>`).join('')}
  <details><summary>Acompanhamento de metas e hábitos</summary>
  <p>Metas: ${S.metas.filter(g=>!g.archived).map(g=>esc(g.t)+' ('+Math.round(metaProg(g)*100)+'%)').join(' · ')||'nenhuma cadastrada'}</p>
@@ -797,7 +807,7 @@ function focusView(t){
  <details class="panel" open><summary>Companhia</summary>${spCard()}${wxCard()}</details>`;
 }
 function hoje(){
- const focused=S.tasks.find(t=>focusTask?.uid===SY.uid&&t.id===focusTask.id&&!t.done&&!taskPaused(t));
+ const focused=S.tasks.find(t=>focusTask&&focusTask.uid===SY.uid&&t.id===focusTask.id&&!t.done&&!taskPaused(t));
  if(focused)return focusView(focused);
  focusTask=null;
  const evs=withNow(evOn(T),T),real=evs.filter(e=>!e.now),nowm=mm(nowH());

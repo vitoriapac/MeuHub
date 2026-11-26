@@ -169,6 +169,10 @@ Em **Hoje**, os próximos passos de projetos ativos aparecem com ações para ab
 
 Em **Lembretes → Conferência financeira**, vincule contas de pagamento a contas fixas e compare compras da mesma lista com data, conta e valor iguais. Cada lançamento pode ser aberto individualmente. Confirmar compras distintas registra a conferência sem alterar os valores. Se o grupo mudar, ele volta à fila.
 
+A conferência também oferece acesso aos lançamentos do mês ainda não marcados como conferidos. Na previsão até o próximo recebimento, contas fixas sem vínculo que vencem no período são indicadas com acesso à conferência. Em compromissos futuros, cada mês mostra subtotais por tipo.
+
+Na revisão semanal, projetos sem próximo passo ou com passo indisponível são destacados e podem ser ocultados até recarregar a página. As notas com revisão próxima mostram projetos e tarefas diretamente vinculados e permitem reagendar ou arquivar. A rotina noturna mostra a carga de amanhã em relação à capacidade. Em Backup, o roteiro de ensaio oferece um registro manual por conta neste navegador; ele não é sincronizado nem comprova que a restauração funcionou.
+
 O roteiro de recuperação entre aparelhos usa uma conta exclusiva de teste e dados fictícios. Consulte o [ensaio de recuperação](tasks/ensaio-recuperacao.md).
 
 ### Leituras e filmes (Estante)

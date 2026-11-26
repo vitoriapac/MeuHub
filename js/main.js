@@ -380,12 +380,15 @@ const CLICK_EARLY={
   const t=finInit().tx.find(x=>x.id===id);
   if(t){ANALYSIS_CUT='';if(b.dataset.keepFinScope===undefined)S.fac='';S.fcat='';S.fkd='';FQ='';FRECON='';FTAG='';S.view='financas';S.ftab='lanc';S.fvw='mes';S.fmo=(+t.d.slice(0,4)-today.getFullYear())*12+(+t.d.slice(5,7)-1-today.getMonth());Q='';$('#q').value='';FED=t.id;saveUI();render();$('#ffin')?.scrollIntoView({block:'center'})}
  },
+ 'finance-review-pending':()=>{S.view='financas';S.ftab='lanc';S.fvw='mes';S.fmo=0;S.fac='';S.fcat='';S.fkd='';FQ='';FTAG='';ANALYSIS_CUT='';FRECON='pending';Q='';saveUI();render()},
  'finance-distinct':(b,id,e)=>{
   e.preventDefault();
   const group=shoppingReviewGroups().find(g=>g.key===b.dataset.key);
   if(group){group.tx.forEach(t=>{t.shoppingReviewed=group.key});render();toast('Compras confirmadas como distintas')}
   else{render();toast('A lista mudou. Confira os lançamentos novamente.')}
  },
+ 'backup-drill':()=>{try{localStorage.setItem('hub-backup-drill-'+(SY.uid||'local'),T);render();toast('Ensaio registrado neste navegador.')}catch(e){toast('Não foi possível registrar o ensaio neste navegador.')}},
+ 'review-project-later':(b,id)=>{reviewProjectHidden.add(JSON.stringify([SY.uid||'',b.dataset.wk,id]));render();toast('Projeto oculto até recarregar esta página.')},
  'att-open':handleAttOpen,
  fmt:(b)=>{
   const ed=b.closest('.note').querySelector('.rt'),[c,v]=b.dataset.c.split(':');ed.focus();
