@@ -11,11 +11,11 @@ function financas(){
 function qa(t){
  const old=$('#fqa input[name=t]'),same=old&&old.form.dataset.qi===(QI||'')&&old.form.dataset.qshop===(QSHOP||''),draft=same?old.value:'';if(same)QD[QT]=Object.fromEntries(new FormData(old.form));else QD={};if(t)QT=t;const el=$('#qa'),F=finInit();el.classList.remove('hide');
  const pb=(k,l)=>`<button type="button" class="pill ${QT===k?'on':''}" data-a="qat" data-id="${k}">${l}</button>`,money=QT==='dp'||QT==='rc';
- el.innerHTML=`<form class="panel bar" id="fqa"><div class="bar" style="width:100%;margin:0">${QI?'':pb('ib','Guardar para depois')}${pb('tk','Tarefa')}${pb('nt','Nota')}${pb('ev','Evento')}${pb('dp','Despesa')}${pb('rc','Receita')}<button type="button" class="x" data-a="qax" aria-label="Fechar" style="margin-left:auto">×</button></div><input class="in grow" name="t" placeholder="${{ib:'O que você quer lembrar?',tk:'Nova tarefa',nt:'Título da nota',ev:'Novo evento',dp:'Descrição (ex.: mercado 85,90 ontem)',rc:'Descrição (ex.: freela 500 hoje)'}[QT]}" required>${money?`<input class="in" name="v" type="text" inputmode="decimal" autocomplete="off" placeholder="Valor (ou na descrição)" aria-label="Valor" style="width:140px"><input class="in" type="date" name="d" value="${T}" required aria-label="Data">${QT==='dp'?`<select class="in" name="cat" aria-label="Categoria">${catOpts('')}</select>`:''}${F.acc.length>1?`<select class="in" name="ac" aria-label="Conta ou cartão">${accOpts('')}</select>`:''}`:''}${QT==='ev'?`<input class="in" type="date" name="d" value="${T}" required aria-label="Data"><input class="in" type="time" name="h" value="09:00" required aria-label="Hora">`:''}${QT==='tk'?'<label class="lb">Prazo (opcional) <input class="in" type="date" name="due" aria-label="Prazo"></label>':''}<button class="pill dark">Adicionar</button></form>`;
+ el.innerHTML=`<form class="panel bar" id="fqa"><div class="bar" style="width:100%;margin:0">${QI?'':pb('ib','Guardar para depois')}${pb('tk','Tarefa')}${pb('nt','Nota')}${pb('ev','Evento')}${pb('dp','Despesa')}${pb('rc','Receita')}<button type="button" class="x" data-a="qax" aria-label="Fechar" style="margin-left:auto">×</button></div><label class="lb capture-label grow">${{ib:'Lembrete',tk:'Tarefa',nt:'Título da nota',ev:'Evento',dp:'Descrição',rc:'Descrição'}[QT]}<input class="in grow" name="t" placeholder="${{ib:'O que você quer lembrar?',tk:'Nova tarefa',nt:'Título da nota',ev:'Novo evento',dp:'Descrição (ex.: mercado 85,90 ontem)',rc:'Descrição (ex.: freela 500 hoje)'}[QT]}" required></label>${money?`<label class="lb capture-label">Valor<input class="in" data-fin-private name="v" type="text" inputmode="decimal" autocomplete="off" placeholder="Valor (ou na descrição)" aria-label="Valor" style="width:140px"></label><label class="lb capture-label">Data<input class="in" type="date" name="d" value="${T}" required aria-label="Data"></label>${QT==='dp'?`<select class="in" name="cat" aria-label="Categoria">${catOpts('')}</select>`:''}${F.acc.length>1?`<select class="in" name="ac" aria-label="Conta ou cartão">${accOpts('')}</select>`:''}`:''}${QT==='ev'?`<label class="lb capture-label">Data<input class="in" type="date" name="d" value="${T}" required></label><label class="lb capture-label">Início<input class="in" type="time" name="h" value="09:00" required></label>`:''}${QT==='tk'?'<label class="lb">Prazo (opcional) <input class="in" type="date" name="due" aria-label="Prazo"></label>':''}<button class="pill dark">Adicionar</button></form>`;
  if(QT==='tk'){const f=el.querySelector('form'),submit=f.querySelector('button.pill.dark');submit.insertAdjacentHTML('beforebegin','<label class="lb">Planejar para <select class="in" name="dest"><option value="later">Sem data planejada</option><option value="today">Hoje</option><option value="scheduled">Outra data</option></select></label><label class="lb" data-qa-planned hidden>Data planejada <input class="in" type="date" name="planned" disabled></label>')}
  const input=el.querySelector('input[name=t]'),item=(S.inbox||[]).find(x=>x.id===QI),f=input.form;f.dataset.qi=QI||'';f.dataset.qshop=QSHOP||'';Object.entries(QD[QT]||{}).forEach(([k,v])=>{if(k!=='t'&&f.elements[k])f.elements[k].value=v});if(f.elements.dest)f.elements.dest.dispatchEvent(new Event('change',{bubbles:true}));if(QD[QT]&&QD[QT].planned)f.elements.planned.value=QD[QT].planned;input.value=same?draft:item?item.t:'';input.focus()}
 document.addEventListener('change',e=>{const i=e.target;if(i.name!=='dest'||!i.form||i.form.id!=='fqa')return;const on=i.value==='scheduled',f=i.form,pl=f.elements.planned;if(pl._dtText){pl.disabled=!on;pl.dataset.req=on?'1':'0';pl.required=false;pl._dtSync()}else{pl.disabled=!on;pl.required=on}f.querySelector('[data-qa-planned]').hidden=!on});
-function inboxPanel(){const L=S.inbox||[];return `<div class="panel" style="margin-top:var(--space-3)"><h2>Caixa de entrada</h2><p class="empty" style="padding:0 0 var(--space-2)">Guarde uma ideia agora e escolha depois o que fazer com ela.</p><form class="bar" id="finbox"><input class="in grow" name="t" aria-label="Captura para a caixa de entrada" placeholder="O que você quer lembrar?" required><button class="pill dark">Capturar</button></form>${L.map(x=>`<div class="item"><div class="t">${esc(x.t)}</div><button class="pill" data-a="inboxconvert" data-id="${esc(x.id)}">Organizar</button><button class="x" data-a="inboxdel" data-id="${esc(x.id)}" aria-label="Excluir ${esc(x.t)}">×</button></div>`).join('')||'<p class="empty">Nenhuma captura pendente.</p>'}</div>`}
+function inboxPanel(){const L=S.inbox||[];return `<div class="panel" style="margin-top:var(--space-3)"><h2>Caixa de entrada</h2><p class="empty" style="padding:0 0 var(--space-2)">Guarde uma ideia agora e escolha depois o que fazer com ela.</p><form class="bar" id="finbox"><label class="lb capture-label grow">Lembrete<input class="in grow" name="t" aria-label="Captura para a caixa de entrada" placeholder="O que você quer lembrar?" required></label><button class="pill dark">Capturar</button></form>${L.map(x=>`<div class="item"><div class="t">${esc(x.t)}</div><button class="pill" data-a="inboxconvert" data-id="${esc(x.id)}">Organizar</button><button class="x" data-a="inboxdel" data-id="${esc(x.id)}" aria-label="Excluir ${esc(x.t)}">×</button></div>`).join('')||'<p class="empty">Nenhuma captura pendente.</p>'}</div>`}
 function shoppingSessionItems(form){const n=S.notes.find(x=>x.id===form.dataset.qshop&&x.kind==='shopping');if(!n||!form.dataset.shoppingSnapshot)return null;let snapshot;try{snapshot=JSON.parse(form.dataset.shoppingSnapshot)}catch(e){return null}const selected=[...form.querySelectorAll('[name=shoppingItem]:checked')].map(x=>x.value),items=selected.map(id=>(n.items||[]).find(x=>x.id===id));if(new Set(selected).size!==selected.length||items.some((x,i)=>!x||!snapshot.some(s=>s.id===selected[i]&&s.value===JSON.stringify(x))))return null;return items}
 function shoppingSessionUpdate(form,updatePrice=true){const items=shoppingSessionItems(form);if(!items)return;const total=shoppingTotals(items,'actualCents'),value=items.length&&!total.missing?total.value.toFixed(2).replace('.',','):'';if(updatePrice&&(!form.elements.v.value||form.elements.v.value===form.dataset.autoPrice))form.elements.v.value=value;if(updatePrice)form.dataset.autoPrice=value;const ids=new Set(items.map(x=>x.id)),repeated=(S.fin.tx||[]).filter(t=>t.shopping===form.dataset.qshop&&(t.shoppingItems||[]).some(id=>ids.has(id)));const ac=form.elements.ac?.value||S.fin.acc[0]?.id,amount=num(form.elements.v.value),date=form.elements.d.value,similar=(S.fin.tx||[]).filter(t=>t.k==='out'&&!t.shopping&&t.d===date&&(t.ac||S.fin.acc[0]?.id)===ac&&amount>0&&Math.abs((+t.v||0)-amount)<.005),warning=form.querySelector('[data-shopping-repeat]');if(warning){const key=JSON.stringify([repeated.map(x=>x.id).sort(),similar.map(x=>x.id).sort(),items.map(x=>x.id).sort(),amount,date,ac]);if(warning.dataset.key!==key)warning.querySelector('input').checked=false;warning.dataset.key=key;warning.hidden=!(repeated.length||similar.length);warning.querySelector('span').textContent=(repeated.length?'Há itens já associados a '+repeated.length+' compra(s). ':'')+(similar.length?'Há '+similar.length+' despesa(s) sem associação com mesmo valor, data e conta; você pode associar uma delas. ':'')+'Confirmo que esta é uma compra diferente.'}return repeated.length+similar.length}
 function shoppingSessionForm(n,form){const items=n.items||[],box=document.createElement('fieldset'),legend=document.createElement('legend');legend.textContent='Itens desta compra';box.append(legend);form.dataset.shoppingSnapshot=JSON.stringify(items.map(x=>({id:x.id,value:JSON.stringify(x)})));items.forEach(x=>{const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.name='shoppingItem';input.value=x.id;input.checked=!!x.done;label.className='item';label.append(input,document.createTextNode(' '+x.t));box.append(label)});if(!items.length){const p=document.createElement('p');p.className='empty';p.textContent='Lista sem itens: informe o valor da compra.';box.append(p)}const warning=document.createElement('label'),check=document.createElement('input'),text=document.createElement('span');warning.dataset.shoppingRepeat='';warning.hidden=true;check.type='checkbox';check.name='shoppingRepeatConfirmed';warning.append(check,document.createTextNode(' '),text);form.append(box,warning);form.dataset.autoPrice=form.elements.v.value;shoppingSessionUpdate(form)}
@@ -85,6 +85,49 @@ function navBadge(k){
  else if(k==='agenda'&&typeof evOn==='function')n=evOn(T).length;
  return n>0?`<span class="nbadge" aria-hidden="true">${n>99?'99+':n}</span>`:'';
 }
+function fitMobileNav(){
+ const bar=$('#mobile-bar');
+ if(!bar?.clientWidth)return;
+ const width=bar.clientWidth-parseFloat(getComputedStyle(bar).paddingInlineStart)-parseFloat(getComputedStyle(bar).paddingInlineEnd);
+ const buttons=[...bar.querySelectorAll('[data-v]')],more=bar.querySelector('.more');
+ if(!more)return;
+ const context=fitMobileNav.canvas||(fitMobileNav.canvas=document.createElement('canvas').getContext('2d'));
+ const minWidth=button=>{
+  const label=button.querySelector('span'),font=getComputedStyle(label);
+  context.font=font.fontWeight+' '+font.fontSize+' '+font.fontFamily;
+  return Math.min(width,Math.max(44,Math.ceil(context.measureText(label.textContent).width)+8));
+ };
+ const sizes=new Map([...buttons,more].map(button=>[button,minWidth(button)]));
+ const active=buttons.find(button=>button.dataset.v===S.view),keep=new Set();
+ let remaining=width-sizes.get(more);
+ for(const button of active?[active,...buttons.filter(item=>item!==active)]:buttons){
+  const size=sizes.get(button);
+  if(size<=remaining){keep.add(button.dataset.v);remaining-=size}
+ }
+ for(const button of [...buttons,more]){
+  const hidden=button!==more&&!keep.has(button.dataset.v);
+  if(hidden&&button===document.activeElement)more.focus({preventScroll:true});
+  button.hidden=hidden;button.style.flexBasis=sizes.get(button)+'px';
+ }
+ for(const group of document.querySelectorAll('#mobile-menu-content section:has(.mobile-menu-items)')){
+  const links=[...group.querySelectorAll('[data-v]')];
+  links.forEach(link=>{link.hidden=keep.has(link.dataset.v)});
+  group.hidden=links.every(link=>link.hidden);
+ }
+ const size=Math.ceil(bar.getBoundingClientRect().height)+'px';
+ if(size!==document.documentElement.style.getPropertyValue('--mobile-bar-size'))document.documentElement.style.setProperty('--mobile-bar-size',size);
+}
+function observeMobileNav(){
+ const bar=$('#mobile-bar');
+ if(!bar||fitMobileNav.observing)return;
+ fitMobileNav.observing=true;
+ if(typeof ResizeObserver!=='undefined'){
+  const observer=new ResizeObserver(fitMobileNav);
+  observer.observe(bar);const scale=$('#mobile-nav-scale');if(scale)observer.observe(scale);
+ }
+ window.addEventListener('resize',fitMobileNav);
+ document.fonts?.ready.then(fitMobileNav);
+}
 function renderMenu(){
  const m=menuCfg(),hid=new Set(m.hidden),bar=new Set(m.bar),col=new Set(S.mcol||[]);
  const html=m.groups.map(g=>{const items=g.items.filter(k=>!hid.has(k));if(!items.length)return '';const c=col.has(g.id);
@@ -93,8 +136,10 @@ function renderMenu(){
  const button=k=>`<button class="nav${S.view===k?' on':''}" data-v="${k}"${S.view===k?' aria-current="page"':''}><b>${NAV[k].i}</b><span>${NAV[k].n}</span></button>`;
  const mb=$('#mobile-bar'),barHtml=m.groups.flatMap(g=>g.items).filter(k=>bar.has(k)&&!hid.has(k)).map(button).join('')+'<button class="nav more" data-a="more" aria-haspopup="dialog" aria-controls="mobile-menu"><b>⋯</b><span>Mais</span></button>';
  if(mb&&mb.dataset.sig!==barHtml){mb.innerHTML=barHtml;mb.dataset.sig=barHtml}
- const content=$('#mobile-menu-content'),mobileHtml=m.groups.map(g=>{const items=g.items.filter(k=>!hid.has(k)&&!bar.has(k));return items.length?`<section><h3>${esc(g.n)}</h3><div class="mobile-menu-items">${items.map(button).join('')}</div></section>`:''}).join('')+'<section><h3>Preferências</h3><button class="nav" data-a="mobile-theme"><b>◐</b>Tema</button><p class="empty" id="mobile-sync"></p></section>';
- if(content&&content.dataset.sig!==mobileHtml){content.innerHTML=mobileHtml;content.dataset.sig=mobileHtml}}
+ const content=$('#mobile-menu-content'),mobileHtml=m.groups.map(g=>{const items=g.items.filter(k=>!hid.has(k));return items.length?`<section><h3>${esc(g.n)}</h3><div class="mobile-menu-items">${items.map(button).join('')}</div></section>`:''}).join('')+'<section><h3>Preferências</h3><button class="nav" data-a="mobile-theme"><b>◐</b>Tema</button><p class="empty" id="mobile-sync"></p></section>';
+ if(content&&content.dataset.sig!==mobileHtml){content.innerHTML=mobileHtml;content.dataset.sig=mobileHtml}
+ observeMobileNav();fitMobileNav();
+}
 const PROFILE_KEY='hub-view-profiles';
 const profileCopy=x=>JSON.parse(JSON.stringify(x));
 function profileRead(){const raw=localStorage.getItem(PROFILE_KEY),v=raw?JSON.parse(raw):{active:'',items:[]};if(!v||!Array.isArray(v.items)||v.items.length>40||typeof v.active!=='string'||v.items.some(p=>!p||typeof p.id!=='string'||typeof p.name!=='string'||!(p.cards===null||Array.isArray(p.cards)&&p.cards.every(c=>c&&typeof c.id==='string'))||!(p.menu===null||p.menu&&Array.isArray(p.menu.groups)&&p.menu.groups.every(g=>g&&Array.isArray(g.items)))))throw Error('Perfis inválidos');return v}
@@ -230,6 +275,7 @@ function avisos(){
  const R=remCfg(),L=R.on?attention():[],np=('Notification' in window)?Notification.permission:'unsupported';
  const sw=(k,l,d)=>`<label class="item"><input type="checkbox" class="chk" data-rem="${k}" ${R[k]?'checked':''}><div class="t">${l}<small>${d}</small></div></label>`;
  return `<div class="top"><h1>Lembretes</h1></div>
+ <section class="panel" id="daily-summary" aria-label="Resumo do dia" hidden></section>
  <div class="panel"><h2>Precisa de atenção agora</h2>${L.slice(0,pgN('av',40)).map(attRow).join('')}${pgMore('av',L.length,40)}${L.length?'':`<p class="empty">${R.on?'Nada pendente por enquanto.':'Os lembretes estão desligados.'}</p>`}</div>
  ${financeReviewPanel()}
  <div class="panel" style="margin-top:var(--space-3)"><h2>Configurar avisos</h2>
@@ -240,15 +286,40 @@ function avisos(){
  <div class="bar" style="margin:var(--space-2) 0 0"><label class="lb" style="margin:0">Antecedência dos vencimentos <select class="in" data-rem="fd">${[1,2,3,5,7].map(n=>`<option value="${n}" ${+R.fd===n?'selected':''}>${n} ${n===1?'dia':'dias'}</option>`).join('')}</select></label><label class="lb" style="margin:0">Horário do resumo diário <input class="in" type="time" data-rem="hh" value="${R.hh}"></label></div></div>
  <div class="panel" style="margin-top:var(--space-3)"><h2>Notificações do navegador</h2><p class="empty" style="padding:0 0 var(--space-2)">${np==='granted'?'Ativadas. Elas aparecem enquanto o hub estiver aberto em alguma aba.':np==='denied'?'Bloqueadas pelo navegador. Libere nas configurações do site para receber.':np==='unsupported'?'Este navegador não oferece notificações. Os avisos aparecem dentro do hub.':'Ainda não ativadas. Sem elas, os avisos aparecem só dentro do hub.'} O hub não consegue avisar com a página totalmente fechada.</p><div class="bar" style="margin:0">${np==='default'?'<button class="pill dark" data-a="rperm">Ativar notificações</button>':''}<button class="pill" data-a="rtest">Enviar aviso de teste</button></div></div>`}
 document.addEventListener('change',e=>{const i=e.target;if(!i||!i.dataset||!i.dataset.rem)return;const k=i.dataset.rem;S.rem=Object.assign({},S.rem||{},{[k]:i.type==='checkbox'?i.checked:k==='fd'?+i.value:i.value||'09:00'});save();if(k==='on'||k==='hh'||k==='fd'||k==='tk'||k==='fat'||k==='hab')render()});
+function dailyDigestText(items){
+ const n=(k,u)=>items.filter(x=>x.k===k&&(u===undefined||x.u===u)).length,p=[],pl=(c,s,pp)=>c+' '+(c===1?s:pp);
+ if(n('tk',0))p.push(pl(n('tk',0),'tarefa atrasada','tarefas atrasadas'));
+ if(n('tk',1))p.push(pl(n('tk',1),'tarefa vence hoje','tarefas vencem hoje'));
+ const bills=n('card')+n('bill');
+ if(bills)p.push(pl(bills,'vencimento financeiro','vencimentos financeiros'));
+ if(n('hb'))p.push(items.find(x=>x.k==='hb').t.toLowerCase());
+ return p.join('; ')||(items.length+' itens pedem atenção');
+}
+const digestDismissKey=()=> 'hub-digest-dismiss:'+String(SY.uid||'local');
+function refreshDailySummary(){
+ const box=$('#daily-summary');if(!box)return;
+ const R=remCfg();let dismissed=false;
+ try{dismissed=localStorage.getItem(digestDismissKey())===T}catch(e){}
+ const items=R.on&&nowH()>=R.hh&&!dismissed?attention():[];
+ const html=items.length?`<h2>Resumo do dia</h2><p>${esc(dailyDigestText(items))}.</p><div class="actions">${S.view==='hoje'?'<button class="pill" data-v="avisos">Ver lembretes</button>':''}<button class="pill" data-a="dismiss-digest" aria-label="Dispensar resumo do dia">Dispensar</button></div>`:'';
+ if(box.dataset.sig!==html){box.innerHTML=html;box.dataset.sig=html}
+ box.hidden=!html;
+}
+function dismissDailySummary(){
+ try{localStorage.setItem(digestDismissKey(),T)}catch(e){}
+ const box=$('#daily-summary');if(box)box.hidden=true;
+ const heading=$('#main h1');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true})}
+}
 function digest(){
- const R=remCfg();if(!R.on||nowH()<R.hh)return;let last='';try{last=localStorage.getItem('hub-rem-last')||''}catch(e){}if(last===T)return;
- try{localStorage.setItem('hub-rem-last',T)}catch(e){}
- const L=attention();if(!L.length)return;
- const n=(k,u)=>L.filter(x=>x.k===k&&(u===undefined||x.u===u)).length,p=[],pl=(c,s,pp)=>c+' '+(c===1?s:pp);
- if(n('tk',0))p.push(pl(n('tk',0),'tarefa atrasada','tarefas atrasadas'));if(n('tk',1))p.push(pl(n('tk',1),'tarefa vence hoje','tarefas vencem hoje'));
- L.filter(x=>x.k==='card'||x.k==='bill').slice(0,2).forEach(x=>p.push(x.t+': '+x.s.split(' · ')[0].toLowerCase()));
- if(n('hb'))p.push(L.find(x=>x.k==='hb').t.toLowerCase());
- notify('Resumo do dia',p.join('; ')||(L.length+' itens pedem atenção'))}
+ const R=remCfg();if(!R.on||nowH()<R.hh)return;
+ refreshDailySummary();
+ const key='hub-rem-last:'+String(SY.uid||'local');let last='';
+ try{last=localStorage.getItem(key)||localStorage.getItem('hub-rem-last')||''}catch(e){}
+ if(last===T)return;
+ const items=attention();if(!items.length)return;
+ try{localStorage.setItem(key,T)}catch(e){}
+ notifyBrowser('Resumo do dia',dailyDigestText(items));
+}
 setInterval(digest,60000);setTimeout(digest,3000);
 /* ===== Pacote B: planejar o dia e rotina ===== */
 const fdur=m=>m<60?m+' min':(m%60?Math.floor(m/60)+'h'+String(m%60).padStart(2,'0'):Math.floor(m/60)+'h');
@@ -768,7 +839,7 @@ function dtUp(root){
   p.dataset.dt='1';const req=p.required,w=document.createElement('span');w.className='dtw';
   const t=document.createElement('input');t.type='text';t.className=(p.className||'in')+' dtt';t.inputMode='numeric';t.autocomplete='off';t.placeholder='dd/mm/aaaa';t.maxLength=10;
   t.value=dtBR(p.value);t.required=req;t.disabled=p.disabled;
-  const lb=p.getAttribute('aria-label')||p.title||'Data';t.setAttribute('aria-label',lb);if(p.title)t.title=p.title;if(p.getAttribute('style'))t.setAttribute('style',p.getAttribute('style'));
+  const lb=p.getAttribute('aria-label')||p.labels?.[0]?.textContent.trim()||p.title||'Data';t.setAttribute('aria-label',lb);if(p.title)t.title=p.title;if(p.getAttribute('style'))t.setAttribute('style',p.getAttribute('style'));
   const b=document.createElement('button');b.type='button';b.className='dtb';b.tabIndex=-1;b.disabled=p.disabled;b.setAttribute('aria-label','Abrir calendário: '+lb);b.innerHTML=DTI;
   p.dataset.req=req?'1':'0';p.required=false;p.className='dtp';p.tabIndex=-1;p.setAttribute('aria-hidden','true');p.removeAttribute('style');p.removeAttribute('title');p.removeAttribute('aria-label');
   p.parentNode.insertBefore(w,p);w.append(t,b,p);

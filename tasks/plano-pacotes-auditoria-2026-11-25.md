@@ -68,23 +68,29 @@ Preservar a identidade visual, o limite de 1.440 px, a PWA sem etapa de build e 
 
 ## A3 — Menu e avisos no celular com texto ampliado
 
-- [ ] Ajustar a barra global para que seus rótulos permaneçam legíveis em telas estreitas. Usar a gaveta **Mais** para acomodar ações quando o espaço exigir.
-- [ ] Separar avisos breves de confirmação do **Resumo do dia**. Exibir o resumo longo no fluxo da tela ou em formato compacto e dispensável, com acesso ao conteúdo completo em Hoje ou Lembretes.
-- [ ] Manter área de toque, foco visível, ordem de teclado e espaço inferior para a navegação fixa e a captura rápida.
+- [x] Ajustar a barra global para que seus rótulos permaneçam legíveis em telas estreitas. Usar a gaveta **Mais** para acomodar ações quando o espaço exigir.
+- [x] Separar avisos breves de confirmação do **Resumo do dia**. Exibir o resumo longo no fluxo da tela ou em formato compacto e dispensável, com acesso ao conteúdo completo em Hoje ou Lembretes.
+- [x] Manter área de toque, foco visível, ordem de teclado e espaço inferior para a navegação fixa e a captura rápida.
 
 **Aceite:** em 320 px a 200% os rótulos mantêm palavras legíveis e o resumo não encobre busca, título ou controles da Agenda. Todos os atalhos continuam acessíveis também em 375 e 430 px.
 
 **Verificação:** analisar captura e testar ação por teclado e toque simulado. Se houver aparelho disponível, repetir a navegação ampliada nele.
 
+**Registro de execução:** a barra transfere atalhos para Mais conforme o espaço disponível e a escala do texto. O Resumo do dia fica no fluxo de Hoje e Lembretes, pode ser dispensado por conta e dia e mantém a notificação do navegador quando autorizada. Validação em Chromium a 320 px com texto a 200% e em 375 e 430 px, com teclado e toque simulado.
+
+
 ## A4 — Contraste, títulos e rótulos de campos
 
-- [ ] Corrigir “Agora” em Hoje e Agenda e os títulos secundários de Hoje e Tarefas usando tokens semânticos.
-- [ ] Medir o texto pequeno nos fundos reais de Céu e Safira, em claro e escuro. Usar 4,5:1 como referência para os casos apontados na auditoria.
-- [ ] Inserir um título de grupo na Agenda semanal e conferir a sequência equivalente em Tarefas. Adicionar rótulos persistentes nos campos de captura frequentes que dependem de placeholder.
+- [x] Corrigir “Agora” em Hoje e Agenda e os títulos secundários de Hoje e Tarefas usando tokens semânticos.
+- [x] Medir o texto pequeno nos fundos reais de Céu e Safira, em claro e escuro. Usar 4,5:1 como referência para os casos apontados na auditoria.
+- [x] Inserir um título de grupo na Agenda semanal e conferir a sequência equivalente em Tarefas. Adicionar rótulos persistentes nos campos de captura frequentes que dependem de placeholder.
 
 **Aceite:** os elementos que mediam 3,1:1 e 4,0:1 atingem 4,5:1 nos cenários auditados. Datas e campos mantêm nome compreensível durante a digitação e a navegação por teclado. A Agenda semanal tem sequência de títulos coerente.
 
 **Verificação:** detector de contraste no navegador, inspeção da árvore de acessibilidade e teste de foco nos fluxos alterados.
+
+**Registro de execução:** os textos secundários e o indicador Agora usam cores semânticas. O menor contraste medido foi de 5,61:1 em 16 combinações de elemento, paleta e tema. Agenda e Tarefas receberam títulos para as semanas e os formulários de captura receberam rótulos persistentes. A árvore de acessibilidade confirmou os nomes dos campos e a hierarquia dos títulos. A data permaneceu legível a 320 px com texto a 200%.
+
 
 ## A5 — Rascunhos e recuperação ao navegar
 

@@ -877,7 +877,10 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh();await login('A');const r=await ev(`(()=>{const t={id:'r',t:'Recorrente',p:'m',done:false,rc:'w',due:T},base={tasks:[t],metas:[{id:'g',t:'Meta',ini:T,kr:[]}],lnk:[]},l=JSON.parse(JSON.stringify(base)),remote=JSON.parse(JSON.stringify(base));l.tasks[0].archived=true;remote.tasks[0].done=true;remote.tasks[0].sp=true;remote.tasks.push({...remote.tasks[0],id:'new',seriesId:'r',done:false,sp:false});const merged=merge3(base,l,remote,[]);S.tasks=merged.tasks;S.metas=merged.metas;const paused=taskPaused(S.tasks.find(t=>t.id==='new'));S.tasks.find(t=>t.id==='r').archived=false;return {paused,resumed:!taskPaused(S.tasks.find(t=>t.id==='new')),valid:validBackup({...pick(),tasks:S.tasks,events:[]})}})()`);assert.ok(r.paused&&r.resumed&&r.valid);
     }],
     ['restauração de backup preserva meta arquivada e pausa', async () => {
-      await fresh();await login('A');const r=await ev(`(async()=>{S.tasks=[{id:'t',t:'Tarefa',p:'m',done:false,mt:'g'}];S.metas=[{id:'g',t:'Meta',ini:T,kr:[],archived:true,pausedTaskIds:['t']}];const data=JSON.stringify(pick());S.tasks=[];S.metas=[];S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([data],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));return {paused:taskPaused(S.tasks.find(t=>t.id==='t')),archived:S.metas[0]?.archived,msg:document.querySelector('#bkmsg').textContent}})()`);assert.ok(r.paused&&r.archived);assert.match(r.msg,/restaurado/i);
+      await fresh();await login('A');await ev(`(()=>{S.tasks=[{id:'t',t:'Tarefa',p:'m',done:false,mt:'g'}];S.metas=[{id:'g',t:'Meta',ini:T,kr:[],archived:true,pausedTaskIds:['t']}];const data=JSON.stringify(pick());S.tasks=[];S.metas=[];S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([data],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+      await waitFor("document.querySelector('#bkmsg')?.textContent.trim()", 'resultado da restauração');
+      const r=await ev(`({paused:taskPaused(S.tasks.find(t=>t.id==='t')),archived:S.metas[0]?.archived,msg:document.querySelector('#bkmsg').textContent})`);
+      assert.ok(r.paused&&r.archived);assert.match(r.msg,/restaurado/i);
     }],
     ['compras preservam sessão ao arquivar e restaurar lista e backup', async () => {
       await fresh();await login('A');const r=await ev(`(async()=>{S.notes=[{id:'l',kind:'shopping',t:'Mercado',b:'',c:'g',items:[{id:'i',t:'Arroz',q:'',done:true}]}];S.fin.tx=[{id:'shop_s',k:'out',t:'Compra',v:12,d:T,ac:S.fin.acc[0].id,cat:'Alimentação',shopping:'l',shoppingItems:['i']}];S.view='notas';render();document.querySelector('[data-a=note-archive][data-id=l]').click();const archived=S.notes[0].archived,count=S.fin.tx.length;S.view='arquivados';render();document.querySelector('[data-a=note-archive][data-id=l]').click();const data=JSON.stringify(pick());S.notes=[];S.fin.tx=[];S.view='backup';render();const f=document.querySelector('#bkfile'),dt=new DataTransfer();dt.items.add(new File([data],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));return {archived,count,note:S.notes[0],tx:S.fin.tx,msg:document.querySelector('#bkmsg').textContent}})()`);assert.ok(r.archived&&!r.note.archived);assert.strictEqual(r.count,1);assert.strictEqual(r.tx.length,1);assert.strictEqual(r.tx[0].shopping,'l');assert.deepStrictEqual(r.tx[0].shoppingItems,['i']);assert.match(r.msg,/restaurado/i);
@@ -1050,6 +1053,82 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
     ['campo de data da agenda tem espaço para texto ampliado', async () => {
       await fresh();await login('A');await b.send('Emulation.setDeviceMetricsOverride',{width:375,height:720,deviceScaleFactor:1,mobile:true});
       try{const r=await ev(`(()=>{document.documentElement.style.fontSize='200%';S.view='agenda';render();const f=document.querySelector('#fev input[type=date]');return {width:f.getBoundingClientRect().width,overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth}})()`);assert.ok(r.width>=280,JSON.stringify(r));assert.strictEqual(r.overflow,0)}finally{await ev("document.documentElement.style.fontSize=''");await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['A3 atalhos cabem com fonte ampliada e resumo permanece no conteúdo', async () => {
+      await fresh();await login('A');await b.send('Emulation.setDeviceMetricsOverride',{width:320,height:800,deviceScaleFactor:1,mobile:true});
+      try{
+        const r=await ev(`(()=>{
+          tourClose();document.documentElement.style.fontSize='200%';S.menu=menuDef();S.view='agenda';S.mode='day';S.dy=0;
+          S.tasks=[{id:'a3',t:'Tarefa do dia',p:'m',due:T,done:false}];S.rem={on:true,tk:true,hh:'00:00'};render();
+          localStorage.removeItem('hub-rem-last');digest();
+          const bar=$('#mobile-bar'),visible=[...bar.querySelectorAll('[data-v]')].filter(e=>e.getClientRects().length),
+            hidden=[...bar.querySelectorAll('[data-v]')].filter(e=>!e.getClientRects().length),
+            split=visible.flatMap(e=>{const text=e.querySelector('span').firstChild;return [...text.data.matchAll(/\\S+/g)].filter(m=>{
+              const range=document.createRange();range.setStart(text,m.index);range.setEnd(text,m.index+m[0].length);return range.getClientRects().length>1;
+            }).map(m=>m[0])});
+          const drawer=hidden.every(e=>!!$('#mobile-menu [data-v='+e.dataset.v+']:not([hidden])'));
+          const overlay=$('#toast')?.classList.contains('on')&&$('#toast').textContent.includes('Resumo do dia');
+          S.view='hoje';render({save:false});const inline=$('#daily-summary')?.textContent.includes('1 tarefa vence hoje')&&!!$('#daily-summary [data-v=avisos]');
+          $('[data-a=dismiss-digest]')?.click();const dismissed=$('#daily-summary')?.hidden;
+          return {split,hidden:hidden.length,drawer,overlay:!!overlay,inline:!!inline,dismissed:!!dismissed};
+        })()`);
+        assert.deepEqual(r.split,[]);assert.ok(r.hidden>0&&r.drawer&&r.inline&&r.dismissed);assert.equal(r.overlay,false);
+      }finally{await ev("document.documentElement.style.fontSize=''");await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['A3 gaveta abre por teclado e permite acessar atalho deslocado por toque', async () => {
+      await fresh();await login('A');
+      await b.send('Emulation.setDeviceMetricsOverride',{width:320,height:800,deviceScaleFactor:1,mobile:true});
+      await b.send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:1});
+      await b.send('Emulation.setFocusEmulationEnabled',{enabled:true});
+      try{
+        const displaced=await ev(`(()=>{tourClose();document.documentElement.style.fontSize='200%';S.menu=menuDef();S.view='hoje';render({save:false});
+          const bar=$('#mobile-bar'),list=[...bar.querySelectorAll('[data-v][hidden]')].map(e=>e.dataset.v);bar.querySelector('.more').focus();return list})()`);
+        assert.ok(displaced.length);
+        for(const type of ['keyDown','keyUp'])await b.send('Input.dispatchKeyEvent',{type,key:'Enter',code:'Enter',windowsVirtualKeyCode:13,...(type==='keyDown'?{text:'\r',unmodifiedText:'\r'}:{})});
+        assert.ok(await ev(`$('#mobile-menu').open&&$('#mobile-menu').contains(document.activeElement)`));
+        const target=displaced[0];
+        const point=await ev(`(()=>{const el=$('#mobile-menu [data-v=${target}]');el.scrollIntoView({block:'center'});const r=el.getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2),w:r.width,h:r.height}})()`);
+        assert.ok(point.w>=44&&point.h>=44);
+        await b.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:point.x,y:point.y}]});
+        await b.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+        await waitFor(`S.view===${JSON.stringify(target)}&&!$('#mobile-menu').open`,'navegar pelo atalho deslocado');
+        for(const width of [375,430]){
+          await b.send('Emulation.setDeviceMetricsOverride',{width,height:800,deviceScaleFactor:1,mobile:true});
+          const reachable=await ev(`(()=>{document.documentElement.style.fontSize='';render({save:false});
+            return menuCfg().bar.every(v=>[...document.querySelectorAll('#mobile-bar [data-v='+v+'],#mobile-menu [data-v='+v+']')].some(el=>!el.hidden))})()`);assert.ok(reachable);
+        }
+      }finally{
+        await ev("document.documentElement.style.fontSize=''");
+        await b.send('Emulation.setTouchEmulationEnabled',{enabled:false});
+        await b.send('Emulation.setFocusEmulationEnabled',{enabled:false});
+        await b.send('Emulation.clearDeviceMetricsOverride');
+      }
+    }],
+    ['A4 contraste e estrutura dos formulários funcionam em Céu e Safira', async () => {
+      await fresh();await login('A');
+      const result=await ev(`(()=>{
+        tourClose();S.tasks=[{id:'a4',t:'Tarefa',p:'m',due:T,done:false}];
+        const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const c=canvas.getContext('2d',{willReadFrequently:true});
+        const l=value=>{c.clearRect(0,0,1,1);c.fillStyle=value;c.fillRect(0,0,1,1);return [0.2126,0.7152,0.0722].reduce((n,w,i)=>{const v=c.getImageData(0,0,1,1).data[i]/255;return n+w*(v<=.04045?v/12.92:((v+.055)/1.055)**2.4)},0)};
+        const failures=[];
+        for(const pal of ['ceu','safira'])for(const theme of ['light','dark']){
+          S.pal=pal;S.themeMode=theme;applyTheme();
+          for(const [view,selector] of [['agenda','.now-time'],['hoje','.now'],['hoje','.gh:not(.late)'],['tarefas','.gh:not(.late)']]){
+            S.view=view;S.mode='day';S.dy=0;render({save:false});
+            const el=$(selector);if(!el){failures.push([pal,theme,view,selector,'ausente']);continue}
+            const bg=[el,...(function*(node){while(node.parentElement){node=node.parentElement;yield node}})(el)].map(e=>getComputedStyle(e).backgroundColor).find(color=>color!=='rgba(0, 0, 0, 0)');
+            const a=l(getComputedStyle(el).color),b=l(bg),ratio=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+            if(ratio<4.5)failures.push([pal,theme,view,selector,ratio.toFixed(2)]);
+          }
+        }
+        const structure=[];for(const view of ['agenda','tarefas']){S.view=view;S.mode='week';S.tmode='week';render({save:false});const section=$('.week')?.closest('section[aria-labelledby]');structure.push(!!section?.querySelector('h2')&&!!section.querySelector('.day h3'))}
+        const labels=[];for(const [view,id,names] of [['agenda','fev',['t','d','h']],['tarefas','ftk',['t','due','tg','pj']],['hoje','fhj',['t']],['financas','ffin',['t','v']]]){
+          S.view=view;S.ftab='lanc';S.fvw='mes';render({save:false});const form=$('#'+id);if(form?.closest('details'))form.closest('details').open=true;
+          for(const name of names){const label=form?.elements[name]?.labels?.[0];if(!label||!label.textContent.trim()||!label.getClientRects().length)labels.push(view+':'+name)}
+        }
+        return {failures,structure,labels};
+      })()`);
+      assert.deepEqual(result,{failures:[],structure:[true,true],labels:[]});
     }],
     ['rótulos da navegação mobile permanecem legíveis com fonte ampliada', async () => {
       await fresh();await login('A');await b.send('Emulation.setDeviceMetricsOverride',{width:320,height:720,deviceScaleFactor:1,mobile:true});
