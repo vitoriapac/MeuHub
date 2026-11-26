@@ -21,7 +21,8 @@ const CATDIC={
  'Impostos e taxas':'imposto* tributo* iof irpf darf gps inss fgts iss icms ipva detran tarifa* taxa* anuidade juros mora multa* encargo* cesta_servicos pacote_servicos manutencao_conta'
 };
 const catMatch=(d,w)=>w.endsWith('*')?d.includes(' '+w.slice(0,-1)):d.includes(' '+w.replace(/_/g,' ')+' ');
-const dictCat=t=>{const raw=String(t||''),d=' '+norm(raw).replace(/[^a-z0-9]+/g,' ')+' ';for(const[k,c]of CAT_FIRST)if(catMatch(d,k))return c;for(const[c,w]of Object.entries(CATDIC))for(const k of w.split(' '))if(k&&catMatch(d,k))return c;if(/\bDIA\b/.test(raw)&&!d.includes(' bom dia '))return 'Alimentação';return 'Outros'};
+const reserveDeposit=t=>/\b(?:aplicacao|aporte|deposito) (?:na|para|em) (?:a )?reserva(?: (?:de emergencia|financeira|pessoal))?(?: \d+(?: \d+)*)?$/.test(norm(t).replace(/[^a-z0-9]+/g,' ').trim());
+const dictCat=t=>{if(reserveDeposit(t))return 'Reserva';const raw=String(t||''),d=' '+norm(raw).replace(/[^a-z0-9]+/g,' ')+' ';for(const[k,c]of CAT_FIRST)if(catMatch(d,k))return c;for(const[c,w]of Object.entries(CATDIC))for(const k of w.split(' '))if(k&&catMatch(d,k))return c;if(/\bDIA\b/.test(raw)&&!d.includes(' bom dia '))return 'Alimentação';return 'Outros'};
 function dictSub(t,k,cat){
  const d=' '+norm(t).replace(/[^a-z0-9]+/g,' ')+' ',has=(...ws)=>ws.some(w=>catMatch(d,w));
  if(k==='in'){
@@ -221,7 +222,7 @@ function impPanel(){
  }
  const needRec=!!(accObj&&accObj.ty!=='card'&&I.meta&&Number.isFinite(I.meta.fin)&&Math.abs(projBal-I.meta.fin)>=.01);
  const hasCats=!!Object.keys(I.cats||{}).length,showCardOpt=!!(I.isCard||(accObj&&accObj.ty==='card')||cardPayTotal>0);
- return `<p style="margin:0 0 var(--space-2)"><strong>${esc(I.name)}</strong> <span class="empty" style="padding:0">(${I.rows.length-(I.hdr?1:0)} linhas)</span></p>${metaBox}
+ return `<p style="margin:0 0 var(--space-2)"><strong>${esc(I.name)}</strong> <span class="empty" style="padding:0">(${I.rows.length-(I.hdr?1:0)} linhas)</span></p><p>Conta de destino: <strong>${esc(accObj?.n||'Escolha uma conta')}</strong>.</p>${metaBox}
  ${catChips?`<div class="bar" style="margin:0 0 var(--space-2)">${catChips}</div>`:''}
  ${preview.map(rowHtml).join('')||'<p class="empty">Nenhuma linha válida com estas colunas. Ajuste o mapeamento ou o formato da data.</p>'}
  ${rest.length?`<details data-imp-rest style="margin:var(--space-2) 0"><summary class="pill" style="display:inline-block;cursor:pointer">Ver os demais ${rest.length} lançamentos da prévia</summary><div style="margin-top:var(--space-2)">${rest.slice(0,200).map(rowHtml).join('')}${rest.length>200?`<p class="empty">Mostrando os primeiros 200 dos ${rest.length} lançamentos restantes.</p>`:''}</div></details>`:''}

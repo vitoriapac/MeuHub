@@ -19,7 +19,7 @@ function DEF_STATE(){
   themeMode:'system',profileName:'',frase:'',frasen:0,
   habits:[],fm:{},pf:'',fk:null,fin:{tx:[],bud:{},goals:[],bills:[]},fmo:0,
   dia:{},ddo:0,tgsel:'',metas:[],projects:[],history:[],revm:{},mro:0,
-  fac:'',fcat:'',fn:6,fpj:{},fpm:'m',flm:'res',fday:'',fwm:'res',fvw:'mes',fyr:0,ftab:'geral',
+  fac:'',fcat:'',fn:6,fpj:{},fpm:'m',flm:'res',fday:'',fwm:'res',fvw:'mes',fyr:0,ftab:'lanc',
   menu:null,mcol:['sis'],trash:[],rem:{},rot:{},rotPrefs:{},cap:8,availability:{},
   lnk:[],reads:[],rk:'',rs:'',dvw:'dia',dyr:0,sp:[],spsel:'',wx:null,
   keys:true,hc:false,rmo:'auto',mode:'week',filter:'all',
@@ -653,7 +653,7 @@ document.addEventListener('click',e=>{
 });
 let PRIV=false;try{PRIV=localStorage.getItem('hub-priv')==='1'}catch(e){}
 const BRL=v=>PRIV?'R$ •••••':(+v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-const FC=['Moradia','Alimentação','Transporte','Compras','Saúde','Lazer','Férias','Educação','Assinaturas','Serviços','Pets','Impostos e taxas','Outros'];
+const FC=['Moradia','Alimentação','Transporte','Compras','Saúde','Lazer','Férias','Educação','Assinaturas','Serviços','Pets','Impostos e taxas','Reserva','Outros'];
 const opts=a=>a.map(c=>`<option>${c}</option>`).join('');
 const bst=p=>p>=100?'o':p>=80?'w':'';
 const finAlerts=(by,month=T.slice(0,7))=>Object.entries(budgetsAt(month)).map(([c,l])=>[c,Math.round((by[c]||0)/l*100)]).filter(x=>x[1]>=80);

@@ -308,7 +308,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh();await login('A');
       const r=await ev(`(()=>{
         S.fin.acc=[{id:'a',n:'Conta',ty:'cc',ini:200}];S.fin.bud={Compras:100};S.fin.tx=[];
-        S.view='financas';render();
+        S.view='financas';S.ftab='analise';render();
         const f=document.querySelector('#purchase-simulator');
         f.elements.amount.value='120';f.elements.parts.value='2';f.elements.category.value='Compras';
         const before=JSON.stringify(S.fin);f.requestSubmit();
@@ -319,8 +319,336 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       assert.match(r.options[0],/120,00 de/);assert.match(r.options[1],/60,00 de/);
       assert.ok(r.options.every(x=>/80,00/.test(x)));
     }],
+    ['F5 Contas e Orçamentos mostram consulta e mantêm as ações', async () => {
+      await fresh();await login('A');
+      const r=await ev(`(()=>{
+        today=new Date(2026,10,12,12);T=ds(today);
+        const F=finInit();F.acc=[{id:'a',n:'Conta corrente',ty:'cc',ini:500},{id:'c',n:'Cartão pessoal',ty:'card',close:15,due:25,lim:1000}];
+        F.tx=[{id:'buy',t:'Mercado',k:'out',cat:'Alimentação',d:T,v:130,ac:'c'},{id:'past',t:'Despesa',k:'out',cat:'Moradia',d:'2026-10-10',v:100,ac:'a'}];
+        F.bud={Alimentação:100};F.goals=[{id:'reserve',n:'Reserva',res:true,target:300,saved:200,rm:3}];
+        F.rec=[{id:'sub',t:'Streaming',k:'out',cat:'Assinaturas',ac:'a',day:20,v:30,ini:T}];
+        F.bills=[{id:'bill',n:'Internet',day:16,ac:'a',v:70}];
+        const before=(a,b)=>!!($(a).compareDocumentPosition($(b))&Node.DOCUMENT_POSITION_FOLLOWING);
+        S.view='financas';S.ftab='contas';render();
+        const order=before('#fin-accounts','#fin-cards')&&before('#fin-cards','.fin-billing-preview')&&before('#fin-fixed','#fin-account-form');
+        const subscriptions=$('#fin-recurring').textContent,upcoming=$('.fin-billing-preview').textContent;
+        const bill=$('#fin-fixed').textContent,pays=!!$('#fin-cards [data-a=payinv]');
+        $('[data-a=edbill][data-id=bill]').click();
+        const opens=$('#fin-bill-form').open&&$('#fbill [name=n]').value==='Internet';
+        S.ftab='orc';render();
+        const budget=$('.gg').textContent,reserve=$('.reserve-coverage').textContent,setup=before('.reserve-coverage','#fin-budget-form');
+        $('[data-a=fin-config-open][data-id=fin-budget-form]').click();
+        return {order,subscriptions,upcoming,bill,pays,opens,budget,reserve,setup,config:$('#fin-budget-form').open};
+      })()`);
+      assert.ok(r.order&&r.pays&&r.opens&&r.setup&&r.config);
+      assert.match(r.subscriptions,/30,00 por mês/);assert.match(r.subscriptions,/360,00 por ano/);
+      assert.match(r.upcoming,/Conta corrente/);assert.match(r.bill,/16 nov/);
+      assert.match(r.budget,/Excedeu em R\$\s*30,00/);assert.match(r.reserve,/2,0 meses/);
+    }],
+    ['F5 Investimentos e Importação colocam ferramentas abaixo da consulta', async () => {
+      await fresh();await login('A');
+      const r=await ev(`(()=>{
+        const before=(a,b)=>!!($(a).compareDocumentPosition($(b))&Node.DOCUMENT_POSITION_FOLLOWING);
+        finInit();S.view='financas';S.ftab='inv';render();
+        const investments=before('#finvdiv','#fin-asset-form')&&before('#fin-asset-form','#fin-invest-settings');
+        $('[data-a=fin-config-open][data-id=fin-asset-form]').click();
+        const add=$('#fin-asset-form').open&&document.activeElement.name==='ticker',refresh=!!$('[data-a=inv-refresh]');
+        S.ftab='analise';render();const analysis=!!$('#purchase-simulator')&&!$('[data-fin-tools]');
+        S.ftab='geral';render();const overview=!$('[data-fin-tools]')&&!$('#purchase-simulator');
+        prepCSV(['Data;Descrição;Valor',T+';Mercado;-52'].join(String.fromCharCode(10)),'Extrato');
+        S.ftab='regras';render();
+        return {investments,add,refresh,analysis,overview,preview:$('#fin-import').textContent,
+          options:before('#fin-import .item','#statement-options'),order:before('#fin-import','#fin-rules')&&before('#fin-rules','[data-fin-tools]')};
+      })()`);
+      assert.ok(r.investments&&r.add&&r.refresh&&r.analysis&&r.overview&&r.options&&r.order);
+      assert.match(r.preview,/Conta de destino:/);assert.match(r.preview,/Mercado/);
+    }],
+    ['F4 Análises compara dias equivalentes e abre os registros do ranking', async () => {
+      await fresh();await login('A');
+      const r=await ev(`(()=>{
+        today=new Date(2026,2,30,12);T=ds(today);
+        const F=finInit();
+        F.acc=[{id:'main',n:'Conta principal',ty:'cc',ini:0},{id:'other',n:'Outra',ty:'cc',ini:0}];
+        const tx=(id,d,k,v,cat,extra={})=>({id,t:id,d,k,v,cat,ac:'main',...extra});
+        F.tx=[
+          tx('compra','2026-03-22','out',80,'Alimentação'),
+          tx('estorno','2026-03-23','in',20,'Receita',{rb:1,rcat:'Alimentação'}),
+          tx('agendado','2026-03-31','out',900,'Alimentação'),
+          tx('transferencia','2026-03-21','tr',200,'Transferência',{to:'other'}),
+          tx('novo','2026-03-29','out',25,'Reserva'),
+          tx('outra conta','2026-03-23','out',300,'Alimentação',{ac:'other'}),
+          tx('base','2026-02-28','out',30,'Alimentação'),
+          tx('base anterior','2026-02-20','out',50,'Serviços')
+        ];
+        S.view='financas';S.ftab='analise';S.fac='main';S.fmo=0;render();
+        const model=analysisExpenses();
+        $('.analysis-slice[data-id=Alimentação]').dispatchEvent(new MouseEvent('click',{bubbles:true}));
+        const selected=$('.analysis-category-row[data-id=Alimentação]').getAttribute('aria-pressed');
+        const selectedChart=$('.analysis-donut-value').textContent;
+        const delta=$('.analysis-category-row[data-id=Alimentação]').textContent;
+        const noBase=$('.analysis-category-row[data-id=Reserva]').textContent;
+        $('[data-a=analysis-extract]').click();
+        const rows=[...document.querySelectorAll('#txlist [data-tx-row]')].map(x=>x.dataset.txRow);
+        const net=$('#txlist').textContent;
+        return {before:model.previousLabel,period:model.currentLabel,current:model.now.out,previous:model.before.out,selected,selectedChart,delta,noBase,rows,net,fac:S.fac,tab:S.ftab};
+      })()`);
+      assert.match(r.before,/28 fev/);assert.match(r.period,/30 mar/);
+      assert.equal(r.current,85);assert.equal(r.previous,80);assert.equal(r.selected,'true');
+      assert.match(r.selectedChart,/60,00/);assert.match(r.delta,/30,00.*100%/s);assert.match(r.noBase,/sem base percentual/);
+      assert.deepEqual(r.rows,['estorno','compra']);assert.match(r.net,/Despesas líquidas: R\$\s*60,00/);
+      assert.deepEqual([r.fac,r.tab],['main','lanc']);
+    }],
+    ['F4 Relatório anual preserva filtro, totais líquidos e CSV com estornos', async () => {
+      await fresh();await login('A');
+      const r=await ev(`(()=>{
+        today=new Date(2026,10,15,12);T=ds(today);
+        const F=finInit();
+        F.acc=[{id:'main',n:'Conta principal',ty:'cc',ini:0},{id:'other',n:'Outra',ty:'cc',ini:0}];
+        const tx=(id,k,v,cat,extra={})=>({id,t:id,d:T,k,v,cat,ac:'main',...extra});
+        F.tx=[tx('fixo','out',100,'Serviços',{pc:{g:'g',i:1,n:2}}),tx('estorno','in',80,'Receita',{rb:1,rcat:'Serviços'}),tx('despesa outra','out',700,'Outros',{ac:'other'}),tx('transferencia','tr',40,'Transferência',{to:'other'})];
+        S.view='financas';S.fvw='ano';S.fay='main';render();
+        let csv='';const original=siteSave;siteSave=(name,data)=>{csv=data};
+        try{$('[data-a=fexp]').click()}finally{siteSave=original}
+        const fixed=[...document.querySelectorAll('h2')].find(h=>h.textContent==='Fixo e variável').parentElement.textContent;
+        return {csv,fixed,shown:$('#main .rv4').textContent};
+      })()`);
+      assert.match(r.shown,/20,00/);assert.doesNotMatch(r.shown,/700,00/);
+      assert.match(r.fixed,/100%/);assert.doesNotMatch(r.fixed,/500%|−80,00/);
+      assert.match(r.csv,/"Total";"0,00";"20,00";"-20,00"/);
+      assert.match(r.csv,/"Serviços";"20,00"/);
+    }],
+    ['F3 Visão geral distingue caixa, fatura e escopos e preserva o mês nos atalhos', async () => {
+      await fresh();await login('A');
+      const r=await ev(`(()=>{
+        const base=new Date(2026,10,12,12);today=base;T=ds(base);
+        const F=finInit();
+        F.acc=[{id:'a',n:'Conta cotidiana',ty:'cc',ini:1000},{id:'b',n:'Conta salário',ty:'cc',ini:400},{id:'card',n:'Cartão teste',ty:'card',close:15,due:24}];
+        F.primary='b';F.rec=[];F.bills=[];
+        F.tx=[
+          {id:'cash',t:'Mercado',d:'2026-11-10',k:'out',cat:'Alimentação',ac:'a',v:100},
+          {id:'credit',t:'Compra no cartão',d:'2026-11-10',k:'out',cat:'Compras',ac:'card',v:150},
+          {id:'part',t:'Pagamento parcial',d:'2026-11-24',k:'tr',ac:'a',to:'card',invoice:'2026-11-15',v:50},
+          {id:'salary',t:'Salário',d:'2026-11-25',k:'in',ac:'b',v:200}
+        ];
+        S.view='financas';S.ftab='geral';S.fmo=0;S.fac='';render();
+        const general=$('.finance-month-flow').textContent,dues=$('.finance-dues').textContent,total=$('.finance-balance-main').textContent;
+        const dashed=$('.finance-month-flow polyline[stroke-dasharray]')!==null;
+        S.fac='a';render();
+        const scoped=$('.finance-month-flow').textContent,next=$('#main').textContent.includes('em Conta salário');
+        $('[data-a=overview-category][data-id=Alimentação]').click();
+        return {general,dues,total,dashed,scoped,next,tab:S.ftab,category:S.fcat,account:S.fac,month:S.fmo};
+      })()`);
+      assert.match(r.total,/1\.300,00/);
+      assert.match(r.general,/1\.350,00/);
+      assert.match(r.dues,/Saldo da fatura a pagar/);assert.match(r.dues,/Pagamento de fatura agendado/);
+      assert.doesNotMatch(r.dues,/Compra no cartão/);
+      assert.match(r.scoped,/850,00/);assert.ok(r.dashed&&r.next);
+      assert.deepEqual([r.tab,r.category,r.account,r.month],['lanc','Alimentação','a',0]);
+    }],
+    ['F3 Visão geral informa falta de dados e mantém vencimentos antes do gráfico no celular', async () => {
+      await fresh();await login('A');
+      await b.send('Emulation.setDeviceMetricsOverride',{width:375,height:850,deviceScaleFactor:1,mobile:true});
+      try{
+        const r=await ev(`(()=>{
+          S.view='financas';S.ftab='geral';render();
+          const dues=$('.finance-dues'),flow=$('.finance-month-flow');
+          return {message:flow.textContent,order:dues.getBoundingClientRect().top<flow.getBoundingClientRect().top,overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth};
+        })()`);
+        assert.match(r.message,/Sem saldo inicial ou movimentações/);assert.ok(r.order);assert.equal(r.overflow,0);
+      }finally{await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['F6 Finanças cabe nas larguras, temas e densidades e mantém a seção ativa visível', async () => {
+      await fresh(); await login('A');
+      const widths=[1440,320,375,430,860,1024,1280];
+      const problems=[];
+      try {
+        await ev(`S.view='financas';S.ftab='lanc';S.fin.tx=[{id:'large',t:'Farmácia '+('DescriçãoLonga'.repeat(10)),v:12345678.9,k:'out',d:T,cat:'Saúde',ac:'main'}];render()`);
+        for(const width of widths){
+          await b.send('Emulation.setDeviceMetricsOverride',{width,height:810,deviceScaleFactor:1,mobile:width<=860});
+          await ev('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))');
+          for(const theme of ['light','dark']) for(const density of ['conf','comp']){
+            const bad=await ev(`(()=>{
+              S.themeMode='${theme}';S.dens='${density}';applyTheme();applyA11y();render({save:false});
+              const bad=[];
+              const check=tab=>{
+                const rail=$('#main .ftabs'),active=rail.querySelector('[aria-pressed=true]');
+                const frame=rail.getBoundingClientRect(),button=active.getBoundingClientRect();
+                if(button.left<frame.left-1||button.right>frame.right+1)bad.push(tab+' oculto');
+                const overflow=document.documentElement.scrollWidth-document.documentElement.clientWidth;
+                if(overflow>1)bad.push(tab+' excede a página em '+overflow+' px');
+              };
+              const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
+              const context=canvas.getContext('2d',{willReadFrequently:true});
+              const luminance=color=>{
+                context.clearRect(0,0,1,1);context.fillStyle=color;context.fillRect(0,0,1,1);
+                const rgb=context.getImageData(0,0,1,1).data;
+                return [0.2126,0.7152,0.0722].reduce((n,weight,i)=>{const v=rgb[i]/255;return n+weight*(v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4)},0);
+              };
+              const contrast=(text,background)=>{
+                const a=luminance(getComputedStyle($(text)).color),b=luminance(getComputedStyle($(background)).backgroundColor);
+                const ratio=(Math.max(a,b)+0.05)/(Math.min(a,b)+0.05);
+                if(ratio<4.5)bad.push(text+' contraste '+ratio.toFixed(2));
+              };
+              check(S.ftab);
+              for(const [tab] of FTABS){
+                $('.ftabs [data-id='+tab+']').click();check(tab);
+                if(tab==='geral'){
+                  contrast('.finance-balance h2','.finance-balance');
+                  contrast('.finance-balance .neg','.finance-balance');
+                }
+                if(tab==='lanc'){
+                  contrast('.tx-open','.tx-row');
+                  contrast('.tx-amount strong','.tx-row');
+                }
+              }
+              $('.ftabs [data-id=lanc]').click();
+              return bad;
+            })()`);
+            problems.push(...bad.map(issue=>[width,theme,density,issue]));
+          }
+        }
+        assert.deepEqual(problems,[]);
+        await b.send('Emulation.setDeviceMetricsOverride',{width:320,height:810,deviceScaleFactor:1,mobile:true});
+        const enlarged=await ev(`(()=>{
+          document.documentElement.style.fontSize='200%';
+          return FTABS.map(([tab])=>{
+            $('.ftabs [data-id='+tab+']').click();
+            const rail=$('.ftabs'),active=$('.ftabs [aria-pressed=true]');
+            const frame=rail.getBoundingClientRect(),button=active.getBoundingClientRect();
+            return {tab,hidden:button.left<frame.left-1||button.right>frame.right+1,
+              overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth};
+          }).filter(({hidden,overflow})=>hidden||overflow>1);
+        })()`);
+        assert.deepEqual(enlarged,[]);
+      } finally {
+        await ev("document.documentElement.style.fontSize=''");
+        await b.send('Emulation.clearDeviceMetricsOverride');
+      }
+    }],
+    ['F6 extrato valida lista longa, filtros, teclado, privacidade e leitura local', async () => {
+      await fresh(); await login('A');
+      await b.send('Emulation.setDeviceMetricsOverride',{width:320,height:830,deviceScaleFactor:1,mobile:true});
+      try {
+        const empty=await ev(`(()=>{S.view='financas';S.ftab='lanc';render();return $('#txlist').textContent})()`);
+        assert.match(empty,/Nenhum lançamento neste mês/);
+        const list=await ev(`(()=>{
+          const F=finInit();F.tx=Array.from({length:96},(_,i)=>({id:'f6-'+i,t:i?'Despesa local '+i:'Farmácia '+('DescriçãoLonga'.repeat(10)),k:'out',v:i?10:12345678.9,d:T,cat:'Saúde',ac:F.acc[0].id}));render();
+          const rows=()=>document.querySelectorAll('[data-tx-row]').length;
+          const pageSize=rows();$('#txlist [data-a=pgmore]').click();const expanded=rows();
+          $('#fq').value='sem correspondência';$('#fq').dispatchEvent(new Event('input',{bubbles:true}));
+          const noResults=$('#txlist').textContent;
+          $('#txlist [data-a=fclr]').click();
+          $('[data-tx-bulk] > summary').click();
+          const bulk=$('[data-tx-bulk-submit]').textContent;
+          $('[data-tx-bulk] > summary').click();
+          $('#pv').click();
+          const hidden=$('#txlist').textContent;
+          $('[data-a=edtx][data-id=f6-0]').focus();
+          return {pageSize,expanded,noResults,bulk,hidden:hidden.includes('•••••')&&!hidden.includes('12.345.678,90')};
+        })()`);
+        assert.equal(list.pageSize,80); assert.equal(list.expanded,96);
+        assert.match(list.noResults,/Nenhum lançamento combina com os filtros/);
+        assert.match(list.bulk,/96 listados/); assert.ok(list.hidden);
+        const enter=async()=>{for(const type of ['keyDown','keyUp'])await b.send('Input.dispatchKeyEvent',{type,key:'Enter',code:'Enter',windowsVirtualKeyCode:13,...(type==='keyDown'?{text:'\r',unmodifiedText:'\r'}:{})})};
+        await enter();
+        const detail=await ev(`(()=>{
+          document.documentElement.style.fontSize='200%';
+          const input=$('#ffin [name=v]');
+          return {focus:document.activeElement.id,overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth,masked:getComputedStyle(input).webkitTextSecurity};
+        })()`);
+        assert.deepEqual(detail,{focus:'tx-detail-title',overflow:0,masked:'disc'});
+        await ev(`$('.tx-detail [data-a=fcancel]').focus()`); await enter();
+        assert.equal(await ev('document.activeElement.dataset.id'),'f6-0');
+        await ev(`document.documentElement.style.fontSize='';$('.ftabs [data-id=geral]').focus()`); await enter();
+        assert.ok(await ev(`!!$('.finance-balance-main')&&!!$('.finance-dues')&&!!$('.finance-month-flow')`));
+        await ev(`$('.ftabs [data-id=lanc]').focus()`); await enter();
+        await ev(`localStorage.setItem('__offline','1')`); await open();
+        assert.ok(await ev(`S.view='financas'; render({save:false}); $('#gate').hidden&&S.ftab==='lanc'&&!!$('[data-tx-row=f6-0]')&&PRIV`));
+        assert.match(await ev('synText()'),/sem conexão/);
+      } finally {
+        await ev(`document.documentElement.style.fontSize='';localStorage.removeItem('__offline');if(PRIV)$('#pv').click()`);
+        await b.send('Emulation.clearDeviceMetricsOverride');
+      }
+    }],
+    ['F2 extrato preserva consulta, foco e edição responsiva', async () => {
+      await fresh();await login('A');
+      try{
+        for(const width of [375,1440]){
+          await b.send('Emulation.setDeviceMetricsOverride',{width,height:850,deviceScaleFactor:1,mobile:width===375});
+          const r=await ev(`(()=>{
+            S.fin.tx=[{id:'f2-a',t:'Mercado',v:60,k:'out',d:T,cat:'Alimentação',ac:'main',tg:'casa'},{id:'f2-b',t:'Taxi',v:20,k:'out',d:T,cat:'Transporte',ac:'main',tg:'rua'}];
+            S.view='financas';S.ftab='lanc';render();
+            const tags=$('[data-fin-tag]');tags.value='casa';tags.dispatchEvent(new Event('change',{bubbles:true}));
+            const rows=document.querySelectorAll('tr[data-tx-row]').length,button=$('[data-a=edtx][data-id=f2-a]');button.click();
+            const detail=$('[data-tx-detail=f2-a]'),focused=document.activeElement.id;
+            const widthUsed=$('.tx-workspace').clientWidth/$('.tx-workspace').parentElement.clientWidth;
+            const ledgerVisible=getComputedStyle($('.tx-ledger')).display!=='none';
+            const form=$('#ffin');form.elements.v.value='64,00';form.requestSubmit();
+            return {rows,hasTable:!!$('.tx-table thead'),focused,ledgerVisible,hadDetail:!!detail,tag:$('[data-fin-tag]').value,returned:document.activeElement.dataset.id,value:S.fin.tx[0].v,fullWidth:widthUsed>0.98,overflow:document.documentElement.scrollWidth-document.documentElement.clientWidth};
+          })()`);
+          assert.deepEqual(r,{rows:1,hasTable:true,focused:'tx-detail-title',ledgerVisible:width===1440,hadDetail:true,tag:'casa',returned:'f2-a',value:64,fullWidth:true,overflow:0});
+        }
+      }finally{await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+    ['F2.1 Reserva confirma só os aportes selecionados e mantém os saldos', async () => {
+      await fresh();await login('A');
+      const r=await ev(`(()=>{
+        finInit();
+        const tx=(id,t,k,v,cat,extra={})=>({id,t,k,v,cat,d:T,ac:'main',...extra});
+        S.fin.tx=[tx('r1','Aplicação para reserva','out',80,'Outros',{tg:'pessoal',shopping:'lista'}),tx('r2','Outra despesa','out',20,'Outros'),tx('r3','Transferência para reserva','tr',15,'Transferência',{to:'other'})];
+        S.view='financas';S.ftab='lanc';render();
+        const before=finMonth().out,balBefore=bal(S.fin.acc[0]),f=$('#ftxbulk');
+        f.elements.cat.value='Reserva';f.requestSubmit();
+        const staged=[...document.querySelectorAll('input[name=reservePick]')].map(i=>i.value),untouched=S.fin.tx[0].cat;
+        f.querySelector('[value=r1]').checked=true;f.querySelector('[data-a=reserve-confirm]').click();
+        const unchangedTotals=before===finMonth().out&&balBefore===bal(S.fin.acc[0]);
+        const source=['Data;Descrição;Valor',T+';Aporte para a reserva;-42',T+';Resgate da reserva;25',T+';Dinheiro reservado;-15',T+';Depósito para reserva de hotel;-70'].join(String.fromCharCode(10));
+        prepCSV(source,'Extrato');IMP.trRes=true;
+        const imported=impRows().rows.map(x=>x.cat);
+        const lastMonth=ds(new Date(today.getFullYear(),today.getMonth()-1,10));
+        S.fin.tx.push({...tx('old-spend','Mercado','out',200,'Alimentação'),d:lastMonth},{...tx('old-reserve','Aporte','out',100,'Reserva'),d:lastMonth});
+        return {average:avgOut3(),staged,untouched,cats:S.fin.tx.slice(0,3).map(t=>t.cat),value:S.fin.tx[0].v,link:S.fin.tx[0].shopping,unchangedTotals,imported};
+      })()`);
+      assert.deepEqual(r,{average:200,staged:['r1','r2'],untouched:'Outros',cats:['Reserva','Outros','Transferência'],value:80,link:'lista',unchangedTotals:true,imported:['Reserva','Receita','Transferência','Férias']});
+    }],
+    ['F1 Finanças abre no extrato, guarda a aba e restaura o contexto mensal', async () => {
+      await fresh(); await login('A');
+      const r=await ev(`(()=>{
+        S.fin.acc=[{id:'main',n:'Principal',ty:'cc',ini:1000},{id:'second',n:'Segunda',ty:'cc',ini:50}];
+        document.querySelector('#side [data-v=financas]').click();
+        const initial=S.ftab, startsWithList=!!$('#txlist')&&!$('#finance-balance-title');
+        $('[data-a=ftab][data-id=geral]').click();
+        const navBeforeSummary=!!($('.ftabs').compareDocumentPosition($('#finance-balance-title'))&Node.DOCUMENT_POSITION_FOLLOWING);
+        $('[data-a=ftab][data-id=contas]').click();
+        const month=$('[data-a=fmn][data-n="-1"]');month.click();
+        const account=$('[data-fac]');account.value='second';account.dispatchEvent(new Event('change',{bubbles:true}));
+        $('[data-a=fvw][data-id=ano]').click();
+        const yearAccount=$('[data-fac-year]');if(yearAccount){yearAccount.value='main';yearAccount.dispatchEvent(new Event('change',{bubbles:true}))}
+        $('[data-a=fvw][data-id=mes]').click();
+        return {initial,startsWithList,navBeforeSummary,hasYearAccount:!!yearAccount,tab:S.ftab,month:S.fmo,account:$('[data-fac]').value,persisted:JSON.parse(localStorage.getItem('hub-ui')).ftab};
+      })()`);
+      assert.deepEqual(r,{initial:'lanc',startsWithList:true,navBeforeSummary:true,hasYearAccount:true,tab:'contas',month:-1,account:'second',persisted:'contas'});
+      await open();await waitFor("document.querySelector('.ftabs [aria-pressed=true]')?.dataset.id==='contas'",'subaba de Finanças restaurada');
+      assert.deepEqual(await ev("({month:S.fmo,account:document.querySelector('[data-fac]').value})"),{month:-1,account:'second'});
+      const linked=await ev(`(()=>{
+        S.fin.tx.unshift({id:'f1-search',t:'Despesa única F1',k:'out',v:84,cat:'Serviços',d:T,ac:'main'});
+        $('[data-a=fvw][data-id=ano]').click();
+        const q=$('#q');q.value='Despesa única F1';q.dispatchEvent(new Event('input',{bubbles:true}));
+        $('[data-a=finance-review-open][data-id=f1-search]').click();
+        return {tab:S.ftab,period:S.fvw,title:$('#ffin [name=t]').value,selected:FED};
+      })()`);
+      assert.deepEqual(linked,{tab:'lanc',period:'mes',title:'Despesa única F1',selected:'f1-search'});
+      await b.send('Emulation.setDeviceMetricsOverride',{width:375,height:812,deviceScaleFactor:1,mobile:true});
+      try{
+        assert.ok(await ev(`(()=>{
+          S.view='dash';render({save:false});S.view='financas';render({save:false});
+          const rail=$('.ftabs').getBoundingClientRect(),active=$('.ftabs [aria-pressed=true]').getBoundingClientRect();
+          return active.left>=rail.left-1&&active.right<=rail.right+1;
+        })()`),'aba ativa deve ficar visível na faixa de navegação móvel');
+      }finally{await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
     ['simulador pela interface não salva nem sincroniza', async () => {
-      await fresh();await login('A');const r=await ev(`(()=>{S.view='financas';render();const f=document.querySelector('#purchase-simulator');f.elements.amount.value='120,00';f.elements.parts.value='2';const before=JSON.stringify(S.fin),local=localStorage.getItem('hub-v1'),sync=localStorage.getItem('hub-sync');f.requestSubmit();return {unchanged:before===JSON.stringify(S.fin),local:local===localStorage.getItem('hub-v1'),sync:sync===localStorage.getItem('hub-sync'),text:document.querySelector('[data-simulation-result]').textContent}})()`);assert.ok(r.unchanged&&r.local&&r.sync);assert.match(r.text,/Base: saldo final/);
+      await fresh();await login('A');const r=await ev(`(()=>{S.view='financas';S.ftab='analise';render();const f=document.querySelector('#purchase-simulator');f.elements.amount.value='120,00';f.elements.parts.value='2';const before=JSON.stringify(S.fin),local=localStorage.getItem('hub-v1'),sync=localStorage.getItem('hub-sync');f.requestSubmit();return {unchanged:before===JSON.stringify(S.fin),local:local===localStorage.getItem('hub-v1'),sync:sync===localStorage.getItem('hub-sync'),text:document.querySelector('[data-simulation-result]').textContent}})()`);assert.ok(r.unchanged&&r.local&&r.sync);assert.match(r.text,/Base: saldo final/);
     }],
     ['revisão de assinaturas sinaliza atenção e não cria cobranças', async () => {
       await fresh();await login('A');const r=await ev(`(()=>{S.fin.rec=[{id:'r',t:'Serviço',k:'out',cat:'Assinaturas',v:20,day:1,ini:T,ac:S.fin.acc[0].id}];S.view='financas';S.ftab='contas';S.fvw='mes';render();const count=S.fin.tx.length;document.querySelector('[data-a=sub-review]').click();const flagged=attention().some(x=>x.k==='sub'&&x.id==='r');document.querySelector('[data-a=sub-task]').click();const task=S.tasks.some(x=>x.t==='Revisar assinatura: Serviço');document.querySelector('[data-a=sub-review]').click();return {flagged,task,pending:S.fin.rec[0].review,count,balance:S.fin.tx.length,text:document.querySelector('#main').innerText}})()`);assert.ok(r.flagged&&r.task&&!r.pending);assert.strictEqual(r.balance,r.count);assert.match(r.text,/por ano/);
@@ -407,7 +735,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh();await login('A');const r=await ev(`(()=>{const fin={acc:[{id:'a',ty:'cc',ini:1000},{id:'card',ty:'card',close:20,due:10}],tx:[{id:'pay',k:'tr',ac:'a',to:'card',v:100,d:'2030-03-10',invoice:'2030-02-20'},{id:'other',k:'out',ac:'a',v:950,d:'2030-04-01'}]},before=JSON.stringify(fin),out=simulatePurchase(fin,'a','2030-01-31',30000,2,0,'2030-01-01','card'),leap=simulatedCardCycle('2028-02-29',{close:31,due:10});return {out,leap,same:before===JSON.stringify(fin)}})()`);assert.ok(r.same);assert.deepStrictEqual(r.out.schedule.map(x=>x.closing),['2030-02-20','2030-03-20']);assert.deepStrictEqual(r.out.schedule.map(x=>x.d),['2030-03-10','2030-04-10']);assert.strictEqual(r.out.base,-5000);assert.strictEqual(r.out.scenario,-35000);assert.strictEqual(r.out.minScenario,-35000);assert.deepStrictEqual(r.leap,{closing:'2028-02-29',payment:'2028-03-10'});
     }],
     ['simulador de cartão alerta sobre conta sem vínculo e não salva', async () => {
-      await fresh();await login('A');const r=await ev(`(()=>{S.fin.acc=[{id:'a',n:'Conta',ty:'cc',ini:1000},{id:'card',n:'Cartão',ty:'card',close:20,due:10}];S.view='financas';render();const f=document.querySelector('#purchase-simulator');f.elements.amount.value='120,00';f.elements.parts.value='2';f.elements.card.value='card';const before=JSON.stringify(S.fin),local=localStorage.getItem('hub-v1');f.requestSubmit();return {text:document.querySelector('[data-simulation-result]').textContent,same:before===JSON.stringify(S.fin)&&local===localStorage.getItem('hub-v1')}})()`);assert.ok(r.same);assert.match(r.text,/sem conta de pagamento vinculada/i);assert.match(r.text,/fecha/);
+      await fresh();await login('A');const r=await ev(`(()=>{S.fin.acc=[{id:'a',n:'Conta',ty:'cc',ini:1000},{id:'card',n:'Cartão',ty:'card',close:20,due:10}];S.view='financas';S.ftab='analise';render();const f=document.querySelector('#purchase-simulator');f.elements.amount.value='120,00';f.elements.parts.value='2';f.elements.card.value='card';const before=JSON.stringify(S.fin),local=localStorage.getItem('hub-v1');f.requestSubmit();return {text:document.querySelector('[data-simulation-result]').textContent,same:before===JSON.stringify(S.fin)&&local===localStorage.getItem('hub-v1')}})()`);assert.ok(r.same);assert.match(r.text,/sem conta de pagamento vinculada/i);assert.match(r.text,/fecha/);
     }],
     ['conferir backup valida sem alterar os dados', async () => {
       await fresh();await login('A');const r=await ev(`(async()=>{S.focus='Preservar';save();S.view='backup';render();const before=JSON.stringify(pick()),stored=localStorage.getItem('hub-v1');async function check(data){const f=document.querySelector('#bkcheck'),dt=new DataTransfer();dt.items.add(new File([data],'backup.json',{type:'application/json'}));f.files=dt.files;f.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(r=>setTimeout(r,150));return document.querySelector('#bkmsg').textContent}const valid=await check(JSON.stringify(pick())),invalid=await check('{');return {valid,invalid,same:before===JSON.stringify(pick()),stored:stored===localStorage.getItem('hub-v1')}})()`);assert.match(r.valid,/compatível/i);assert.match(r.invalid,/inválido/i);assert.ok(r.same&&r.stored);
@@ -540,7 +868,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
     }],
     ['resumo financeiro distingue futuro e projeção por conta não inclui faturas sem origem', async () => {
       await fresh(); await login('A');
-      const r=await ev(`(()=>{S.fin.acc=[{id:'a',n:'Conta A',ty:'cc',ini:100},{id:'b',n:'Conta B',ty:'cc',ini:100},{id:'c',n:'Cartão',ty:'card',close:28,due:10,ini:0}];S.fin.rec=[];S.fin.bills=[{id:'bill',n:'Sem conta',v:20,day:Math.min(28,today.getDate()+1)}];const tomorrow=ds(add(today,1)),iv=invoice(S.fin.acc[2]);S.fin.tx=[{id:'future',k:'in',t:'Salário',v:1000,cat:'Receita',d:tomorrow,ac:'a'},{id:'buy',k:'out',t:'Compra',v:50,cat:'Outros',d:iv.end,ac:'c'}];S.view='financas';S.fvw='mes';S.fmo=0;S.fac='a';render();const text=document.querySelector('#main').innerText,c=cashFlow({days:90,fac:'a',vary:false});return {text,events:c.evs}})()`);
+      const r=await ev(`(()=>{S.fin.acc=[{id:'a',n:'Conta A',ty:'cc',ini:100},{id:'b',n:'Conta B',ty:'cc',ini:100},{id:'c',n:'Cartão',ty:'card',close:28,due:10,ini:0}];S.fin.rec=[];S.fin.bills=[{id:'bill',n:'Sem conta',v:20,day:Math.min(28,today.getDate()+1)}];const tomorrow=ds(add(today,1)),iv=invoice(S.fin.acc[2]);S.fin.tx=[{id:'future',k:'in',t:'Salário',v:1000,cat:'Receita',d:tomorrow,ac:'a'},{id:'buy',k:'out',t:'Compra',v:50,cat:'Outros',d:iv.end,ac:'c'}];S.view='financas';S.ftab='geral';S.fvw='mes';S.fmo=0;S.fac='a';render();const text=document.querySelector('#main').innerText,c=cashFlow({days:90,fac:'a',vary:false});return {text,events:c.evs}})()`);
       assert.match(r.text,/inclui agendadas/);assert.match(r.text,/Até hoje/);assert.ok(!r.events.some(x=>x.k==='card'||x.k==='bill'));
     }],
     ['importação permite revisar cada duplicata e mantém descrições diferentes', async () => {
@@ -2668,9 +2996,11 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
             computed: invCompute(S.fin.inv)
           };
           const mainText0 = document.querySelector('#main').textContent;
-          const cfgPos = mainText0.indexOf('Configurações de Cotações e Planilha');
-          const macroPos = mainText0.indexOf('Rebalanceamento Macro');
-          const orderOk = macroPos >= 0 && cfgPos > macroPos;
+          const main = document.querySelector('#main');
+          const settings = main.querySelector('#fin-invest-settings');
+          const rebalance = [...main.querySelectorAll('h2')].find(h => h.textContent === 'Rebalanceamento Macro');
+          const orderOk = Boolean(settings && rebalance &&
+            (rebalance.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING));
 
           while (INV_BUSY) await new Promise(res => setTimeout(res, 20));
           await invSyncQuotes(true);

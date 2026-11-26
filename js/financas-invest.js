@@ -281,13 +281,17 @@ function invMacroPanel(inv,M){
   <td><span class="chip ${r.buy?'c-g':''}">${r.buy?'Comprar':'Esperar'}</span></td>
   <td><strong>${BRL(r.cAporte)}</strong></td>
  </tr>`).join('');
- const theses=inv.classes.map(c=>`<label class="lb" style="margin:var(--space-1) 0">${esc(c.n)}<input class="in" data-inv-cls-thesis="${esc(c.id)}" value="${esc(c.thesis||'')}" placeholder="Estratégia da classe…"></label>`).join('');
- return `<div class="panel c2"><h2>Carteira Atual × Ideal</h2>${invDonutSvg(M.clsRows,M.gross)}<p class="empty" style="padding:var(--space-2) 0 0">Soma das metas: <strong>${invFmtPct(sumT)}</strong>${Math.abs(sumT-100)>.1?' (ajuste para 100%)':''}.</p><details style="margin-top:var(--space-2)"><summary>Teses por classe</summary>${theses}</details></div>
+ return `<div class="panel c2"><h2>Carteira Atual × Ideal</h2>${invDonutSvg(M.clsRows,M.gross)}<p class="empty" style="padding:var(--space-2) 0 0">Soma das metas: <strong>${invFmtPct(sumT)}</strong>${Math.abs(sumT-100)>.1?' (ajuste para 100%)':''}.</p></div>
  <div class="panel c4"><h2>Rebalanceamento Macro</h2><p class="empty" style="padding:0 0 var(--space-2)">Distribuição sugerida do aporte de <strong>${BRL(M.aporte)}</strong> conforme as metas abaixo:</p><div style="overflow-x:auto"><table class="yt"><thead><tr><th scope="col">Segmento</th><th scope="col">Total</th><th scope="col">% Atual</th><th scope="col">% Ideal</th><th scope="col">Dif.</th><th scope="col">Ação</th><th scope="col">Aportar</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+function invSettingsFields(inv,M){
+ return `<div class="bar" style="margin:0 0 var(--space-2)"><label class="lb" style="margin:0">Aporte do mês (R$)<input class="in" data-inv-cfg="aporte" inputmode="decimal" value="${M.aporte.toFixed(2).replace('.',',')}" style="width:120px"></label><label class="lb" style="margin:0">Cotação Dólar (R$)<input class="in" data-inv-cfg="usd" inputmode="decimal" value="${M.usd.toFixed(2).replace('.',',')}" style="width:110px"></label><label class="lb" style="margin:0">Caixa / Dividendos (R$)<input class="in" data-inv-cfg="cash" inputmode="decimal" value="${M.cash.toFixed(2).replace('.',',')}" style="width:130px"></label><label class="lb" style="margin:0">Total Investido / Custo (R$)<input class="in" data-inv-cfg="costTotal" inputmode="decimal" value="${(+inv.cfg.costTotal||0)?(+inv.cfg.costTotal).toFixed(2).replace('.',','):''}" placeholder="Automático" style="width:140px"></label></div>`;
+}
+function invAssetForm(inv){
+ return `<form class="bar" id="finvasset" style="margin:var(--space-3) 0 0"><input class="in" name="ticker" placeholder="Ticker (ex.: WEGE3)" required style="width:130px"><input class="in grow" name="name" placeholder="Nome / Setor (opcional)"><select class="in" name="cls" aria-label="Classe">${inv.classes.map(c=>`<option value="${esc(c.id)}">${esc(c.n)}</option>`).join('')}</select><input class="in" name="price" inputmode="decimal" placeholder="Cotação" required style="width:100px"><input class="in" name="qty" inputmode="decimal" placeholder="Qtd" value="0" style="width:90px"><input class="in" name="target" type="number" step="1" min="0" max="100" placeholder="% Alvo" value="10" style="width:90px"><select class="in" name="cur" aria-label="Moeda"><option value="BRL">BRL (R$)</option><option value="USD">USD (US$)</option></select><button class="pill dark">Adicionar ativo</button></form>`;
 }
 function invAssetsPanel(inv,M){
  const F=finInit(),cf=(inv.cfg.clsFilter||''),showRadar=inv.cfg.showRadar!==false;
- const cfgBar=`<div class="bar" style="margin:0 0 var(--space-2)"><label class="lb" style="margin:0">Aporte do mês (R$)<input class="in" data-inv-cfg="aporte" inputmode="decimal" value="${M.aporte.toFixed(2).replace('.',',')}" style="width:120px"></label><label class="lb" style="margin:0">Cotação Dólar (R$)<input class="in" data-inv-cfg="usd" inputmode="decimal" value="${M.usd.toFixed(2).replace('.',',')}" style="width:110px"></label><label class="lb" style="margin:0">Caixa / Dividendos (R$)<input class="in" data-inv-cfg="cash" inputmode="decimal" value="${M.cash.toFixed(2).replace('.',',')}" style="width:130px"></label><label class="lb" style="margin:0">Total Investido / Custo (R$)<input class="in" data-inv-cfg="costTotal" inputmode="decimal" value="${(+inv.cfg.costTotal||0)?(+inv.cfg.costTotal).toFixed(2).replace('.',','):''}" placeholder="Automático" style="width:140px"></label></div>`;
  const fltBar=`<div class="bar" style="margin:0 0 var(--space-2)"><button type="button" class="pill ${!cf?'on':''}" data-a="inv-cls" data-id="">Todas as classes</button>${M.clsRows.map(c=>`<button type="button" class="pill ${cf===c.id?'on':''}" data-a="inv-cls" data-id="${esc(c.id)}">${esc(c.n)} (${c.list.length})</button>`).join('')}<button type="button" class="pill ${showRadar?'on':''}" data-a="inv-radar">${showRadar?'Ocultar radar (Qtd 0)':'Mostrar radar (Qtd 0)'}</button></div>`;
  const sections=M.clsRows.filter(c=>!cf||c.id===cf).map(c=>{
   const vis=c.items.filter(x=>showRadar||(+x.a.qty||0)>0||(+x.a.target||0)>0);
@@ -309,8 +313,7 @@ function invAssetsPanel(inv,M){
   }).join('');
   return `<h3 class="gh">${esc(c.n)} · ${BRL(c.val)}${c.cAporte?` · Aporte sugerido: <strong>${BRL(c.cAporte)}</strong>`:''}</h3><div style="overflow-x:auto"><table class="yt"><thead><tr><th scope="col">Ativo</th><th scope="col">Cotação</th><th scope="col">Qtd</th><th scope="col">Investido</th><th scope="col">% Atual</th><th scope="col">% Alvo</th><th scope="col">Dif.</th><th scope="col">Ação</th><th scope="col">Comprar</th><th scope="col">Opções</th></tr></thead><tbody>${rows}</tbody></table></div>`;
  }).join('');
- const form=`<form class="bar" id="finvasset" style="margin:var(--space-3) 0 0"><input class="in" name="ticker" placeholder="Ticker (ex.: WEGE3)" required style="width:130px"><input class="in grow" name="name" placeholder="Nome / Setor (opcional)"><select class="in" name="cls" aria-label="Classe">${inv.classes.map(c=>`<option value="${esc(c.id)}">${esc(c.n)}</option>`).join('')}</select><input class="in" name="price" inputmode="decimal" placeholder="Cotação" required style="width:100px"><input class="in" name="qty" inputmode="decimal" placeholder="Qtd" value="0" style="width:90px"><input class="in" name="target" type="number" step="1" min="0" max="100" placeholder="% Alvo" value="10" style="width:90px"><select class="in" name="cur" aria-label="Moeda"><option value="BRL">BRL (R$)</option><option value="USD">USD (US$)</option></select><button class="pill dark">Adicionar ativo</button></form>`;
- return `<div class="panel wide"><h2>Ativos e Balanceamento por Classe</h2>${cfgBar}${fltBar}${sections||'<p class="empty">Nenhum ativo cadastrado. Adicione abaixo ou carregue a planilha Rumo aos 100k.</p>'}${form}</div>`;
+ return `<div class="panel wide"><div class="top"><h2>Posição por ativo</h2><button class="pill" data-a="fin-config-open" data-id="fin-asset-form">Cadastrar ativo</button></div>${fltBar}${sections||'<p class="empty">Nenhum ativo cadastrado. Use Cadastrar ativo ou carregue a planilha Rumo aos 100k.</p>'}</div>`;
 }
 function invProventosPanel(inv){
  const sorted=[...inv.divs].sort((a,b)=>a.ym.localeCompare(b.ym));
@@ -341,12 +344,13 @@ function invProventosPanel(inv){
  </div>`;
 }
 function invMilestonesPanel(inv){
- return `<div class="panel"><h2>Marcos da Carteira ("Rumo aos 100k")</h2>
+ return `<div class="panel wide"><h2>Marcos da Carteira ("Rumo aos 100k")</h2>
   ${inv.milestones.map(m=>`<div class="item"><input type="checkbox" class="chk" data-a="inv-mile-tog" data-id="${esc(m.id)}" ${m.doneDate?'checked':''} aria-label="Marcar ${esc(m.t)}"><div class="t">${esc(m.t)}<small>${m.doneDate?'Batida em '+fmt(m.doneDate)+' '+m.doneDate.slice(0,4):m.rule==='rule'?'Regra de estratégia':'Em aberto'}</small></div><input class="in" type="date" data-inv-mile-date="${esc(m.id)}" value="${esc(m.doneDate||'')}" aria-label="Data de conquista"><button type="button" class="x" data-a="inv-mile-del" data-id="${esc(m.id)}" aria-label="Excluir marco">×</button></div>`).join('')||'<p class="empty">Defina metas de patrimônio, aporte ou renda passiva para acompanhar sua evolução.</p>'}
   <form class="bar" id="finvmile" style="margin:var(--space-2) 0 0"><input class="in grow" name="t" placeholder="Ex.: Alcançar R$ 10.000 em investimentos" required><select class="in" name="rule" aria-label="Tipo"><option value="">Meta da carteira</option><option value="rule">Regra / critério</option></select><button class="pill">Adicionar marco</button></form>
  </div>`;
 }
 function invToolsPanel(inv,M){
+ const theses=inv.classes.map(c=>`<label class="lb" style="margin:var(--space-1) 0">${esc(c.n)}<input class="in" data-inv-cls-thesis="${esc(c.id)}" value="${esc(c.thesis||'')}" placeholder="Estratégia da classe…"></label>`).join('');
  const valAssets=inv.assets.filter(a=>a.cls==='acoes'||a.lpa>0||a.vpa>0||a.div12>0);
  const valRows=valAssets.map(a=>{
   const p=+a.price||0,d12=+a.div12||0,rate=(+a.ceilRate>0?+a.ceilRate:6),teto=d12>0?r2(d12/(rate/100)):0;
@@ -371,14 +375,16 @@ function invToolsPanel(inv,M){
   <form class="bar" id="finvsim"><label class="lb" style="margin:0">Patrimônio inicial<input class="in" name="initial" inputmode="decimal" value="${(INV_SIM?INV_SIM.initial:M.gross).toFixed(2).replace('.',',')}" required style="width:130px"></label><label class="lb" style="margin:0">Aporte mensal<input class="in" name="monthly" inputmode="decimal" value="${(INV_SIM?INV_SIM.monthly:M.aporte).toFixed(2).replace('.',',')}" required style="width:120px"></label><label class="lb" style="margin:0">Taxa (% a.a.)<input class="in" name="rate" inputmode="decimal" value="${INV_SIM?INV_SIM.rate:'10'}" required style="width:90px"></label><label class="lb" style="margin:0">Prazo (anos)<input class="in" name="years" type="number" min="1" max="60" value="${INV_SIM?INV_SIM.years:'10'}" required style="width:80px"></label><label class="lb" style="margin:0">Meta renda/mês (opc.)<input class="in" name="goal" inputmode="decimal" value="${INV_SIM&&INV_SIM.goal?INV_SIM.goal:''}" placeholder="Ex.: 2000" style="width:120px"></label><button class="pill dark">Simular</button></form>
   ${simRes}
  </div>
- <div class="panel"><h2>Configurações de Cotações e Planilha</h2>
+ <div class="panel wide" id="fin-invest-settings"><h2>Configurações da carteira e cotações</h2>
+  ${invSettingsFields(inv,M)}<details id="fin-invest-theses"><summary>Teses por classe</summary>${theses}</details>
   <p class="empty" style="padding:0 0 var(--space-2)">As cotações de Ações, FIIs e ETFs são sincronizadas diretamente das fórmulas GOOGLEFINANCE da sua Planilha Google + Dólar ao vivo (AwesomeAPI). Para tickers fora da planilha, informe um token gratuito da Brapi (opcional).</p>
   <div class="bar"><label class="lb grow" style="margin:0">ID ou Link da Planilha Google<input class="in" data-inv-cfg="sheetId" value="${esc(inv.cfg.sheetId||'')}" placeholder="URL ou ID da planilha pública"></label><label class="lb" style="margin:0">Token Brapi (opcional)<input class="in" data-inv-cfg="brapiToken" value="${esc(inv.cfg.brapiToken||'')}" placeholder="Token brapi.dev" style="width:180px"></label><button type="button" class="pill" data-a="inv-preset">Carregar / restaurar planilha Rumo aos 100k</button></div>
  </div>`;
 }
 function invPanel(){
  const F=finInit(),inv=invInit(F),M=invCompute(inv);
- return invKpiPanel(inv,M)+invMacroPanel(inv,M)+invAssetsPanel(inv,M)+invProventosPanel(inv)+invMilestonesPanel(inv)+invToolsPanel(inv,M);
+ const registration=`<details class="panel wide" id="fin-asset-form"><summary>Cadastrar ativo</summary>${invAssetForm(inv)}</details>`;
+ return invKpiPanel(inv,M)+invAssetsPanel(inv,M)+invMacroPanel(inv,M)+invProventosPanel(inv)+invMilestonesPanel(inv)+registration+invToolsPanel(inv,M);
 }
 function invHandleChange(i){
  const d=i.dataset;if(!d)return 0;
@@ -426,8 +432,8 @@ function finActE(a,id,b){
  if(a==='inv-div-del'){const I=invInit(F);I.divs=I.divs.filter(x=>x.id!==id);return 1}
  if(a==='inv-mile-tog'){const m=invInit(F).milestones.find(x=>x.id===id);if(m)m.doneDate=m.doneDate?'':T;return 1}
  if(a==='inv-mile-del'){const I=invInit(F);I.milestones=I.milestones.filter(x=>x.id!==id);return 1}
- if(a==='fkd'){S.fkd=S.fkd===id?'':id;TXBULKDEL=false;return 1}
- if(a==='fclr'){S.fkd='';S.fcat='';FQ='';FRECON='';TXBULKDEL=false;return 1}
+ if(a==='fkd'){ANALYSIS_CUT='';S.fkd=S.fkd===id?'':id;TXBULKDEL=false;return 1}
+ if(a==='fclr'){ANALYSIS_CUT='';S.fkd='';S.fcat='';FQ='';FRECON='';FTAG='';TXBULKDEL=false;return 1}
  if(a==='fmm'){S.fmm=id;return 1}
  if(a==='fmpix'){S.fmpix=!S.fmpix;return 1}
  if(a==='fmerch'){

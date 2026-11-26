@@ -230,7 +230,15 @@ A linguagem é de **cantos generosos e pílulas**. Quanto maior a superfície, m
 - **Item de lista:** fundo Papel dentro do painel, cantos de 14px, padding de 8px 12px, borda sutil `--card-border`, 8px entre itens.
 - **Painel de saudação** (Início): banner horizontal (`.hero2-banner`) com cantos de 26px, borda `--card-border`, gradiente suave do Painel sobre pinturas impressionistas no estilo Van Gogh (`img/hero-manha.jpg`, `img/hero-tarde.jpg`, `img/hero-noite.jpg`) que mudam por período do dia, relógio ao vivo no canto superior direito (`.hero2-clock`), breadcrumb (`.crumb`) e pílulas de captura rápida inline (`.hero2-qa`). Os cards de KPI ficam logo abaixo do banner para deixar a pintura livre à direita.
 - **Card tracejado de criação** (`.dashed-add`): convite visual em Notas e Links para criar itens direto na grade.
-- **Cartões visuais e projeção** (`.cc-card`, `.cc-proj`): em Finanças → Contas e cartões, exibem fatura atual, barra de limite e os próximos 4 meses previstos.
+- **Cartões visuais e projeção** (`.cc-card`, `.cc-proj`): em Finanças → Contas e recorrentes, exibem a fatura do ciclo selecionado, barra de limite e os próximos 4 meses previstos.
+
+### Hierarquia de Finanças
+
+- **Navegação e contexto.** Exiba o período e a conta no cabeçalho e mantenha a seção ativa visível na faixa de abas quando a janela muda de largura. Em telas estreitas, a faixa pode rolar sem arrastar a página. Rótulos longos podem quebrar linha com texto aumentado.
+- **Lançamentos.** A lista é o conteúdo principal. Busca, filtros e criação ficam junto do extrato. Use tabela a partir de 1.051 px e linhas agrupadas por dia abaixo disso. A edição abre ao lado do extrato a partir de 1.320 px e ocupa a largura disponível abaixo desse ponto. Ao abrir, o foco vai para o título do detalhe. Ao voltar, retorna ao lançamento ou ao título do extrato quando o registro saiu da lista.
+- **Visão geral.** Mostre saldo, resultado do período e acesso aos próximos vencimentos antes dos painéis de apoio. O fluxo diferencia realizado e previsto pelo traço e pela legenda. Em celular, coloque vencimentos antes do gráfico.
+- **Abas de apoio.** Mantenha ações frequentes junto dos valores e itens. Coloque formulários de configuração após as listas, o simulador ao fim de Análises e a manutenção ao fim de Regras e importação.
+- **Leitura e privacidade.** No extrato e no resumo, use contraste suficiente para os valores de saída. O modo privacidade mascara os valores financeiros em consulta. O campo de valor no detalhe fica mascarado até receber foco para edição.
 
 ### Inputs / Fields
 - **Style:** fundo Papel, borda de 1px em Linha de Areia, cantos de 12px, padding de 8px 12px, texto de 1rem.
