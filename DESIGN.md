@@ -294,3 +294,15 @@ Os cards do topo do Início: fundo Papel, cantos de 18px, padding de 16px (12px 
 - **2026-11-24 — Segunda fonte editorial (`Instrument Serif` itálico local):** adicionada em `fonts/` (`.woff2`) apenas para o nome na saudação do Início e subtítulos de tela (`.sub-ed`), mantendo `Outfit` e números tabulares em toda a interface e respeitando o CSP `font-src 'self'`.
 - **2026-11-24 — Hero com arte impressionista em SVG + relógio ao vivo:** `heroArt()` usa pinceladas curvas em SVG ligadas exclusivamente às variáveis CSS da paleta ativa (`--s1`, `--s2`, `--pink`, `--blue`, `--yellow`, `--green`) para funcionar nas 5 paletas × claro/escuro sem arquivos raster pesados; `syncHeroClock()` atualiza o horário e o período automaticamente.
 - **2026-11-24 — Refinos de layout e escaneabilidade:** bordas sutis (`--card-border`), breadcrumbs (`.crumb`), badges na sidebar (`.nbadge`), cards tracejados (`.dashed-add`) em Notas/Links, cartões visuais com projeção de 4 faturas em Finanças, *Últimos lançamentos* na Visão Geral e toggle `Lista | Semana` por turnos em Tarefas.
+
+### 27/11/2026 — Conferência de conflitos
+
+Backup usa os painéis, detalhes expansíveis e botões existentes para comparar campos em conflito antes das ferramentas de substituição integral. Valores são escapados e ocultados em modo Privacidade. Campos alterados após a mesclagem bloqueiam aplicação da versão recebida.
+
+### 27/11/2026 — Conteúdo acessível com texto ampliado
+
+Tarefas e Agenda usam grupos expansíveis existentes para visualização, filtros e criação de evento, mantendo o escopo e a navegação frequente perto do conteúdo. Títulos sem subtítulos redundantes reduzem a altura antes das listas. Os grupos mantêm IDs para preservar abertura durante a edição e as ações. A revisão semanal reutiliza a escolha de próximo passo dos projetos; mostra tarefas vinculadas pendentes e orienta quando não houver opções.
+
+### 27/11/2026 — Esperas e conferência com retomada
+
+A espera é configurada dentro das opções existentes da tarefa, com data de revisão obrigatória e dependência opcional. Uma seção em Hoje mostra apenas esperas que chegaram à revisão; retomar e abrir ficam junto ao item. A conferência financeira usa uma seção no extrato com um registro por vez e uma ação principal, preservando os botões, painéis e tokens existentes. O escopo informa mês e conta; os controles de pausa e revisão são secundários. Estados cobertos: vazio, espera futura/vencida, tarefa arquivada/concluída, recorrência, lançamento alterado/removido, pausa, recarga, troca de conta, falha de gravação, privacidade e texto longo em celular.

@@ -41,28 +41,57 @@ function setSt(s,d){
 }
 const syncPanel=()=>{
  const last=SY.lastAt?new Date(SY.lastAt).toLocaleString('pt-BR'):'ainda não confirmada',pending=LOCAL_CORRUPT?'indisponíveis até recuperar os dados':!SY.last||pickJSON()!==SY.last?'há alterações locais pendentes':'nenhuma alteração pendente';
- const head=`<div class="panel" style="margin-top:var(--space-4)"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 var(--space-2)">${esc(synText())}</p><p class="empty">Última sincronização: ${esc(last)}. Estado das alterações: ${pending}.</p>`;
+ const head=`<div class="panel" style="margin-top:var(--space-4)"><h2>Sincronização entre aparelhos</h2><p id="synp" class="empty" role="status" style="padding:0 0 var(--space-2)">${esc(synText())}</p><p class="empty">Última sincronização: ${esc(last)}. Estado das alterações: ${pending}.</p>`+conflictPanel();
  const btns=`<div class="bar"><button class="pill dark" data-a="syncnow">Sincronizar agora</button><button class="pill${ARM==='syncup'?' dark':''}" data-a="syncup">${ARM==='syncup'?'Confirmar: enviar para a nuvem':'Enviar este aparelho para a nuvem'}</button><button class="pill${ARM==='syncdown'?' dark':''}" data-a="syncdown">${ARM==='syncdown'?'Confirmar: trazer da nuvem':'Trazer os dados da nuvem'}</button>${ARM?'<button class="pill" data-a="synccancel">Cancelar</button>':''}<button class="pill" data-a="fbout">Sair da conta</button></div>`;
  if(!FB_CONFIG)return head+'<p class="empty" style="padding:0">A sincronização ainda não foi configurada (veja o README do projeto). Os dados ficam só neste navegador.</p></div>';
  if(FB.err)return head+'<p class="empty" style="padding:0">Sem conexão com o servidor. Suas mudanças ficam neste aparelho e são sincronizadas quando você abrir o site de novo com internet.</p></div>';
  if(DBr)return head+btns+`<p class="empty" style="padding:0">Conectado${FB.email?' como <strong>'+esc(FB.email)+'</strong>':''}. Seus dados ficam guardados na sua conta e só você tem acesso. Alterações feitas em aparelhos diferentes são mescladas item a item. "Enviar" e "Trazer" substituem o outro lado e pedem um segundo clique para confirmar.</p></div>`;
  return head+'<div class="bar"><button class="pill dark" data-a="fblogin">Entrar com o Google</button></div><p class="empty" style="padding:0">Sem entrar, os dados ficam só neste navegador. O Backup acima continua funcionando.</p></div>'};
 const jeq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
-function merge3(b,l,r,conflicts){
+function merge3(b,l,r,conflicts,path=[]){
  if(jeq(l,r))return l;if(jeq(b,l))return r;if(jeq(b,r))return l;
  if(Array.isArray(l)&&Array.isArray(r)){
   const ided=a=>Array.isArray(a)&&a.every(x=>x&&typeof x==='object'&&x.id!==undefined);
   if(ided(l)&&ided(r)&&(b===undefined||ided(b))){
    const B=new Map((b||[]).map(x=>[x.id,x])),L=new Map(l.map(x=>[x.id,x])),R=new Map(r.map(x=>[x.id,x])),out=[],seen=new Set();
    [...l,...r.filter(x=>!L.has(x.id))].forEach(x=>{const id=x.id;if(seen.has(id))return;seen.add(id);const bi=B.get(id),li=L.get(id),ri=R.get(id);
-    if(li&&ri)out.push(merge3(bi,li,ri,conflicts));else if(li){if(!bi||!jeq(bi,li))out.push(li)}else if(ri){if(!bi||!jeq(bi,ri))out.push(ri)}});
+    if(li&&ri)out.push(merge3(bi,li,ri,conflicts,[...path,{id}]));else if(li){if(!bi||!jeq(bi,li))out.push(li)}else if(ri){if(!bi||!jeq(bi,ri))out.push(ri)}});
    return out}
-  if(conflicts)conflicts.push(true);return l}
+  if(conflicts)conflicts.push({path,local:l,remote:r});return l}
  if(l&&r&&typeof l==='object'&&typeof r==='object'&&!Array.isArray(l)&&!Array.isArray(r)){
   const o={};new Set([...Object.keys(l),...Object.keys(r)]).forEach(k=>{const bi=b&&typeof b==='object'?b[k]:undefined,li=l[k],ri=r[k];
-   if(!(k in r)){if(!(bi!==undefined&&jeq(bi,li)))o[k]=li}else if(!(k in l)){if(!(bi!==undefined&&jeq(bi,ri)))o[k]=ri}else if(k==='updatedAt'&&l.id===r.id&&typeof l.b==='string'&&typeof r.b==='string'&&Number.isFinite(li)&&Number.isFinite(ri))o[k]=Math.max(li,ri);else o[k]=merge3(bi,li,ri,conflicts)});
+   if(!(k in r)){if(!(bi!==undefined&&jeq(bi,li)))o[k]=li}else if(!(k in l)){if(!(bi!==undefined&&jeq(bi,ri)))o[k]=ri}else if(k==='updatedAt'&&l.id===r.id&&typeof l.b==='string'&&typeof r.b==='string'&&Number.isFinite(li)&&Number.isFinite(ri))o[k]=Math.max(li,ri);else o[k]=merge3(bi,li,ri,conflicts,[...path,k])});
   return o}
- if(conflicts)conflicts.push(true);return l}
+ if(conflicts)conflicts.push({path,local:l,remote:r});return l}
+function conflictTarget(path){
+ let parent=S;
+ for(const part of path.slice(0,-1)){
+  parent=part&&typeof part==='object'?(Array.isArray(parent)?parent.find(x=>x.id===part.id):undefined):(parent&&Object.hasOwn(parent,part)?parent[part]:undefined);
+  if(!parent||typeof parent!=='object')return null;
+ }
+ const key=path.at(-1);return parent&&typeof key==='string'&&Object.hasOwn(parent,key)?{parent,key}:null;
+}
+function conflictStore(items){
+ const before=SY.conflicts;SY.conflicts=JSON.parse(JSON.stringify(items));
+ try{const {last,domLast,...meta}=SY;localStorage.setItem('hub-sync',JSON.stringify(meta));return true}catch(e){SY.conflicts=before;return false}
+}
+function conflictResolve(id,remote){
+ const items=SY.conflicts||[],c=items.find(x=>x.id===id);if(!c)return;
+ const target=conflictTarget(c.path);
+ if(remote&&(!target||!jeq(target.parent[target.key],c.local))){toast('O campo mudou desde o conflito. Confira o item atual antes de escolher.');return}
+ if(!snapPut('Antes de resolver conflito')){toast('Não foi possível guardar uma versão. Exporte um backup e libere espaço.');return}
+ const previous=target&&target.parent[target.key];
+ if(remote){target.parent[target.key]=JSON.parse(JSON.stringify(c.remote));if(!save()){target.parent[target.key]=previous;toast('Não foi possível salvar a escolha. O conflito foi mantido.');return}}
+ if(!conflictStore(items.filter(x=>x.id!==id))){toast('Não foi possível encerrar a conferência. O registro foi mantido.');return}
+ render();toast(remote?'Versão recebida aplicada.':'Valor atual mantido.');
+}
+function conflictPanel(){
+ const items=SY.conflicts||[];if(!items.length)return '';
+ return '<section><h3>Alterações para conferir ('+items.length+')</h3><p>O mesmo campo mudou em dois aparelhos. O valor local foi mantido na mesclagem. As versões completas estão em Backup; esta conferência fica neste aparelho.</p>'+items.map(c=>{
+  const target=conflictTarget(c.path),changed=!target||!jeq(target.parent[target.key],c.local),labels={tasks:'Tarefas',notes:'Notas',fin:'Finanças',tx:'Lançamentos',t:'Título',b:'Texto',v:'Valor',focus:'Foco do dia',events:'Agenda',due:'Prazo',hd:'Data planejada',done:'Concluído'},label=c.path.map(p=>typeof p==='object'?'Item '+p.id:(labels[p]||p)).join(' → '),show=v=>PRIV?'Conteúdo oculto':esc(typeof v==='string'?v:JSON.stringify(v));
+  return '<details><summary>'+esc(label)+'</summary><p data-priv-text><strong>Local no conflito:</strong> '+show(c.local)+'</p><p data-priv-text><strong>Recebido:</strong> '+show(c.remote)+'</p>'+(changed?'<p>O campo mudou ou o item foi removido. Abra a área de origem para conferir o valor atual.</p>':'')+'<div class="bar"><button class="pill" data-a="conflict-local" data-id="'+esc(c.id)+'">Manter valor atual</button><button class="pill" data-a="conflict-remote" data-id="'+esc(c.id)+'" '+(changed?'disabled':'')+'>Usar valor recebido</button></div></details>';
+ }).join('')+'</section>';
+}
 const applyState=o=>{SK.forEach(k=>{if(k in o)S[k]=o[k]});S.history=auditClean(S.history);applyTheme();if(typeof applyA11y==='function')applyA11y()};
 let remoteRenderPending=false;
 function remoteFormDirty(){return [...document.querySelectorAll('#main form:not(#ftk)')].some(f=>[...f.elements].some(x=>{if(x.tagName==='SELECT'){const d=[...x.options].find(o=>o.defaultSelected)||x.options[0];return !!d&&x.value!==d.value}if(/^(checkbox|radio)$/.test(x.type))return x.checked!==x.defaultChecked;return /^(text|search|number|date|time|url|textarea)$/i.test(x.type||'')&&x.value!==x.defaultValue}))}
@@ -95,7 +124,7 @@ async function pullRemote(m,replace){
  const cur=pickJSON(),dirty=cur!==SY.last,fresh=!SY.last&&SY.p&&cur===SY.p;
  if(!LOCAL_CORRUPT&&(replace||(dirty&&!fresh))&&!snapPut('Antes de receber dados de outro aparelho')){setSt('err','não foi possível criar uma versão local');toast('Não foi possível guardar a versão atual. Exporte um backup e libere espaço.');return false}
  if(replace||fresh||!dirty){applyState(r.remote);if(replace)LOCAL_CORRUPT=false;}
- else{const conflicts=[],merged=merge3(SY.last?JSON.parse(SY.last):{},pick(),r.remote,conflicts);if(conflicts.length&&!snapPut('Versão recebida com conflito',0,r.remote)){setSt('err','não foi possível guardar a versão recebida');toast('Não foi possível guardar a versão recebida. Exporte um backup e libere espaço.');return false}applyState(merged);toast(conflicts.length?'O mesmo campo mudou em dois aparelhos. Mantivemos o valor local; as duas versões estão em Backup.':'Alterações de outro aparelho foram mescladas. A versão anterior está em Backup.')}
+ else{const conflicts=[],merged=merge3(SY.last?JSON.parse(SY.last):{},pick(),r.remote,conflicts);if(conflicts.length&&!snapPut('Versão recebida com conflito',0,r.remote)){setSt('err','não foi possível guardar a versão recebida');toast('Não foi possível guardar a versão recebida. Exporte um backup e libere espaço.');return false}if(conflicts.length&&!conflictStore([...(SY.conflicts||[]),...conflicts.map(c=>({...c,id:uid(),at:Date.now()}))])){setSt('err','não foi possível guardar a conferência');return false}applyState(merged);toast(conflicts.length?'O mesmo campo mudou em dois aparelhos. Mantivemos o valor local; confira as versões em Backup → Sincronização.':'Alterações de outro aparelho foram mescladas. A versão anterior está em Backup.')}
  SY.rev=m.rev;SY.last=r.rj;SY.n=m.n||0;SY.domRevs=r.domRevs||null;SY.domLast=r.domLast||null;SY.domN=r.domN||null;SY.p='';saveSY(true);undoReset();after();return true}
 // pedaços de até n caracteres sem separar um emoji (par surrogate): metade solta vira "�" no Firestore
 const chunks=(s,n)=>{const p=[];for(let i=0;i<s.length;){let e=Math.min(i+n,s.length);if(e<s.length&&e-1>i&&/[\uD800-\uDBFF]/.test(s[e-1]))e--;p.push(s.slice(i,e));i=e}return p.length?p:['']};

@@ -93,7 +93,7 @@ O estado é inicializado em `js/core.js` e mesclado com o conteúdo local válid
 
 | Campo | Conteúdo principal |
 |---|---|
-| `tasks` | Tarefas com `id`, `t`, `done`, prioridade `p`, prazo `due`, data planejada `hd`, bloco opcional `bk`, `archived` e `seriesId` de recorrências novas. |
+| `tasks` | Tarefas com espera opcional (`wait`, `waitFor`, `waitReviewDate`), `id`, `t`, `done`, prioridade `p`, prazo `due`, data planejada `hd`, bloco opcional `bk`, `archived` e `seriesId` de recorrências novas. |
 | `events` | Compromissos com título `t`, data `d` e horário `h`. |
 | `notes`, `links`, `inbox` | Notas, atalhos e capturas pendentes. |
 | `habits` | Hábitos com `id`, nome `n` e registros `log` por data; `perWeek` opcional define a meta de 1 a 7 vezes por semana. Sem esse campo, o hábito é diário. |
@@ -228,3 +228,5 @@ flowchart LR
    - **Cenário 11:** simulação de rede lenta (atraso escalonado de 700 ms por `<script>`) com e sem login e sem internet.
    - **Cenário 12:** validação completa do PWA (`manifest.webmanifest`, ícones existentes, registro e ativação do `sw.js`, `VER` sincronizado com `?v=`, `<meta name="theme-color">` dinâmico, `#mobile-bar` fixa em 375 px e atalhos de URL `?v=hoje` / `?qa=fin`).
    - **Cenários de regressão:** cobertura específica de restauração completa de `SK`, entrada de datas brasileiras (`dtUp`/`dtSet`), desfazer pós-`snapRestore`, segurança XSS/`paste`, modo privacidade, `#mobile-sync-alert`, acessibilidade (`links()`, `rotina()`, Spotify `.sp-float`/`.sp-min`), desempenho (`dash()`, `financasMes()`, `render({save:false})`) e estante de livros + prateleira de filmes/séries (iTunes Search, largura proporcional, cabeceira, sorteador, nota vinculada e cache de pôsteres no `sw.js`).
+
+A elegibilidade para execução usa `taskReady()`, que exclui tarefas concluídas, pausadas por arquivamento e aguardando retorno. `taskPaused()` mantém o significado de arquivamento; a espera não é enviada à central de Arquivados. O cursor da conferência financeira usa a chave local de rascunho `finance-review`, separada por UID; não participa de `SK`, do backup nem da sincronização. As marcações `checked` permanecem no lançamento sincronizável.

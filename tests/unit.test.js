@@ -104,7 +104,7 @@ function createAppSandbox() {
     vm.runInContext(code, ctx, { filename: file });
   }
   return vm.runInContext(
-    '({ S, SY, save, saveSY, localStorage, esc, ds, fmt, withTimeout, taskPaused, goalTracks, storageSummary, saveUI, gzipStr, ungzipStr, gzipBin, ungzipVal, idbKey, diaArchiveYear, SK, DOMS, chunks, merge3, norm, num, simulatedCardCycle, simulatePurchase, parseFinNL, parseNL, parseCSV, parseOFX, finInit, applyRules, finArchiveYear, FC, dictCat, dictSub, histCat, invInit, invUsd, invUnitBrl, invValBrl, invParseSheetId, invExtractSheetPrices })',
+    '({ S, SY, save, saveSY, localStorage, esc, ds, fmt, withTimeout, taskPaused, taskWaiting, taskReady, waitingTasks, goalTracks, storageSummary, saveUI, gzipStr, ungzipStr, gzipBin, ungzipVal, idbKey, diaArchiveYear, SK, DOMS, chunks, merge3, conflictTarget, conflictStore, norm, num, simulatedCardCycle, simulatePurchase, parseFinNL, parseNL, parseCSV, parseOFX, finInit, applyRules, finArchiveYear, FC, dictCat, dictSub, histCat, invInit, invUsd, invUnitBrl, invValBrl, invParseSheetId, invExtractSheetPrices })',
     ctx
   );
 }
@@ -538,4 +538,35 @@ test('core: save() despeja snapshots antigos ao atingir QuotaExceededError e res
     if (prevHub === null) app.localStorage.removeItem('hub-v1');
     else app.localStorage.setItem('hub-v1', prevHub);
   }
+});
+
+
+test('sync: conflito identifica o campo pelo ID mesmo após reordenar itens', () => {
+ const a=createAppSandbox(), conflicts=[];
+ a.S.tasks=a.merge3({tasks:[{id:'a',t:'Base'}]},{tasks:[{id:'a',t:'Local'}]},{tasks:[{id:'a',t:'Remoto'}]},conflicts).tasks;
+ assert.equal(conflicts.length,1);
+ assert.equal(JSON.stringify(conflicts[0].path),JSON.stringify(['tasks',{id:'a'},'t']));
+ a.S.tasks.unshift({id:'b',t:'Outro'});
+ const target=a.conflictTarget(conflicts[0].path);
+ assert.equal(target.parent.id,'a');assert.equal(target.parent[target.key],'Local');
+ a.S.tasks=[];assert.equal(a.conflictTarget(conflicts[0].path),null);
+});
+test('sync: falha ao guardar conferência preserva registros anteriores', () => {
+ const a=createAppSandbox();assert.equal(a.conflictStore([{id:'old'}]),true);
+ const original=a.localStorage.setItem;a.localStorage.setItem=()=>{throw Error('quota')};
+ assert.equal(a.conflictStore([{id:'new'}]),false);assert.equal(a.SY.conflicts[0].id,'old');
+ a.localStorage.setItem=original;
+});
+
+test('sync: conferência preserva valores originais de listas editadas depois', () => {
+ const a=createAppSandbox(),local=['original'];a.conflictStore([{id:'array',local,remote:['remoto']}]);local.push('edição');
+ assert.equal(a.SY.conflicts[0].local.length,1);
+});
+
+test('tarefas: espera preserva elegibilidade, revisão e mesclagem independente', () => {
+ const a=createAppSandbox(),task={id:'w',t:'Retorno',done:false,due:'2026-01-01',hd:'2026-01-01',wait:true,waitFor:'Fornecedor',waitReviewDate:'2026-01-03'};
+ assert.equal(a.taskReady(task),false);assert.equal(a.taskPaused(task),false);assert.equal(a.taskWaiting(task),true);
+ assert.equal(a.taskReady({...task,wait:false}),true);assert.equal(a.taskReady({...task,done:true}),false);
+ const base={tasks:[{...task,wait:false}]},local={tasks:[task]},remote={tasks:[{...base.tasks[0],t:'Novo título'}]},m=a.merge3(base,local,remote,[]);
+ assert.equal(m.tasks[0].wait,true);assert.equal(m.tasks[0].t,'Novo título');assert.equal(m.tasks[0].due,task.due);assert.equal(m.tasks[0].hd,task.hd);
 });

@@ -132,6 +132,40 @@ async function main() {
 
   const backupDecision = `(async()=>{const end=Date.now()+3000;let button;while(!(button=document.querySelector('[data-a=backup-apply]'))&&Date.now()<end)await new Promise(r=>setTimeout(r,25));if(!button)throw Error('Confirmação do backup ausente: '+document.querySelector('#bkmsg')?.textContent);button.click()})()`;
   const scenarios = [
+    ['conferência guiada avisa falha de posição e preserva marcação quando salvar falha', async () => {
+      await fresh();await login('A');const r=await ev(`(()=>{const F=finInit(),ac=F.acc[0].id;F.tx=[{id:'a',t:'Mercado',d:T,k:'out',v:10,ac}];S.view='financas';S.ftab='lanc';S.fvw='mes';S.fac='';S.fmo=0;const original=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k.includes('finance-review')||k==='hub-v1')throw new Error('sem espaço');return original.call(this,k,v)};try{financeReviewStart(T.slice(0,7),'');render({save:false});const warning=document.querySelector('[data-finance-review-session]').textContent.includes('somente enquanto esta página');document.querySelector('[data-a=finance-review-check]').click();return {warning,checked:!!F.tx[0].checked,pending:financeReviewRows(financeReviewState()).length}}finally{Storage.prototype.setItem=original}})()`);assert.deepEqual(r,{warning:true,checked:false,pending:1});
+    }],
+    ['espera futura não alerta e impede encaixe iniciado antes de esperar', async () => {
+      await fresh();await login('A');const r=await ev(`(()=>{S.tasks=[{id:'w',t:'Esperar retorno',done:false,p:'m',due:T,wait:true,waitReviewDate:ds(add(today,1))}];S.rem={on:true,tk:true,fat:false,hab:false};S.view='agenda';S.mode='week';render();const hidden=waitingTasks(true).length===0&&!attention().some(x=>x.id==='w');DR={k:'tp',id:'w'};document.querySelector('[data-day]').dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true}));const notPlanned=!S.tasks[0].bk;S.tasks[0].waitReviewDate=T;return {hidden,notPlanned,due:waitingTasks(true).length===1}})()`);assert.ok(Object.values(r).every(Boolean),JSON.stringify(r));
+    }],
+
+    ['espera e conferência guiada cabem no celular e respeitam privacidade', async () => {
+      await fresh();await login('A');await b.send('Emulation.setDeviceMetricsOverride',{width:320,height:812,deviceScaleFactor:1,mobile:true});
+      try{
+        const r=await ev(`(()=>{document.documentElement.style.fontSize='200%';S.view='hoje';S.tasks=[{id:'w',t:'Retorno do orçamento para a reforma do apartamento',done:false,p:'m',wait:true,waitFor:'Fornecedor de materiais para revisão da cozinha e do escritório',waitReviewDate:T}];render();const waitOverflow=document.documentElement.scrollWidth>innerWidth+1;const F=finInit(),ac=F.acc[0].id;F.tx=[{id:'a',t:'Descrição'.repeat(20),d:T,k:'out',v:987.65,ac}];S.view='financas';S.ftab='lanc';S.fvw='mes';S.fmo=0;S.fac='';financeReviewStart(T.slice(0,7),'');render();const financeOverflow=document.documentElement.scrollWidth>innerWidth+1;PRIV=true;setPriv();render();const panel=document.querySelector('[data-finance-review-session]');const masked=!panel.textContent.includes('987,65')&&getComputedStyle(panel.querySelector('[data-priv-text]')).filter!=='none';PRIV=false;setPriv();return {waitOverflow,financeOverflow,masked}})()`);assert.deepEqual(r,{waitOverflow:false,financeOverflow:false,masked:true});
+        if(process.env.NEXT_CAPTURE){
+          await ev(`document.documentElement.style.fontSize='100%';S.view='hoje';render();document.querySelector('[data-waiting-tasks]').scrollIntoView()`);await sleep(250);const wait=await b.send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.NEXT_CAPTURE+'-espera.png',Buffer.from(wait.result.data,'base64'));
+          await ev(`S.view='financas';render();document.querySelector('[data-finance-review-session]').scrollIntoView()`);await sleep(250);const review=await b.send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.NEXT_CAPTURE+'-conferencia.png',Buffer.from(review.result.data,'base64'));
+        }
+      }finally{await ev(`document.documentElement.style.fontSize='';PRIV=false;setPriv()`);await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
+
+    ['Aguardando preserva prazo e plano, sai da execução e retorna na revisão', async () => {
+      await fresh();await login('A');const r=await ev(`(()=>{S.tasks=[{id:'w',t:'Retorno do orçamento',done:false,p:'m',due:T,hd:T,bk:{d:T,h:'10:00'},dur:30}];S.view='tarefas';S.filter='all';ED={t:'tk',id:'w'};render();const f=document.querySelector('#ftk-edit');f.elements.wait.value='yes';f.elements.waitFor.value='Fornecedor';f.elements.waitReviewDate.value=T;submitTask(f,true);const t=S.tasks[0],load=dayLoad(T);S.view='hoje';render();const visible=!!document.querySelector('[data-waiting-tasks]'),priority=document.querySelector('[data-today-priority]').textContent.includes(t.t);S.rem={tk:true,on:true,fat:false,hab:false};const alerts=attention().filter(a=>a.id==='w');S.view='tarefas';S.filter='waiting';render();return {preserved:t.due===T&&t.hd===T&&t.bk.h==='10:00',load:load.tot,visible,priority,alerts:alerts.length,wait:alerts[0]?.s,listed:!!document.querySelector('[data-lid="tk:w"]'),valid:validBackup(pick())}})()`);assert.ok(r.preserved&&r.visible&&r.listed&&r.valid);assert.strictEqual(r.load,0);assert.strictEqual(r.priority,false);assert.strictEqual(r.alerts,1);assert.match(r.wait,/Revisar espera/);
+      await b.send('Page.reload');await sleep(800);const resumed=await ev(`(()=>{S.view='hoje';render();const before=S.tasks[0].wait;document.querySelector('[data-a=task-resume]').click();return {before,wait:S.tasks[0].wait,ready:taskReady(S.tasks[0]),due:S.tasks[0].due===T,load:dayLoad(T).tot}})()`);assert.ok(resumed.before&&resumed.ready&&resumed.due);assert.strictEqual(resumed.wait,false);assert.strictEqual(resumed.load,30);
+    }],
+    ['Aguardando exige revisão, preserva rascunho e não contamina próxima recorrência', async () => {
+      await fresh();await login('A');const r=await ev(`(()=>{S.view='tarefas';render();let f=document.querySelector('#ftk');f.elements.t.value='Esperar retorno';f.elements.wait.value='yes';f.elements.waitFor.value='Maria';captureTaskDraft(f);submitTask(f,false);const rejected=!S.tasks.some(t=>t.t==='Esperar retorno');render();f=document.querySelector('#ftk');const draft=f.elements.wait.value==='yes'&&f.elements.waitFor.value==='Maria';f.elements.waitReviewDate.value=T;submitTask(f,false);const t=S.tasks.find(t=>t.t==='Esperar retorno');t.rc='w';t.due=T;completeTask(t,true);const next=S.tasks.find(x=>x.id!==t.id&&x.seriesId===t.id);return {rejected,draft,valid:validBackup(pick()),nextReady:taskReady(next),nextWait:next.wait,bad:validBackup({...pick(),tasks:[{...t,waitReviewDate:'2026-02-31'}]})}})()`);assert.ok(r.rejected&&r.draft&&r.valid&&r.nextReady);assert.strictEqual(r.nextWait,false);assert.strictEqual(r.bad,false);
+    }],
+    ['conferência guiada retoma após recarga, preserva saldo e rejeita valor alterado', async () => {
+      await fresh();await login('A');const r=await ev(`(()=>{const F=finInit(),ac=F.acc[0].id;F.tx=[{id:'a',t:'Mercado',d:T,k:'out',ac,v:10},{id:'b',t:'Farmácia',d:T,k:'out',ac,v:20},{id:'future',t:'Agendado',d:ds(add(today,1)),k:'out',ac,v:50}];S.view='financas';S.ftab='lanc';S.fvw='mes';S.fmo=0;S.fac='';render();document.querySelector('[data-a=finance-review-start]').click();const first=document.querySelector('[data-a=finance-review-check]');F.tx[0].v=11;first.click();const protectedValue=!F.tx[0].checked;document.querySelector('[data-a=finance-review-check]').click();const checked=F.tx[0].checked;document.querySelector('[data-a=finance-review-pause]').click();return {protectedValue,checked,paused:financeReviewState().paused,cursor:financeReviewState().cursor,total:F.tx.reduce((s,t)=>s+t.v,0)}})()`);assert.ok(r.protectedValue&&r.checked&&r.paused);assert.strictEqual(r.cursor,'b');assert.strictEqual(r.total,81);
+      await b.send('Page.reload');await sleep(800);const r2=await ev(`(()=>{S.view='financas';S.ftab='lanc';S.fmo=0;S.fac='';render();const retained=financeReviewState().cursor==='b';document.querySelector('[data-a=finance-review-start]').click();const next=document.querySelector('[data-a=finance-review-check]').dataset.id;document.querySelector('[data-a=finance-review-check]').click();return {retained,next,done:document.querySelector('[data-finance-review-session]').textContent.includes('Nenhum lançamento'),future:!!finInit().tx.find(t=>t.id==='future').checked,total:finInit().tx.reduce((s,t)=>s+t.v,0)}})()`);assert.ok(r2.retained&&r2.done);assert.strictEqual(r2.next,'b');assert.strictEqual(r2.future,false);assert.strictEqual(r2.total,81);
+    }],
+    ['conferência guiada separa contas de acesso e mantém itens para depois', async () => {
+      await fresh();await login('A');await ev(`(()=>{const F=finInit(),ac=F.acc[0].id;F.tx=[{id:'a',t:'Um',d:T,k:'out',v:1,ac},{id:'b',t:'Dois',d:T,k:'out',v:2,ac}];S.view='financas';S.ftab='lanc';S.fvw='mes';S.fac='';S.fmo=0;financeReviewStart(T.slice(0,7),'');render();document.querySelector('[data-a=finance-review-skip]').click();save()})()`);assert.strictEqual(await ev('financeReviewState().cursor'),'b');assert.ok(await ev('finInit().tx.every(t=>!t.checked)'));
+      await ev('fbLogout()');await waitFor('!FB.on','sair A');await login('B');assert.strictEqual(await ev('financeReviewState()'),null);await ev('fbLogout()');await waitFor('!FB.on','sair B');await login('A');assert.strictEqual(await ev('financeReviewState().cursor'),'b');
+    }],
+
     ["Hoje mostra próximos passos ativos uma única vez e preserva o prazo", async () => {
       await fresh(); await login('A');
 const result=await ev(`(()=>{S.tasks=[{id:'t',t:'Revisar orçamento',p:'m',due:ds(add(today,3))},{id:'paused',t:'Pausada',archived:true}];S.projects=[{id:'p',t:'Reforma',status:'active',nextTask:'t',refs:[{id:'tk:t'}]},{id:'q',t:'Arquivo',status:'active',nextTask:'paused',refs:[{id:'tk:paused'}]}];S.tasks.unshift(...Array.from({length:61},(_,i)=>({id:'outro'+i,t:'Outra '+i,done:false})));S.view='hoje';render();const section=document.querySelector('[data-project-steps]');if(!section)return null;section.querySelector('[data-a=lkgo]').click();const opened=!!document.querySelector('[data-lid="tk:t"]');S.view='hoje';render();document.querySelector('[data-project-steps] [data-a=plan]').click();const task=S.tasks.find(t=>t.id==='t');return {opened,before:section.innerText,after:document.querySelector('.hero').innerText,due:task.due,expected:ds(add(today,3)),planned:task.hd===T,remaining:!!document.querySelector('[data-project-steps]')}})()`);
@@ -286,7 +320,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
         context.querySelector('[data-a=context-pin]').click();
         return {visible,linked:lkOf('tk:a'),saved:S.rev[week].step_tasks===true,progress};
       })()`);
-      assert.ok(r.visible&&r.saved);assert.deepEqual(r.linked,['nt:n']);assert.match(r.progress,/1 de 4/);
+      assert.ok(r.visible&&r.saved);assert.deepEqual(r.linked,['nt:n']);assert.match(r.progress,/1 de 5/);
     }],
     ['evolução MeuHub: confirma associação do extrato e preserva a despesa', async () => {
       await fresh();await login('A');
@@ -1610,6 +1644,26 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       const r=await ev(`(()=>{const base={notes:[{id:'l',kind:'shopping',items:[{id:'a',t:'Arroz',done:false},{id:'b',t:'Feijão',done:false}]}]},a=JSON.parse(JSON.stringify(base)),b=JSON.parse(JSON.stringify(base));a.notes[0].items[0].done=true;b.notes[0].items[1].done=true;return merge3(base,a,b).notes[0].items})()`);
       assert.ok(r.every(x=>x.done));
     }],
+    ['conferência de conflito aplica campo, preserva versão e bloqueia item alterado', async () => {
+      await fresh();await login('A');
+      const r=await ev(`(()=>{S.tasks=[{id:'t',t:'Local',done:false}];const c={id:'c1',path:['tasks',{id:'t'},'t'],local:'Local',remote:'Recebido'};conflictStore([c]);S.view='backup';render();const shown=!!document.querySelector('[data-a="conflict-remote"]');document.querySelector('[data-a="conflict-remote"]').click();const applied=S.tasks[0].t==='Recebido'&&!SY.conflicts.length;const kept=snaps().some(x=>JSON.parse(x.j).tasks.some(t=>t.id==='t'&&t.t==='Local'));conflictStore([{...c,id:'c2'}]);S.tasks[0].t='Editada depois';render();const blocked=document.querySelector('[data-a="conflict-remote"]').disabled;conflictResolve('c2',true);const untouched=S.tasks[0].t==='Editada depois'&&SY.conflicts.length===1;conflictResolve('c2',false);return {shown,applied,kept,blocked,untouched,cleared:!SY.conflicts.length}})()`);
+      assert.ok(Object.values(r).every(Boolean),JSON.stringify(r));
+      if(process.env.CONFLICT_CAPTURE){
+        await ev(`(()=>{S.tasks=[{id:'t',t:'Local',done:false}];conflictStore([{id:'visual',path:['tasks',{id:'t'},'t'],local:'Organizar documentos para a revisão do projeto',remote:'Conferir documentos e comprovantes antes da revisão semanal'}]);S.view='backup';render();document.querySelector('[data-a="conflict-remote"]').closest('details').open=true;document.querySelector('[data-a="conflict-remote"]').closest('section').scrollIntoView()})()`);
+        await b.send('Emulation.setDeviceMetricsOverride',{width:375,height:812,deviceScaleFactor:1,mobile:true});
+        await ev(`document.querySelector('[data-a="conflict-remote"]').closest('section').scrollIntoView()`);await sleep(200);
+        const shot=await b.send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.CONFLICT_CAPTURE,Buffer.from(shot.result.data,'base64'));
+        await b.send('Emulation.clearDeviceMetricsOverride');
+      }
+    }],
+    ['conferência de conflito persiste e fica separada por conta', async () => {
+      await fresh();await login('A');
+      await ev(`(()=>{S.focus='Local';conflictStore([{id:'persist',path:['focus'],local:'Local',remote:'Texto privado recebido'}]);save();})()`);
+      await b.send('Page.reload');await sleep(800);
+      const r=await ev(`(()=>{S.view='backup';render();const restored=SY.conflicts.some(c=>c.id==='persist');PRIV=true;render();const hidden=!document.querySelector('#main').textContent.includes('Texto privado recebido');PRIV=false;return {restored,hidden}})()`);assert.ok(r.restored&&r.hidden);
+      await ev('fbLogout()');await waitFor('!FB.on','sair de A');await login('B');assert.strictEqual(await ev(`(SY.conflicts||[]).length`),0);
+      await ev('fbLogout()');await waitFor('!FB.on','sair de B');await login('A');assert.ok(await ev(`(SY.conflicts||[]).some(c=>c.id==='persist')`));
+    }],
     ['avisa quando o mesmo campo muda nos dois aparelhos', async () => {
       await fresh(); await login('A');
       const r=await ev(`(()=>{const conflicts=[];const result=merge3({t:'original'},{t:'local'},{t:'remoto'},conflicts);return {result,conflicts}})()`);
@@ -1925,7 +1979,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await fresh();await login('A');await addTask('t-existente');await waitCloud('A','t-existente');
       await ev(`(()=>{go('tarefas');const f=$('#ftk');f.querySelector('summary')?.click();for(const [name,value] of Object.entries({t:'t-Rascunho A',p:'a',due:'2026-12-04',dur:'45',pj:'Viagem',rc:'w',tg:'casa'})){const i=f.elements[name];i.value=value;i.dispatchEvent(new Event('change',{bubbles:true}))}go('agenda');go('tarefas')})()`);
       const fields=()=>ev(`Object.fromEntries(new FormData($('#ftk')))`);
-      assert.deepStrictEqual(await fields(),{t:'t-Rascunho A',p:'a',due:'2026-12-04',dur:'45',pj:'Viagem',rc:'w',tg:'casa'});
+      assert.deepStrictEqual(await fields(),{t:'t-Rascunho A',p:'a',due:'2026-12-04',dur:'45',pj:'Viagem',rc:'w',tg:'casa',wait:'',waitFor:'',waitReviewDate:''});
       await open();await ev("go('tarefas')");assert.strictEqual((await fields()).t,'t-Rascunho A');
       await ev(`(async()=>{const d=firebase.firestore(),c=__cloud(),m=c["data/users/A/hub-meta"],st=JSON.parse(c["data/users/A/hub-d-core-0"].s);
         st.tasks.push({id:'remote-a5',t:'Tarefa remota',done:false});const s=JSON.stringify(st),rev=m.rev+1;
@@ -1962,6 +2016,24 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
       await ev(`(()=>{const i=$('#ftk').elements.t;i.value='Descartar após editar';i.dispatchEvent(new Event('input',{bubbles:true}));$('[data-a="task-draft-discard"]').click();go('agenda');go('tarefas')})()`);
       assert.strictEqual((await fields()).t,'');
     }],
+    ['revisão escolhe próximo passo sem sair e oferece apenas tarefas disponíveis', async () => {
+      await fresh();await login('A');const r=await ev(`(()=>{S.tasks=[{id:'a',t:'Pedir orçamento',p:'m',done:false,due:T},{id:'b',t:'Concluída',p:'m',done:true},{id:'c',t:'Pausada',p:'m',archived:true},{id:'d',t:'Sem vínculo',p:'m',done:false}];S.projects=[{id:'p',t:'Reforma',status:'active',refs:[{id:'tk:a'},{id:'tk:b'},{id:'tk:c'}]}];S.view='hoje';render();const detail=document.querySelector('#review-project-p');document.querySelector('#weekly-review').open=true;detail.closest('[data-review-guide]').open=true;detail.open=true;const choices=[...detail.querySelectorAll('[data-a=project-next]')].map(b=>b.dataset.ref);detail.querySelector('[data-ref=a]').click();const result={choices,next:S.projects[0].nextTask,view:S.view,due:S.tasks[0].due,open:document.querySelector('#review-project-p').open};return result})()`);assert.deepEqual(r.choices,['a']);assert.strictEqual(r.next,'a');assert.strictEqual(r.view,'hoje');assert.ok(r.open);assert.ok(r.due);
+      if(process.env.REVIEW_CAPTURE){
+        await b.send('Emulation.setDeviceMetricsOverride',{width:375,height:812,deviceScaleFactor:1,mobile:true});await ev(`document.querySelector('#review-project-p').scrollIntoView()`);await sleep(250);const shot=await b.send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.REVIEW_CAPTURE,Buffer.from(shot.result.data,'base64'));await b.send('Emulation.clearDeviceMetricsOverride');
+      }
+    }],
+    ['controles recolhidos preservam filtro, atalho e edição da Agenda', async () => {
+      await fresh();await login('A');const r=await ev(`(()=>{S.view='tarefas';S.tmode='list';S.filter='all';S.tasks=[];render();const filters=document.querySelector('#task-filters');filters.open=true;filters.querySelector('[data-a=filter][data-id=open]').click();const filterKept=document.querySelector('#task-filters').open&&document.querySelector('#task-filters summary').textContent.includes('Pendentes');focusForm('agenda','#fev');const focused=document.querySelector('#agenda-create').open&&document.activeElement===document.querySelector('#fev input');S.events=[{id:'edit-event',t:'Reunião',d:T,h:'10:00',c:'p'}];ED={t:'ev',id:'edit-event'};render();const editing=document.querySelector('#agenda-create').open&&document.querySelector('#fev').elements.t.value==='Reunião';return {filterKept,focused,editing}})()`);assert.ok(Object.values(r).every(Boolean),JSON.stringify(r));
+    }],
+    ['conteúdo de Tarefas e Agenda com texto ampliado', async () => {
+      await fresh();await login('A');await b.send('Emulation.setDeviceMetricsOverride',{width:320,height:812,deviceScaleFactor:1,mobile:true});
+      try{
+        const r=await ev(`(()=>{document.documentElement.style.fontSize='200%';S.onb=false;S.tasks=[{id:'mobile',t:'Tarefa para conferir',p:'m',done:false}];S.view='tarefas';S.tmode='list';S.filter='all';render();window.scrollTo(0,0);const task=document.querySelector('[data-lid="tk:mobile"]').getBoundingClientRect().top;S.view='agenda';S.mode='week';render();window.scrollTo(0,0);return {task,agenda:document.querySelector('#agenda-week').getBoundingClientRect().top,overflow:document.documentElement.scrollWidth>innerWidth+1}})()`);console.log('  conteúdo ampliado:',r);assert.ok(r.task<812&&r.agenda<812,JSON.stringify(r));assert.ok(!r.overflow);
+        if(process.env.MOBILE_CAPTURE){
+          await sleep(250);const shot=await b.send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.MOBILE_CAPTURE,Buffer.from(shot.result.data,'base64'));await ev(`S.view='tarefas';render();window.scrollTo(0,0)`);await sleep(250);const tasksShot=await b.send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(process.env.MOBILE_CAPTURE+'.tarefas.png',Buffer.from(tasksShot.result.data,'base64'));
+        }
+      }finally{await ev("document.documentElement.style.fontSize=''");await b.send('Emulation.clearDeviceMetricsOverride')}
+    }],
     ['A6: conteúdo diário e filtros do extrato cabem cedo na tela móvel', async () => {
       await fresh();await login('A');await b.send('Emulation.setDeviceMetricsOverride',{width:375,height:812,deviceScaleFactor:1,mobile:true});
       try{
@@ -1997,7 +2069,7 @@ assert.ok(result);assert.match(result.before,/Compra a/);assert.match(result.bef
           const visible=d=>{const lane=rail().querySelector('[data-day="'+d+'"]')?.getBoundingClientRect(),box=rail().getBoundingClientRect();return !!lane&&Math.min(lane.right,box.right)-Math.max(lane.left,box.left)>=lane.width-1};
           const todayVisible=visible(T);
           $('[data-a="mode"][data-id="month"]').click();$('[data-a="pick"][data-id="'+date+'"]')?.click();$('[data-a="mode"][data-id="week"]').click();const dayVisible=visible(date);
-          rail().scrollLeft=140;const before=rail().scrollLeft,button=$('[data-a="mode"][data-id="week"]');button.focus();renderKeepDraft({save:false});
+          document.querySelector('#agenda-display').open=true;rail().scrollLeft=140;const before=rail().scrollLeft,button=$('[data-a="mode"][data-id="week"]');button.focus();renderKeepDraft({save:false});
           const preserved=rail().scrollLeft===before&&document.activeElement===$('[data-a="mode"][data-id="week"]');
           $('[data-a="nav"][data-n="1"]').click();const next=!rail().querySelector('[data-day="'+date+'"]')&&rail().scrollLeft===0;
           const nextStart=rail().dataset.start;

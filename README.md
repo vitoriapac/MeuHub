@@ -178,3 +178,15 @@ O roteiro de recuperação entre aparelhos usa uma conta exclusiva de teste e da
 ### Leituras e filmes (Estante)
 
 Em **Leituras e mídia → Estante**, livros concluídos aparecem em lombadas com largura proporcional às páginas (`r.pages`) e destaque para notas máximas (`★ 5`), e filmes e séries concluídos contam com **Prateleira de filmes e séries** alternável entre modo Pôster (`2:3`) e Lombadas, além da faixa superior **"Na cabeceira agora"** para acompanhar e concluir itens em andamento (`+10 pág.` / `+1 ep.` / `Concluir`). É possível buscar capas na Open Library (livros) e pôsteres na iTunes Search API pública com fallback na Wikipédia PT/EN (filmes e séries), ajustar manualmente a cor ou URL da imagem, filtrar por tipo (`Livros`, `Filmes`, `Séries`), ano ou nota, sortear o próximo título da fila **Quero** direto na coleção ou na estante e criar notas já vinculadas do painel de detalhes.
+
+### Conferir conflitos entre aparelhos
+
+Em **Backup → Sincronização entre aparelhos**, conflitos novos mostram o campo e os valores local e recebido. Escolha **Manter valor atual** ou **Usar valor recebido**. Se o campo mudou depois do conflito, o uso do recebido fica bloqueado para preservar a edição mais recente. Uma versão completa é guardada antes de resolver. A conferência fica neste aparelho, separada por conta, e não integra o backup exportado; as versões completas continuam disponíveis nas versões automáticas. O modo Privacidade oculta os valores da comparação.
+
+Em Tarefas, **Visualização e filtros** mostra o escopo atual e reúne os filtros; a ordenação por prazo fica em Configurações e ferramentas, após a lista. Na Agenda, **Visualização** escolhe dia, semana ou mês, e **Novo evento** abre o formulário. O atalho E abre e foca a criação; editar um evento também abre o formulário. Na revisão semanal, **Escolher próximo passo** oferece as tarefas pendentes e ativas já vinculadas ao projeto. É possível trocar ou retirar a escolha sem sair da revisão.
+
+### Esperas e conferência financeira
+
+Em **Tarefas → Opções da tarefa → Aguardando retorno**, escolha a situação Aguardando, informe opcionalmente de quem ou do que depende e escolha a data de revisão. Prazo, planejamento e vínculos são preservados. A tarefa fica disponível no filtro Aguardando e na busca; sai das sugestões, do encaixe e da carga diária. Ela aparece na revisão semanal e, a partir da data escolhida, em Hoje e nos lembretes de tarefas quando ativados. **Retomar tarefa** a torna disponível novamente. Concluir uma recorrência não transmite a espera à próxima ocorrência.
+
+Em **Finanças → Lançamentos → Filtros → Conferir este mês**, confira os registros do mês e da conta selecionados até hoje. Busca, categoria e tipo não restringem esse percurso. **Conferido, próximo** marca o registro e avança; **Ver depois** avança sem marcar. É possível pausar e retomar após recarregar neste aparelho. A posição é local, separada por conta de acesso e fora do backup; as marcações dos lançamentos acompanham backup e sincronização. Conferir não altera valores nem saldos. Se o lançamento mudar durante a conferência, será preciso conferir os dados atualizados.
